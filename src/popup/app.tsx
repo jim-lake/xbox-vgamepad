@@ -1,5 +1,5 @@
 function App() {
-  return <div>Xbox Virtual Gamepad V2</div>;
+  return <div>Xbox Virtual Gamepad V5</div>;
 }
 
 export default App;

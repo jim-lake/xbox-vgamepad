@@ -9,7 +9,16 @@
     "type": "module"
   },
   "content_scripts": [
-    { "matches": ["<all_urls>"], "js": ["src/content/index.ts"] }
+    {
+      "matches": [
+        "*://*.xbox.com/*",
+        "https://gamepad-tester.com/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "http://localhost:5173/*"
+      ],
+      "js": ["src/content/index.ts"]
+    }
   ],
   "permissions": [],
   "icons": {
