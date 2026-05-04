@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Xbox Virtual Gamepad",
+  "version": "0.0.1",
+  "description": "Xbox virtual gamepad Chrome extension",
+  "action": { "default_popup": "src/popup/index.html" },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["src/content/index.ts"] }
+  ],
+  "permissions": [],
+  "icons": {
+    "16": "src/assets/img/icon16.png",
+    "48": "src/assets/img/icon48.png",
+    "128": "src/assets/img/icon128.png"
+  }
+}
