@@ -19,6 +19,7 @@ dpadUp:12  dpadDown:13  dpadLeft:14  dpadRight:15  home:16
 Determine stick number from prefix: starts with `'l'` → stick 0 (left), otherwise → stick 1 (right).
 
 Determine direction from suffix after stripping `left/rightStick` prefix:
+
 - `Up` → UP (value -1, Y axis)
 - `Down` → DOWN (value +1, Y axis)
 - `Left` → LEFT (value -1, X axis)
@@ -27,6 +28,7 @@ Determine direction from suffix after stripping `left/rightStick` prefix:
 ### Processing Rules
 
 For each field in keyConfig:
+
 1. Normalize the value to an array (string → `[string]`, undefined → skip, array → as-is)
 2. For each key code in the array:
    - **Reject** if the code is `"Escape"` (log error, skip this binding)
@@ -47,11 +49,11 @@ Invalid configs should be rejected but must not crash the extension. Log errors 
 
 Three special string values represent mouse actions (not keyboard keys):
 
-| Code | Trigger |
-|------|---------|
-| `"Click"` | Left mouse button (button 0) |
+| Code           | Trigger                       |
+| -------------- | ----------------------------- |
+| `"Click"`      | Left mouse button (button 0)  |
 | `"RightClick"` | Right mouse button (button 2) |
-| `"Scroll"` | Mouse scroll wheel |
+| `"Scroll"`     | Mouse scroll wheel            |
 
 These can appear anywhere a key code string can appear (as a single string or in an array).
 

@@ -16,10 +16,13 @@ Communication between the injected script and the content script uses `window.po
 The extension determines whether the user is currently in a game:
 
 ### Non-Xbox Pages (e.g. gamepad-tester.com)
+
 If the URL does **not** contain `'xbox.com'`, the page is always considered "in game". This allows the extension to work on gamepad-tester.com for testing.
 
 ### Xbox Pages
+
 On xbox.com, the page is "in game" when ALL of these are true:
+
 - No `<h1>` element exists (h1 indicates error/sign-in pages)
 - No element matching `[data-id='ui-container'] [aria-label='Close']` exists (close button indicates game overlay/menu)
 - An element with `id="game-stream"` exists (the actual game stream container)
@@ -31,6 +34,7 @@ isInGame = !h1 && !closeBtn && !!streamDiv
 ## Game Name Detection
 
 Extracts the game name from `document.title` by splitting on the regex `/\s+\|/`:
+
 - If exactly 2 parts, the first part is the game name (e.g. "Halo Infinite" from "Halo Infinite | Xbox Cloud Gaming...")
 - Returns `null` if no match
 
@@ -39,10 +43,12 @@ Extracts the game name from `document.title` by splitting on the regex `/\s+\|/`
 Both phases poll at **1000ms** intervals. Only one polling loop runs at a time.
 
 ### Phase 1: Wait for Game
+
 - Polls the game detection check every 1 second
 - When a game is detected: transition to Phase 2
 
 ### Phase 2: Connected to Game
+
 1. Send `INITIALIZED` message (with gameName) to content script via `window.postMessage`
 2. Set up a message listener for responses from the content script
 3. Handle incoming messages:
@@ -53,13 +59,14 @@ Both phases poll at **1000ms** intervals. Only one polling loop runs at a time.
 
 ## Message Types
 
-| Type | Direction | Payload | Purpose |
-|------|-----------|---------|---------|
-| `INJECTED` | content → background | none | "Content script loaded, enable toolbar button" |
-| `INITIALIZED` | page → content → background | `gameName: string \| null` | "Game detected, send me config" |
-| `GAME_CHANGED` | page → content → background | `gameName: string \| null` | "Game changed or exited" |
-| `ACTIVATE_GAMEPAD_CONFIG` | background → content → page | `name: string, gamepadConfig: GamepadConfig` | "Use this config" |
-| `DISABLE_GAMEPAD` | background → content → page | none | "Disable virtual gamepad" |
+| Type                      | Direction                   | Payload                                      | Purpose                                        |
+| ------------------------- | --------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| `INJECTED`                | content → background        | none                                         | "Content script loaded, enable toolbar button" |
+| `INITIALIZED`             | page → content → background | `gameName: string \| null`                   | "Game detected, send me config"                |
+| `GAME_CHANGED`            | page → content → background | `gameName: string \| null`                   | "Game changed or exited"                       |
+| `ACTIVATE_GAMEPAD_CONFIG` | background → content → page | `name: string, gamepadConfig: GamepadConfig` | "Use this config"                              |
+| `DISABLE_GAMEPAD`         | background → content → page | none                                         | "Disable virtual gamepad"                      |
 
 ### Fallback Behavior
+
 When constructing an `ACTIVATE_GAMEPAD_CONFIG` message: if the preset name or config is null/falsy, a `DISABLE_GAMEPAD` message must be sent instead. This ensures the extension disables itself if no active config exists.

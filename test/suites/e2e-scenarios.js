@@ -36,80 +36,74 @@ module.exports = async function ({
 
   console.log('  [E2E Scenario - FPS Movement Pattern]');
 
-  await assert(
-    'WASD movement + button presses simultaneously',
-    async () => {
-      await releaseAll(page);
-      await new Promise((r) => setTimeout(r, 200));
+  await assert('WASD movement + button presses simultaneously', async () => {
+    await releaseAll(page);
+    await new Promise((r) => setTimeout(r, 200));
 
-      // Move forward-right (W+D) while pressing A button (Space) and right shoulder (Q)
-      await page.keyboard.down('w');
-      await page.keyboard.down('d');
-      await page.keyboard.down('Space');
-      await page.keyboard.down('q');
+    // Move forward-right (W+D) while pressing A button (Space) and right shoulder (Q)
+    await page.keyboard.down('w');
+    await page.keyboard.down('d');
+    await page.keyboard.down('Space');
+    await page.keyboard.down('q');
 
-      await waitForAxis(page, 1, 'lt', -0.5);
-      await waitForAxis(page, 0, 'gt', 0.5);
-      await waitForButton(page, 0, true);
-      await waitForButton(page, 5, true);
+    await waitForAxis(page, 1, 'lt', -0.5);
+    await waitForAxis(page, 0, 'gt', 0.5);
+    await waitForButton(page, 0, true);
+    await waitForButton(page, 5, true);
 
-      const axes = await getAxesStates(page);
-      expect(axes[0]).toBe(1);
-      expect(axes[1]).toBe(-1);
+    const axes = await getAxesStates(page);
+    expect(axes[0]).toBe(1);
+    expect(axes[1]).toBe(-1);
 
-      // Release in realistic order
-      await page.keyboard.up('q');
-      await waitForButton(page, 5, false);
-      expect((await getButtonStates(page))[0]).toBeTrue();
+    // Release in realistic order
+    await page.keyboard.up('q');
+    await waitForButton(page, 5, false);
+    expect((await getButtonStates(page))[0]).toBeTrue();
 
-      await page.keyboard.up('Space');
-      await waitForButton(page, 0, false);
+    await page.keyboard.up('Space');
+    await waitForButton(page, 0, false);
 
-      // Still moving
-      expect((await getAxesStates(page))[0]).toBe(1);
-      expect((await getAxesStates(page))[1]).toBe(-1);
+    // Still moving
+    expect((await getAxesStates(page))[0]).toBe(1);
+    expect((await getAxesStates(page))[1]).toBe(-1);
 
-      await page.keyboard.up('w');
-      await page.keyboard.up('d');
-      await waitForAxesCentered(page);
-    }
-  );
+    await page.keyboard.up('w');
+    await page.keyboard.up('d');
+    await waitForAxesCentered(page);
+  });
 
   console.log('  [E2E Scenario - Fighting Game Combo]');
 
-  await assert(
-    'rapid sequential button presses (combo input)',
-    async () => {
-      await releaseAll(page);
-      await new Promise((r) => setTimeout(r, 200));
+  await assert('rapid sequential button presses (combo input)', async () => {
+    await releaseAll(page);
+    await new Promise((r) => setTimeout(r, 200));
 
-      // down, down-right, right, A
-      await page.keyboard.down('ArrowDown');
-      await waitForButton(page, 13, true);
-      await page.keyboard.up('ArrowDown');
-      await waitForButton(page, 13, false);
+    // down, down-right, right, A
+    await page.keyboard.down('ArrowDown');
+    await waitForButton(page, 13, true);
+    await page.keyboard.up('ArrowDown');
+    await waitForButton(page, 13, false);
 
-      await page.keyboard.down('ArrowDown');
-      await page.keyboard.down('ArrowRight');
-      await waitForButton(page, 13, true);
-      await waitForButton(page, 15, true);
-      await page.keyboard.up('ArrowDown');
-      await waitForButton(page, 13, false);
-      expect((await getButtonStates(page))[15]).toBeTrue();
-      await page.keyboard.up('ArrowRight');
-      await waitForButton(page, 15, false);
+    await page.keyboard.down('ArrowDown');
+    await page.keyboard.down('ArrowRight');
+    await waitForButton(page, 13, true);
+    await waitForButton(page, 15, true);
+    await page.keyboard.up('ArrowDown');
+    await waitForButton(page, 13, false);
+    expect((await getButtonStates(page))[15]).toBeTrue();
+    await page.keyboard.up('ArrowRight');
+    await waitForButton(page, 15, false);
 
-      await page.keyboard.down('ArrowRight');
-      await waitForButton(page, 15, true);
-      await page.keyboard.up('ArrowRight');
-      await waitForButton(page, 15, false);
+    await page.keyboard.down('ArrowRight');
+    await waitForButton(page, 15, true);
+    await page.keyboard.up('ArrowRight');
+    await waitForButton(page, 15, false);
 
-      await page.keyboard.down('Space');
-      await waitForButton(page, 0, true);
-      await page.keyboard.up('Space');
-      await waitForButton(page, 0, false);
-    }
-  );
+    await page.keyboard.down('Space');
+    await waitForButton(page, 0, true);
+    await page.keyboard.up('Space');
+    await waitForButton(page, 0, false);
+  });
 
   console.log('  [E2E Scenario - Strafing With Direction Changes]');
 
@@ -138,43 +132,40 @@ module.exports = async function ({
 
   console.log('  [E2E Scenario - Menu Navigation]');
 
-  await assert(
-    'D-pad navigation with select/start works',
-    async () => {
-      await releaseAll(page);
-      await new Promise((r) => setTimeout(r, 200));
+  await assert('D-pad navigation with select/start works', async () => {
+    await releaseAll(page);
+    await new Promise((r) => setTimeout(r, 200));
 
-      await page.keyboard.down('ArrowDown');
-      await waitForButton(page, 13, true);
-      await page.keyboard.up('ArrowDown');
-      await waitForButton(page, 13, false);
+    await page.keyboard.down('ArrowDown');
+    await waitForButton(page, 13, true);
+    await page.keyboard.up('ArrowDown');
+    await waitForButton(page, 13, false);
 
-      await page.keyboard.down('ArrowDown');
-      await waitForButton(page, 13, true);
-      await page.keyboard.up('ArrowDown');
-      await waitForButton(page, 13, false);
+    await page.keyboard.down('ArrowDown');
+    await waitForButton(page, 13, true);
+    await page.keyboard.up('ArrowDown');
+    await waitForButton(page, 13, false);
 
-      await page.keyboard.down('ArrowRight');
-      await waitForButton(page, 15, true);
-      await page.keyboard.up('ArrowRight');
-      await waitForButton(page, 15, false);
+    await page.keyboard.down('ArrowRight');
+    await waitForButton(page, 15, true);
+    await page.keyboard.up('ArrowRight');
+    await waitForButton(page, 15, false);
 
-      await page.keyboard.down('Space');
-      await waitForButton(page, 0, true);
-      await page.keyboard.up('Space');
-      await waitForButton(page, 0, false);
+    await page.keyboard.down('Space');
+    await waitForButton(page, 0, true);
+    await page.keyboard.up('Space');
+    await waitForButton(page, 0, false);
 
-      await page.keyboard.down('Enter');
-      await waitForButton(page, 9, true);
-      await page.keyboard.up('Enter');
-      await waitForButton(page, 9, false);
+    await page.keyboard.down('Enter');
+    await waitForButton(page, 9, true);
+    await page.keyboard.up('Enter');
+    await waitForButton(page, 9, false);
 
-      await page.keyboard.down('Control');
-      await waitForButton(page, 1, true);
-      await page.keyboard.up('Control');
-      await waitForButton(page, 1, false);
-    }
-  );
+    await page.keyboard.down('Control');
+    await waitForButton(page, 1, true);
+    await page.keyboard.up('Control');
+    await waitForButton(page, 1, false);
+  });
 
   console.log('  [E2E Scenario - Config Hot-Swap During Gameplay]');
 
@@ -310,7 +301,10 @@ module.exports = async function ({
         return {
           id: gp.id,
           connected: gp.connected,
-          buttons: gp.buttons.map(b => ({ pressed: b.pressed, value: b.value })),
+          buttons: gp.buttons.map((b) => ({
+            pressed: b.pressed,
+            value: b.value,
+          })),
           axes: [...gp.axes],
         };
       });
@@ -382,22 +376,19 @@ module.exports = async function ({
     }
   );
 
-  await assert(
-    'rapid alternating between two buttons',
-    async () => {
-      for (let i = 0; i < 10; i++) {
-        await page.keyboard.down('Space');
-        await waitForButton(page, 0, true);
-        await page.keyboard.up('Space');
-        await waitForButton(page, 0, false);
+  await assert('rapid alternating between two buttons', async () => {
+    for (let i = 0; i < 10; i++) {
+      await page.keyboard.down('Space');
+      await waitForButton(page, 0, true);
+      await page.keyboard.up('Space');
+      await waitForButton(page, 0, false);
 
-        await page.keyboard.down('r');
-        await waitForButton(page, 2, true);
-        await page.keyboard.up('r');
-        await waitForButton(page, 2, false);
-      }
+      await page.keyboard.down('r');
+      await waitForButton(page, 2, true);
+      await page.keyboard.up('r');
+      await waitForButton(page, 2, false);
     }
-  );
+  });
 
   console.log('  [E2E Scenario - Storage-Driven Config Activation]');
 

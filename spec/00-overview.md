@@ -2,18 +2,18 @@
 
 ## Document Index
 
-| File | Contents |
-|------|----------|
-| `00-overview.md` | This file — project overview and architecture |
-| `01-manifest.md` | Chrome extension manifest and permissions |
-| `02-gamepad-simulator.md` | Virtual gamepad creation and navigator.getGamepads() patching |
-| `03-input-processing.md` | Keyboard/mouse capture and translation to gamepad state |
-| `04-config-format.md` | GamepadConfig JSON schema, validation, and defaults |
-| `05-game-detection.md` | Injected script lifecycle, game detection, message flow |
-| `06-content-script.md` | Content script bridge and injection mechanics |
-| `07-background.md` | Background service worker responsibilities |
-| `08-popup-ui.md` | Popup UI features, state management, chrome.storage |
-| `09-injected-ui.md` | In-page UI elements (toast, pointer lock overlay) |
+| File                        | Contents                                                           |
+| --------------------------- | ------------------------------------------------------------------ |
+| `00-overview.md`            | This file — project overview and architecture                      |
+| `01-manifest.md`            | Chrome extension manifest and permissions                          |
+| `02-gamepad-simulator.md`   | Virtual gamepad creation and navigator.getGamepads() patching      |
+| `03-input-processing.md`    | Keyboard/mouse capture and translation to gamepad state            |
+| `04-config-format.md`       | GamepadConfig JSON schema, validation, and defaults                |
+| `05-game-detection.md`      | Injected script lifecycle, game detection, message flow            |
+| `06-content-script.md`      | Content script bridge and injection mechanics                      |
+| `07-background.md`          | Background service worker responsibilities                         |
+| `08-popup-ui.md`            | Popup UI features, state management, chrome.storage                |
+| `09-injected-ui.md`         | In-page UI elements (toast, pointer lock overlay)                  |
 | `10-behavioral-contract.md` | Observable behavioral requirements the implementation must satisfy |
 
 Also reference `../JSON.md` for the authoritative JSON config format specification.

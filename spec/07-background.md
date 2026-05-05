@@ -12,9 +12,11 @@ The background script runs as a Manifest V3 service worker. It has no DOM access
 Only process messages from tabs (`sender.tab` must exist). Ignore messages from popup or other extension pages.
 
 ### INJECTED
+
 - Enable the action button for the sender's tab: `chrome.action.enable(sender.tab.id)`
 
 ### INITIALIZED
+
 1. Update the game name in `chrome.storage.local`
 2. Read all config data from `chrome.storage.sync`
 3. Look up the active config preset
@@ -23,6 +25,7 @@ Only process messages from tabs (`sender.tab` must exist). Ignore messages from 
 6. **Return `true`** from the message listener to keep the message channel open for the async response
 
 ### GAME_CHANGED
+
 - Update the game name in `chrome.storage.local`
 
 ## Action Button Management

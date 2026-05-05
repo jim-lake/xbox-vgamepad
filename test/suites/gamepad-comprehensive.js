@@ -28,11 +28,7 @@ module.exports = async function ({
 
   const triggerConfig = {
     mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-    keyConfig: {
-      leftTrigger: 'KeyQ',
-      rightTrigger: 'KeyE',
-      a: 'Space',
-    },
+    keyConfig: { leftTrigger: 'KeyQ', rightTrigger: 'KeyE', a: 'Space' },
   };
 
   await assert(
@@ -108,39 +104,36 @@ module.exports = async function ({
     }
   );
 
-  await assert(
-    'triggers with array bindings work for both keys',
-    async () => {
-      const config = {
-        mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: {
-          leftTrigger: ['KeyQ', 'KeyZ'],
-          rightTrigger: ['KeyE', 'KeyX'],
-        },
-      };
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'triggerArr',
-        gamepadConfig: config,
-      });
-      await new Promise((r) => setTimeout(r, 500));
+  await assert('triggers with array bindings work for both keys', async () => {
+    const config = {
+      mouseConfig: { mouseControls: undefined, sensitivity: 10 },
+      keyConfig: {
+        leftTrigger: ['KeyQ', 'KeyZ'],
+        rightTrigger: ['KeyE', 'KeyX'],
+      },
+    };
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'triggerArr',
+      gamepadConfig: config,
+    });
+    await new Promise((r) => setTimeout(r, 500));
 
-      await page.keyboard.down('q');
-      await waitForButton(page, 6, true);
-      await page.keyboard.up('q');
-      await waitForButton(page, 6, false);
+    await page.keyboard.down('q');
+    await waitForButton(page, 6, true);
+    await page.keyboard.up('q');
+    await waitForButton(page, 6, false);
 
-      await page.keyboard.down('z');
-      await waitForButton(page, 6, true);
-      await page.keyboard.up('z');
-      await waitForButton(page, 6, false);
+    await page.keyboard.down('z');
+    await waitForButton(page, 6, true);
+    await page.keyboard.up('z');
+    await waitForButton(page, 6, false);
 
-      await page.keyboard.down('x');
-      await waitForButton(page, 7, true);
-      await page.keyboard.up('x');
-      await waitForButton(page, 7, false);
-    }
-  );
+    await page.keyboard.down('x');
+    await waitForButton(page, 7, true);
+    await page.keyboard.up('x');
+    await waitForButton(page, 7, false);
+  });
 
   console.log('  [Opposing Axis Release Sequences - All 4 Axes]');
 
@@ -156,8 +149,22 @@ module.exports = async function ({
   const opposingTests = [
     { keyA: 'w', keyB: 's', axis: 1, dirA: -1, dirB: 1, label: 'left stick Y' },
     { keyA: 'a', keyB: 'd', axis: 0, dirA: -1, dirB: 1, label: 'left stick X' },
-    { keyA: 'o', keyB: 'l', axis: 3, dirA: -1, dirB: 1, label: 'right stick Y' },
-    { keyA: 'k', keyB: 'Semicolon', axis: 2, dirA: -1, dirB: 1, label: 'right stick X' },
+    {
+      keyA: 'o',
+      keyB: 'l',
+      axis: 3,
+      dirA: -1,
+      dirB: 1,
+      label: 'right stick Y',
+    },
+    {
+      keyA: 'k',
+      keyB: 'Semicolon',
+      axis: 2,
+      dirA: -1,
+      dirB: 1,
+      label: 'right stick X',
+    },
   ];
 
   for (const { keyA, keyB, axis, dirA, dirB, label } of opposingTests) {
@@ -168,11 +175,21 @@ module.exports = async function ({
         await new Promise((r) => setTimeout(r, 100));
 
         await page.keyboard.down(keyA);
-        await waitForAxis(page, axis, dirA < 0 ? 'lt' : 'gt', dirA < 0 ? -0.5 : 0.5);
+        await waitForAxis(
+          page,
+          axis,
+          dirA < 0 ? 'lt' : 'gt',
+          dirA < 0 ? -0.5 : 0.5
+        );
         await page.keyboard.down(keyB);
         await waitForAxis(page, axis, 'eq', 0);
         await page.keyboard.up(keyA);
-        await waitForAxis(page, axis, dirB < 0 ? 'lt' : 'gt', dirB < 0 ? -0.5 : 0.5);
+        await waitForAxis(
+          page,
+          axis,
+          dirB < 0 ? 'lt' : 'gt',
+          dirB < 0 ? -0.5 : 0.5
+        );
         expect((await getAxesStates(page))[axis]).toBe(dirB);
         await page.keyboard.up(keyB);
         await waitForAxesCentered(page);
@@ -186,11 +203,21 @@ module.exports = async function ({
         await new Promise((r) => setTimeout(r, 100));
 
         await page.keyboard.down(keyB);
-        await waitForAxis(page, axis, dirB < 0 ? 'lt' : 'gt', dirB < 0 ? -0.5 : 0.5);
+        await waitForAxis(
+          page,
+          axis,
+          dirB < 0 ? 'lt' : 'gt',
+          dirB < 0 ? -0.5 : 0.5
+        );
         await page.keyboard.down(keyA);
         await waitForAxis(page, axis, 'eq', 0);
         await page.keyboard.up(keyB);
-        await waitForAxis(page, axis, dirA < 0 ? 'lt' : 'gt', dirA < 0 ? -0.5 : 0.5);
+        await waitForAxis(
+          page,
+          axis,
+          dirA < 0 ? 'lt' : 'gt',
+          dirA < 0 ? -0.5 : 0.5
+        );
         expect((await getAxesStates(page))[axis]).toBe(dirA);
         await page.keyboard.up(keyA);
         await waitForAxesCentered(page);
@@ -209,10 +236,7 @@ module.exports = async function ({
       const result = await page.evaluate(() => {
         const gp1 = navigator.getGamepads()[0];
         const gp2 = navigator.getGamepads()[0];
-        return {
-          read1: gp1.buttons[0].pressed,
-          read2: gp2.buttons[0].pressed,
-        };
+        return { read1: gp1.buttons[0].pressed, read2: gp2.buttons[0].pressed };
       });
       expect(result.read1).toBeTrue();
       expect(result.read2).toBeTrue();

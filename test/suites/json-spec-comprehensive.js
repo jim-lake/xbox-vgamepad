@@ -32,12 +32,18 @@ module.exports = async function ({
   await assert(
     'storage with no default preset still works when extension provides built-in default',
     async () => {
-      const swTarget = browser.targets().find(
-        (t) => t.type() === 'service_worker' && t.url().includes('chrome-extension://')
-      );
+      const swTarget = browser
+        .targets()
+        .find(
+          (t) =>
+            t.type() === 'service_worker' &&
+            t.url().includes('chrome-extension://')
+        );
       const worker = await swTarget.worker();
       await worker.evaluate(() => {
-        return new Promise((resolve) => chrome.storage.sync.remove('GP_CONF:default', resolve));
+        return new Promise((resolve) =>
+          chrome.storage.sync.remove('GP_CONF:default', resolve)
+        );
       });
 
       await sendConfigToPage(page, {
@@ -61,11 +67,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: undefined,
-          b: undefined,
-          x: 'KeyP',
-        },
+        keyConfig: { a: undefined, b: undefined, x: 'KeyP' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -147,10 +149,7 @@ module.exports = async function ({
 
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: ['KeyP', 'KeyQ'],
-          b: ['KeyR', 'KeyQ'],
-        },
+        keyConfig: { a: ['KeyP', 'KeyQ'], b: ['KeyR', 'KeyQ'] },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -163,7 +162,8 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 200));
       const buttons = await getButtonStates(page);
       const bothPressed = buttons[0] && buttons[1];
-      if (bothPressed) throw new Error('Duplicate key in arrays across fields was accepted');
+      if (bothPressed)
+        throw new Error('Duplicate key in arrays across fields was accepted');
       await page.keyboard.up('q');
       await new Promise((r) => setTimeout(r, 100));
     }
@@ -178,19 +178,61 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 200));
 
       const fields = [
-        'a', 'b', 'x', 'y', 'leftShoulder', 'rightShoulder',
-        'leftTrigger', 'rightTrigger', 'select', 'start',
-        'leftStickPressed', 'rightStickPressed',
-        'dpadUp', 'dpadDown', 'dpadLeft', 'dpadRight', 'home',
+        'a',
+        'b',
+        'x',
+        'y',
+        'leftShoulder',
+        'rightShoulder',
+        'leftTrigger',
+        'rightTrigger',
+        'select',
+        'start',
+        'leftStickPressed',
+        'rightStickPressed',
+        'dpadUp',
+        'dpadDown',
+        'dpadLeft',
+        'dpadRight',
+        'home',
       ];
       const keyCodes = [
-        'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6',
-        'Digit7', 'Digit8', 'Digit9', 'Digit0',
-        'KeyP', 'KeyB', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyH',
+        'Digit1',
+        'Digit2',
+        'Digit3',
+        'Digit4',
+        'Digit5',
+        'Digit6',
+        'Digit7',
+        'Digit8',
+        'Digit9',
+        'Digit0',
+        'KeyP',
+        'KeyB',
+        'KeyI',
+        'KeyJ',
+        'KeyK',
+        'KeyL',
+        'KeyH',
       ];
       const puppeteerKeys = [
-        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-        'p', 'b', 'i', 'j', 'k', 'l', 'h',
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '0',
+        'p',
+        'b',
+        'i',
+        'j',
+        'k',
+        'l',
+        'h',
       ];
 
       const keyConfig = {};
@@ -216,7 +258,10 @@ module.exports = async function ({
           if (j === i) {
             if (!buttons[j]) throw new Error(`Button ${j} should be pressed`);
           } else {
-            if (buttons[j]) throw new Error(`Button ${j} unexpectedly pressed when testing index ${i}`);
+            if (buttons[j])
+              throw new Error(
+                `Button ${j} unexpectedly pressed when testing index ${i}`
+              );
           }
         }
         await page.keyboard.up(puppeteerKeys[i]);
@@ -266,14 +311,21 @@ module.exports = async function ({
 
       for (const { key, axis, value } of tests) {
         await page.keyboard.down(key);
-        await waitForAxis(page, axis, value < 0 ? 'lt' : 'gt', value < 0 ? -0.5 : 0.5);
+        await waitForAxis(
+          page,
+          axis,
+          value < 0 ? 'lt' : 'gt',
+          value < 0 ? -0.5 : 0.5
+        );
         const axes = await getAxesStates(page);
         expect(axes[axis]).toBe(value);
         for (let i = 0; i < 4; i++) {
           if (i !== axis) {
             if (Math.abs(axes[i]) > 0.01) {
               await page.keyboard.up(key);
-              throw new Error(`Axis ${i} affected (${axes[i]}) when pressing ${key} for axis ${axis}`);
+              throw new Error(
+                `Axis ${i} affected (${axes[i]}) when pressing ${key} for axis ${axis}`
+              );
             }
           }
         }
@@ -325,7 +377,9 @@ module.exports = async function ({
     }
   );
 
-  console.log('  [JSON Spec - Behavioral Contract #9 - Mouse Movement → Stick]');
+  console.log(
+    '  [JSON Spec - Behavioral Contract #9 - Mouse Movement → Stick]'
+  );
 
   async function getCDPSession(pg) {
     if (typeof pg.createCDPSession === 'function') return pg.createCDPSession();
@@ -334,83 +388,77 @@ module.exports = async function ({
     throw new Error('Cannot create CDP session');
   }
 
-  await assert(
-    'mouseControls=0 targets left stick (axes 0,1)',
-    async () => {
-      const config = {
-        mouseConfig: { mouseControls: 0, sensitivity: 50 },
-        keyConfig: {},
-      };
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'mouseLeft',
-        gamepadConfig: config,
-      });
-      await new Promise((r) => setTimeout(r, 500));
+  await assert('mouseControls=0 targets left stick (axes 0,1)', async () => {
+    const config = {
+      mouseConfig: { mouseControls: 0, sensitivity: 50 },
+      keyConfig: {},
+    };
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'mouseLeft',
+      gamepadConfig: config,
+    });
+    await new Promise((r) => setTimeout(r, 500));
 
-      await page.mouse.click(200, 200);
-      await new Promise((r) => setTimeout(r, 200));
+    await page.mouse.click(200, 200);
+    await new Promise((r) => setTimeout(r, 200));
 
-      const cdp = await getCDPSession(page);
-      await cdp.send('Input.dispatchMouseEvent', {
-        type: 'mouseMoved',
-        x: 300,
-        y: 200,
-        movementX: 50,
-        movementY: 0,
-      });
-      await new Promise((r) => setTimeout(r, 200));
+    const cdp = await getCDPSession(page);
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: 300,
+      y: 200,
+      movementX: 50,
+      movementY: 0,
+    });
+    await new Promise((r) => setTimeout(r, 200));
 
-      const axes = await getAxesStates(page);
-      if (Math.abs(axes[0]) > 0.01) {
-        expect(axes[0]).toBeGreaterThan(0);
-        expect(axes[2]).toBeCloseTo(0, 0.05);
-        expect(axes[3]).toBeCloseTo(0, 0.05);
-      }
-
-      await cdp.detach();
-      await new Promise((r) => setTimeout(r, 300));
+    const axes = await getAxesStates(page);
+    if (Math.abs(axes[0]) > 0.01) {
+      expect(axes[0]).toBeGreaterThan(0);
+      expect(axes[2]).toBeCloseTo(0, 0.05);
+      expect(axes[3]).toBeCloseTo(0, 0.05);
     }
-  );
 
-  await assert(
-    'mouseControls=1 targets right stick (axes 2,3)',
-    async () => {
-      const config = {
-        mouseConfig: { mouseControls: 1, sensitivity: 50 },
-        keyConfig: {},
-      };
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'mouseRight',
-        gamepadConfig: config,
-      });
-      await new Promise((r) => setTimeout(r, 500));
+    await cdp.detach();
+    await new Promise((r) => setTimeout(r, 300));
+  });
 
-      await page.mouse.click(200, 200);
-      await new Promise((r) => setTimeout(r, 200));
+  await assert('mouseControls=1 targets right stick (axes 2,3)', async () => {
+    const config = {
+      mouseConfig: { mouseControls: 1, sensitivity: 50 },
+      keyConfig: {},
+    };
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'mouseRight',
+      gamepadConfig: config,
+    });
+    await new Promise((r) => setTimeout(r, 500));
 
-      const cdp = await getCDPSession(page);
-      await cdp.send('Input.dispatchMouseEvent', {
-        type: 'mouseMoved',
-        x: 300,
-        y: 200,
-        movementX: 50,
-        movementY: 0,
-      });
-      await new Promise((r) => setTimeout(r, 200));
+    await page.mouse.click(200, 200);
+    await new Promise((r) => setTimeout(r, 200));
 
-      const axes = await getAxesStates(page);
-      if (Math.abs(axes[2]) > 0.01) {
-        expect(axes[2]).toBeGreaterThan(0);
-        expect(axes[0]).toBeCloseTo(0, 0.05);
-        expect(axes[1]).toBeCloseTo(0, 0.05);
-      }
+    const cdp = await getCDPSession(page);
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: 300,
+      y: 200,
+      movementX: 50,
+      movementY: 0,
+    });
+    await new Promise((r) => setTimeout(r, 200));
 
-      await cdp.detach();
-      await new Promise((r) => setTimeout(r, 300));
+    const axes = await getAxesStates(page);
+    if (Math.abs(axes[2]) > 0.01) {
+      expect(axes[2]).toBeGreaterThan(0);
+      expect(axes[0]).toBeCloseTo(0, 0.05);
+      expect(axes[1]).toBeCloseTo(0, 0.05);
     }
-  );
+
+    await cdp.detach();
+    await new Promise((r) => setTimeout(r, 300));
+  });
 
   console.log('  [JSON Spec - Behavioral Contract #10 - Deactivation Events]');
 

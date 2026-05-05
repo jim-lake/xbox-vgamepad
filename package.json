@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "ts:check": "tsc --noEmit",
+    "ts:check": "tsc -b --noEmit",
     "lint": "eslint . --fix",
     "pretty": "prettier --write .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "aphrodite": "^2.4.0",
+    "events": "^3.3.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
@@ -19,11 +21,14 @@
     "@crxjs/vite-plugin": "^2.4.0",
     "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.1.40",
+    "@types/events": "^3.0.3",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.2.1",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",

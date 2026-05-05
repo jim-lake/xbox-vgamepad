@@ -7,6 +7,48 @@
     <script>
       window.__VERSION__ = '<%= __VERSION__ %>';
     </script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        vertical-align: baseline;
+        outline: none;
+        font: inherit;
+        -webkit-font-smoothing: inherit;
+        -moz-osx-font-smoothing: inherit;
+        text-decoration: none;
+        appearance: none;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        flex-shrink: 0;
+        -webkit-overflow-scrolling: touch;
+        -webkit-touch-callout: none;
+      }
+      html {
+        background: #f5f5f5;
+        font-family:
+          system-ui, 'San Fransisco', 'Helvetica', 'Lucida Grande', 'sans';
+        font-size: 10px;
+      }
+      body {
+      }
+      @media only screen and (min-width: 600px) {
+        html {
+          font-size: 10px;
+        }
+      }
+      @media only screen and (min-width: 1000px) {
+        html {
+          font-size: 10px;
+        }
+      }
+      #root {
+        display: flex;
+        flex: 1;
+        align-self: stretch;
+        position: relative;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

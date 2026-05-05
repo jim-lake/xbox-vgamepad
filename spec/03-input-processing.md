@@ -25,6 +25,7 @@ When a `GamepadConfig` is received:
 Listeners are attached to `document` for `keydown` and `keyup`.
 
 ### keydown
+
 1. **Ignore `event.repeat`** — held keys must not re-trigger
 2. Look up `event.code` in the key-to-gamepad mapping
 3. If it maps to a **button**: press that gamepad button
@@ -32,6 +33,7 @@ Listeners are attached to `document` for `keydown` and `keyup`.
 5. If the event was handled and `event.cancelable` is true: call `event.preventDefault()`
 
 ### keyup
+
 1. Look up `event.code` in the mapping
 2. If button: unpress that gamepad button
 3. If axis: release that axis direction
@@ -44,10 +46,12 @@ Only registered if the config contains bindings for `Click` or `RightClick`.
 Listeners attach to the xCloud game UI container element (not document).
 
 ### mousedown
+
 - `event.button === 0` → look up `'Click'` → press
 - `event.button === 2` → look up `'RightClick'` → press
 
 ### mouseup
+
 - Same mapping → unpress
 
 ## Scroll Wheel Handling
@@ -57,6 +61,7 @@ Only registered if the config contains a binding for `Scroll`.
 Listener attaches to the game UI container element.
 
 ### wheel event
+
 1. Press the mapped button
 2. Auto-unpress after **20ms** (simulates a momentary press)
 3. Debounce: new scroll events reset the unpress timer
@@ -65,6 +70,7 @@ Listener attaches to the game UI container element.
 ## Mouse Movement → Analog Stick
 
 ### Parameters
+
 - `stick`: which analog stick (default `1` = right stick). Comes from `mouseConfig.mouseControls`.
 - `sensitivity`: divisor for mouse movement (default `10`). Comes from `mouseConfig.sensitivity`. **Higher value = less sensitive** (it's a divisor, not a multiplier).
 
@@ -75,6 +81,7 @@ Listener attaches to the game UI container element.
 3. On pointer lock error: update overlay text to indicate the user should click again
 
 ### Pointer Lock Change Handler
+
 - When pointer lock **acquired**: remove click overlay, start listening for `mousemove` on `document`
 - When pointer lock **lost**: stop listening for `mousemove`, re-show click overlay
 
@@ -91,6 +98,7 @@ Uses a throttled accumulation pattern:
    - Set the target stick to the clamped values
 
 ### Mouse Stop Detection
+
 When the mouse stops moving for **50ms**, the target stick automatically returns to center `(0, 0)`. This is critical — without it, the stick would stay deflected after the mouse stops.
 
 ## Alternate Binding Behavior

@@ -1,0 +1,181 @@
+.touchable-highlight .touchable-highlight-underlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 128);
+}
+
+.touchable-highlight:active .touchable-highlight-underlay {
+  display: block;
+}
+
+.touchable-highlight {
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+}
+.touchable-without-feedback {
+  pointer-events: auto;
+}
+
+.base-component {
+  position: relative;
+  display: flex;
+  border-style: solid;
+  border-width: 0;
+}
+.base-component-link {
+  position: relative;
+  display: flex;
+  border-style: solid;
+  text-decoration: none;
+  user-select: none;
+  pointer-events: auto;
+}
+.base-component-link .base-component-link-underlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 128);
+  pointer-events: none;
+}
+.base-component-link:active .base-component-link-underlay {
+  display: block;
+}
+.base-component-link:hover .base-component-link-underlay {
+  display: block;
+}
+.base-component-text-input {
+  background: transparent;
+  user-select: text;
+  pointer-events: auto;
+}
+.base-component-text-input:-webkit-autofill {
+  -webkit-background-clip: text;
+}
+.base-component-checkbox-input {
+  appearance: checkbox;
+  pointer-events: auto;
+}
+.base-component-radio-input {
+  appearance: radio;
+  pointer-events: auto;
+}
+.base-component-text-input-form {
+  display: flex;
+  flex: 1;
+  align-self: stretch;
+  flex-direction: column;
+}
+.base-component-text-input-autogrow {
+  flex: 1;
+  display: grid;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  pointer-events: auto;
+}
+.base-component-text-input-autogrow-textarea {
+  background: transparent;
+  user-select: text;
+  font-family: inherit;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+  grid-row-start: 1;
+  grid-column-start: 1;
+  grid-row-end: 2;
+  grid-column-end: 2;
+}
+.base-component-text-input-autogrow-after {
+  white-space: pre-wrap;
+  visibility: hidden !important;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  grid-row-start: 1;
+  grid-column-start: 1;
+  grid-row-end: 2;
+  grid-column-end: 2;
+}
+.base-component-file-input {
+  display: none;
+}
+
+.base-component-table {
+  display: table;
+  border-collapse: collapse;
+  border-spacing: 0;
+  padding: 0;
+  margin: 0;
+}
+.base-component-tbody {
+  display: table-row-group;
+  border-collapse: collapse;
+  border-spacing: 0;
+  padding: 0;
+  margin: 0;
+}
+.base-component-table-row {
+  display: table-row;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  background: none;
+  font: inherit;
+  vertical-align: top;
+  border-style: solid;
+}
+.base-component-table-cell {
+  display: table-cell;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  background: none;
+  font: inherit;
+  vertical-align: top;
+  border-style: solid;
+}
+
+.fullscreen-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-height: 100%;
+  min-width: 100%;
+  width: auto;
+  height: auto;
+  max-height: 101vh;
+  max-width: 200vh;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background: transparent;
+}
+
+.move-progress circle {
+  transition: stroke-dashoffset 0.5s linear 0s;
+}
+
+.preformated-content {
+  width: 100%;
+  white-space: pre-line;
+}
+
+.video-overlay {
+  transition: opacity 0.5s linear 0s;
+  opacity: 1;
+}
+.video-overlay.faded {
+  opacity: 0;
+}
