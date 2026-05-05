@@ -1,0 +1,32 @@
+name: Release Extension
+
+on:
+  push:
+    branches: [main]
+    paths: ['dist/**']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          echo "version=$(jq -r .version dist/manifest.json)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Zip dist excluding source maps
+        run: cd dist && zip -r ../xbox-vgamepad-${{ steps.version.outputs.version }}-${{ steps.version.outputs.sha }}.zip . -x '*.map'
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.sha }}
+          name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.sha }}
+          files: xbox-vgamepad-${{ steps.version.outputs.version }}-${{ steps.version.outputs.sha }}.zip
+          generate_release_notes: true

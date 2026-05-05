@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Xbox Virtual Gamepad",
+  "version": "0.0.1",
+  "description": "Xbox virtual gamepad Chrome extension",
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/index.ts-C2RKVqK4.js"
+      ],
+      "matches": [
+        "*://*.xbox.com/*",
+        "https://gamepad-tester.com/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "http://localhost:5173/*"
+      ]
+    }
+  ],
+  "permissions": [],
+  "icons": {
+    "16": "src/assets/img/icon16.png",
+    "48": "src/assets/img/icon48.png",
+    "128": "src/assets/img/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "*://*.xbox.com/*",
+        "http://localhost:5173/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "https://gamepad-tester.com/*"
+      ],
+      "resources": [
+        "assets/index.ts-C2RKVqK4.js",
+        "assets/index.ts-C2RKVqK4.js.map"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
+}
