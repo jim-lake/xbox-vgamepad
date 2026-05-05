@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Gamepad Manual Tester</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+        padding: 20px;
+      }
+      h1 {
+        margin-bottom: 8px;
+      }
+      #status {
+        font-size: 1.2em;
+        margin-bottom: 20px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        display: inline-block;
+      }
+      #status.connected {
+        background: #16a34a;
+      }
+      #status.disconnected {
+        background: #dc2626;
+      }
+      #status.waiting {
+        background: #ca8a04;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      .section h2 {
+        margin-bottom: 10px;
+        font-size: 1.1em;
+        color: #aaa;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .buttons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 140px);
+        gap: 8px;
+      }
+      .btn-box {
+        background: #2a2a4a;
+        border: 2px solid #444;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        transition: all 0.05s;
+      }
+      .btn-box.pressed {
+        background: #16a34a;
+        border-color: #22c55e;
+        transform: scale(1.05);
+      }
+      .btn-box .label {
+        font-size: 0.8em;
+        color: #999;
+      }
+      .btn-box .name {
+        font-weight: bold;
+        font-size: 1.1em;
+      }
+      .axes-container {
+        display: flex;
+        gap: 40px;
+        flex-wrap: wrap;
+      }
+      .stick {
+        text-align: center;
+      }
+      .stick canvas {
+        background: #2a2a4a;
+        border: 2px solid #444;
+        border-radius: 50%;
+      }
+      .stick .values {
+        margin-top: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        color: #aaa;
+      }
+      #last-event {
+        font-family: monospace;
+        background: #2a2a4a;
+        padding: 8px 12px;
+        border-radius: 6px;
+        color: #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 Gamepad Manual Tester</h1>
+    <div id="status" class="waiting">Waiting for gamepad...</div>
+
+    <div class="section">
+      <h2>Buttons</h2>
+      <div class="buttons-grid" id="buttons"></div>
+    </div>
+
+    <div class="section">
+      <h2>Analog Sticks</h2>
+      <div class="axes-container">
+        <div class="stick">
+          <canvas id="stick-left" width="150" height="150"></canvas>
+          <div class="values" id="stick-left-val">X: 0.00 Y: 0.00</div>
+        </div>
+        <div class="stick">
+          <canvas id="stick-right" width="150" height="150"></canvas>
+          <div class="values" id="stick-right-val">X: 0.00 Y: 0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Last Event</h2>
+      <div id="last-event">None</div>
+    </div>
+
+    <script>
+      const BUTTON_NAMES = [
+        'A',
+        'B',
+        'X',
+        'Y',
+        'LB',
+        'RB',
+        'LT',
+        'RT',
+        'Select',
+        'Start',
+        'L Stick',
+        'R Stick',
+        'D-Up',
+        'D-Down',
+        'D-Left',
+        'D-Right',
+        'Home',
+      ];
+
+      const statusEl = document.getElementById('status');
+      const buttonsEl = document.getElementById('buttons');
+      const lastEventEl = document.getElementById('last-event');
+
+      // Create button boxes
+      BUTTON_NAMES.forEach((name, i) => {
+        const div = document.createElement('div');
+        div.className = 'btn-box';
+        div.id = `btn-${i}`;
+        div.innerHTML = `<div class="name">${name}</div><div class="label">Button ${i}</div>`;
+        buttonsEl.appendChild(div);
+      });
+
+      window.addEventListener('gamepadconnected', (e) => {
+        statusEl.textContent = `Connected: ${e.gamepad.id}`;
+        statusEl.className = 'connected';
+        lastEventEl.textContent = `gamepadconnected — ${e.gamepad.id}`;
+      });
+      window.addEventListener('gamepaddisconnected', (e) => {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'disconnected';
+        lastEventEl.textContent = `gamepaddisconnected — ${e.gamepad.id}`;
+      });
+
+      function drawStick(canvasId, x, y) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width,
+          h = canvas.height;
+        const cx = w / 2,
+          cy = h / 2,
+          r = w / 2 - 10;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Deadzone circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Crosshair
+        ctx.beginPath();
+        ctx.moveTo(cx, 10);
+        ctx.lineTo(cx, h - 10);
+        ctx.moveTo(10, cy);
+        ctx.lineTo(w - 10, cy);
+        ctx.strokeStyle = '#333';
+        ctx.stroke();
+
+        // Stick position
+        const px = cx + x * r;
+        const py = cy + y * r;
+        ctx.beginPath();
+        ctx.arc(px, py, 8, 0, Math.PI * 2);
+        ctx.fillStyle =
+          Math.abs(x) > 0.01 || Math.abs(y) > 0.01 ? '#22c55e' : '#888';
+        ctx.fill();
+      }
+
+      function poll() {
+        const gamepads = navigator.getGamepads();
+        const gp = gamepads[0];
+        if (gp) {
+          // Buttons
+          gp.buttons.forEach((btn, i) => {
+            const el = document.getElementById(`btn-${i}`);
+            if (el) el.className = btn.pressed ? 'btn-box pressed' : 'btn-box';
+          });
+
+          // Sticks
+          const lx = gp.axes[0] || 0,
+            ly = gp.axes[1] || 0;
+          const rx = gp.axes[2] || 0,
+            ry = gp.axes[3] || 0;
+          drawStick('stick-left', lx, ly);
+          drawStick('stick-right', rx, ry);
+          document.getElementById('stick-left-val').textContent =
+            `X: ${lx.toFixed(2)}  Y: ${ly.toFixed(2)}`;
+          document.getElementById('stick-right-val').textContent =
+            `X: ${rx.toFixed(2)}  Y: ${ry.toFixed(2)}`;
+        }
+        requestAnimationFrame(poll);
+      }
+      requestAnimationFrame(poll);
+    </script>
+  </body>
+</html>

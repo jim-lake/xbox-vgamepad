@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Gamepad Exerciser</title>
+  </head>
+  <body>
+    <h1>Gamepad Exerciser</h1>
+    <div id="status">no-gamepad</div>
+    <div id="gamepad-id"></div>
+    <div id="gamepad-index"></div>
+    <div id="gamepad-mapping"></div>
+    <div id="gamepad-connected"></div>
+    <div id="buttons"></div>
+    <div id="button-values"></div>
+    <div id="button-touched"></div>
+    <div id="axes"></div>
+    <div id="event-log"></div>
+    <script>
+      const statusEl = document.getElementById('status');
+      const gamepadIdEl = document.getElementById('gamepad-id');
+      const gamepadIndexEl = document.getElementById('gamepad-index');
+      const gamepadMappingEl = document.getElementById('gamepad-mapping');
+      const gamepadConnectedEl = document.getElementById('gamepad-connected');
+      const buttonsEl = document.getElementById('buttons');
+      const buttonValuesEl = document.getElementById('button-values');
+      const buttonTouchedEl = document.getElementById('button-touched');
+      const axesEl = document.getElementById('axes');
+      const eventLogEl = document.getElementById('event-log');
+
+      let connectCount = 0;
+      let disconnectCount = 0;
+
+      window.addEventListener('gamepadconnected', (e) => {
+        connectCount++;
+        statusEl.textContent = 'connected';
+        statusEl.setAttribute('data-gamepad-id', e.gamepad.id);
+        eventLogEl.setAttribute('data-connect-count', String(connectCount));
+        eventLogEl.setAttribute(
+          'data-disconnect-count',
+          String(disconnectCount)
+        );
+      });
+      window.addEventListener('gamepaddisconnected', () => {
+        disconnectCount++;
+        statusEl.textContent = 'disconnected';
+        eventLogEl.setAttribute('data-connect-count', String(connectCount));
+        eventLogEl.setAttribute(
+          'data-disconnect-count',
+          String(disconnectCount)
+        );
+      });
+
+      function poll() {
+        const gamepads = navigator.getGamepads();
+        const gp = gamepads[0];
+        if (gp) {
+          gamepadIdEl.setAttribute('data-value', gp.id);
+          gamepadIdEl.textContent = gp.id;
+          gamepadIndexEl.setAttribute('data-value', String(gp.index));
+          gamepadMappingEl.setAttribute('data-value', gp.mapping);
+          gamepadConnectedEl.setAttribute('data-value', String(gp.connected));
+
+          const btnData = gp.buttons.map((b) => (b.pressed ? '1' : '0'));
+          buttonsEl.setAttribute('data-buttons', btnData.join(','));
+          buttonsEl.textContent = btnData.join(',');
+
+          const btnValues = gp.buttons.map((b) => b.value.toFixed(2));
+          buttonValuesEl.setAttribute('data-values', btnValues.join(','));
+
+          const btnTouched = gp.buttons.map((b) => (b.touched ? '1' : '0'));
+          buttonTouchedEl.setAttribute('data-touched', btnTouched.join(','));
+
+          const axeData = gp.axes.map((a) => a.toFixed(2));
+          axesEl.setAttribute('data-axes', axeData.join(','));
+          axesEl.textContent = axeData.join(',');
+        }
+        requestAnimationFrame(poll);
+      }
+      requestAnimationFrame(poll);
+    </script>
+  </body>
+</html>
