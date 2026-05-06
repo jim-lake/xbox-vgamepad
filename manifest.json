@@ -13,6 +13,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
@@ -25,6 +26,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
@@ -42,6 +44,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
