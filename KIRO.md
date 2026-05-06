@@ -9,8 +9,8 @@ Chrome Extension (Manifest V3) that lets users play Xbox Cloud Gaming (xCloud) w
 Four runtime contexts communicate via message passing:
 
 - **Background service worker** (`src/background/index.ts`): Central coordinator, reads config from storage, delivers to page on game start. Must be a single-file bundle.
-- **Content script** (`src/content/index.ts`): Bridge between extension APIs and page context. Injects the page script, relays messages.
-- **Injected script**: Runs in page JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives virtual gamepad. Must be a single-file bundle (no code splitting).
+- **Content script** (`src/content/index.ts`): Bridge between extension APIs and page context. Relays messages between the page and background.
+- **Main-world script** (`src/injected/main-world.ts`): Declared in manifest with `"world": "MAIN"`, Chrome injects it directly into the page JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives virtual gamepad.
 - **Popup UI** (`src/popup/`): React app for managing config presets, toggling enable/disable, binding keys.
 
 ## Tech Stack
@@ -32,7 +32,7 @@ Four runtime contexts communicate via message passing:
 | Type check | `npm run ts:check` |
 | Lint + fix | `npm run lint` |
 | Format | `npm run pretty` |
-| Run tests | `node test/gamepad.test.js` (requires built extension in `dist/` and Chromium) |
+| Run tests | `node test/gamepad.test.cjs` (requires built extension in `dist/` and Chromium) |
 
 ## Important Conventions
 
@@ -71,7 +71,9 @@ Test suites are in `test/suites/`. The harness (`test/harness.js`) provides `ass
 
 ## Build Constraints
 
-- Background and injected script bundles must be single files (no chunk splitting)
+- Background service worker bundled as single file
+- Main-world script is declared in manifest with `"world": "MAIN"` and `"run_at": "document_start"` — Chrome injects it natively, no manual injection needed
+- The main-world entry point must NOT be named `index.ts` (crxjs/rolldown basename collision with content script)
 - Dev build outputs to `build/`, production to `dist/`
 - Source maps enabled for both
 
@@ -80,7 +82,8 @@ Test suites are in `test/suites/`. The harness (`test/harness.js`) provides `ass
 ```
 src/
   background/    — Service worker
-  content/       — Content script bridge
+  content/       — Content script (message bridge)
+  injected/      — Main-world script (gamepad patch, input, detection)
   popup/         — React popup UI
   components/    — Shared UI components (base_components, buttons)
   tools/         — Utilities (log, busy)
