@@ -30,7 +30,9 @@ function patchManifest(port) {
   const manifestPath = path.join(DIST_DIR, 'manifest.json');
   const original = fs.readFileSync(manifestPath, 'utf8');
   const manifest = JSON.parse(original);
-  manifest.content_scripts[0].matches.push(`http://127.0.0.1:${port}/*`);
+  for (const script of manifest.content_scripts) {
+    script.matches.push(`http://127.0.0.1:${port}/*`);
+  }
   for (const entry of manifest.web_accessible_resources) {
     entry.matches.push(`http://127.0.0.1:${port}/*`);
   }

@@ -22,6 +22,19 @@
       ],
       "js": ["src/content/index.ts"],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.xbox.com/*",
+        "https://gamepad-tester.com/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["src/injected/main-world.ts"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "permissions": ["storage", "tabs"],
@@ -29,7 +42,7 @@
     {
       "resources": ["src/assets/img/*"],
       "matches": [
-        "https://www.xbox.com/*",
+        "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",

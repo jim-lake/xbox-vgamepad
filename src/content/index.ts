@@ -1,13 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import type { ExtensionMessage } from '@/types/messages';
 
-// Inject the page-context script immediately (before DOM is ready)
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('src/injected/index.js');
-script.type = 'module';
-document.documentElement.appendChild(script);
-script.remove();
-
 // Notify background that content script loaded
 try {
   chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
@@ -52,9 +45,8 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');
 });
 
-// On DOMContentLoaded: inject CSS and pass resource URLs
+// On DOMContentLoaded: pass resource URLs to the page via a meta tag
 document.addEventListener('DOMContentLoaded', () => {
-  // Pass extension resource URLs to the page via a meta tag
   const meta = document.createElement('meta');
   meta.name = 'xvg-resources';
   meta.content = JSON.stringify({

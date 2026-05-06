@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-CWD1VfTL.js"
+        "assets/index.ts-loader-C_1z1_ov.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
@@ -21,10 +21,24 @@
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
-        "http://127.0.0.1/*",
-        "http://127.0.0.1:40507/*"
+        "http://127.0.0.1/*"
       ],
       "run_at": "document_start"
+    },
+    {
+      "js": [
+        "assets/main-world.ts-loader-DDX-U81B.js"
+      ],
+      "matches": [
+        "*://*.xbox.com/*",
+        "https://gamepad-tester.com/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "permissions": [
@@ -34,35 +48,23 @@
   "web_accessible_resources": [
     {
       "matches": [
-        "http://127.0.0.1/*",
-        "http://localhost:5173/*",
-        "http://localhost:9332/*",
-        "http://localhost:9333/*",
-        "https://gamepad-tester.com/*",
-        "https://www.xbox.com/*",
-        "http://127.0.0.1:40507/*"
-      ],
-      "resources": [
-        "src/injected/index.js",
-        "src/assets/img/*"
-      ],
-      "use_dynamic_url": false
-    },
-    {
-      "matches": [
         "*://*.xbox.com/*",
         "http://127.0.0.1/*",
         "http://localhost:5173/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
-        "https://gamepad-tester.com/*",
-        "http://127.0.0.1:40507/*"
+        "https://gamepad-tester.com/*"
       ],
       "resources": [
+        "src/assets/img/*",
         "assets/messages-CSoHXWTP.js",
         "assets/messages-CSoHXWTP.js.map",
-        "assets/index.ts-C1RP5FaO.js",
-        "assets/index.ts-C1RP5FaO.js.map"
+        "assets/index.ts-DjfmCEYH.js",
+        "assets/index.ts-DjfmCEYH.js.map",
+        "assets/gamepad-ClnJ_keH.js",
+        "assets/gamepad-ClnJ_keH.js.map",
+        "assets/main-world.ts-DQL4XSsm.js",
+        "assets/main-world.ts-DQL4XSsm.js.map"
       ],
       "use_dynamic_url": false
     }
