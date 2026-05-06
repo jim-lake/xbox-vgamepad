@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Xbox Virtual Gamepad",
   "version": "0.0.1",
-  "description": "Xbox virtual gamepad Chrome extension",
+  "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": {
     "default_popup": "src/popup/index.html"
   },
@@ -13,37 +13,63 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-C2RKVqK4.js"
+        "assets/index.ts-loader-CWD1VfTL.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
-        "http://localhost:5173/*"
-      ]
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:40507/*"
+      ],
+      "run_at": "document_start"
     }
   ],
-  "permissions": [],
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost:5173/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "https://gamepad-tester.com/*",
+        "https://www.xbox.com/*",
+        "http://127.0.0.1:40507/*"
+      ],
+      "resources": [
+        "src/injected/index.js",
+        "src/assets/img/*"
+      ],
+      "use_dynamic_url": false
+    },
+    {
+      "matches": [
+        "*://*.xbox.com/*",
+        "http://127.0.0.1/*",
+        "http://localhost:5173/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "https://gamepad-tester.com/*",
+        "http://127.0.0.1:40507/*"
+      ],
+      "resources": [
+        "assets/messages-CSoHXWTP.js",
+        "assets/messages-CSoHXWTP.js.map",
+        "assets/index.ts-C1RP5FaO.js",
+        "assets/index.ts-C1RP5FaO.js.map"
+      ],
+      "use_dynamic_url": false
+    }
+  ],
   "icons": {
     "16": "src/assets/img/icon16.png",
     "48": "src/assets/img/icon48.png",
     "128": "src/assets/img/icon128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "matches": [
-        "*://*.xbox.com/*",
-        "http://localhost:5173/*",
-        "http://localhost:9332/*",
-        "http://localhost:9333/*",
-        "https://gamepad-tester.com/*"
-      ],
-      "resources": [
-        "assets/index.ts-C2RKVqK4.js",
-        "assets/index.ts-C2RKVqK4.js.map"
-      ],
-      "use_dynamic_url": false
-    }
-  ]
+  }
 }

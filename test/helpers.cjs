@@ -31,9 +31,9 @@ function patchManifest(port) {
   const original = fs.readFileSync(manifestPath, 'utf8');
   const manifest = JSON.parse(original);
   manifest.content_scripts[0].matches.push(`http://127.0.0.1:${port}/*`);
-  manifest.web_accessible_resources[0].matches.push(
-    `http://127.0.0.1:${port}/*`
-  );
+  for (const entry of manifest.web_accessible_resources) {
+    entry.matches.push(`http://127.0.0.1:${port}/*`);
+  }
   // Add tabs permission so we can query tab IDs for messaging
   if (!manifest.permissions.includes('tabs')) {
     manifest.permissions.push('tabs');

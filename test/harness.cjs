@@ -3,8 +3,8 @@ const {
   stopServer,
   patchManifest,
   launchBrowserWithExtension,
-} = require('./helpers');
-const helpers = require('./helpers');
+} = require('./helpers.cjs');
+const helpers = require('./helpers.cjs');
 
 let browser, page, restoreManifest;
 let passed = 0;

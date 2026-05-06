@@ -2,10 +2,12 @@
   "manifest_version": 3,
   "name": "Xbox Virtual Gamepad",
   "version": "0.0.1",
-  "description": "Xbox virtual gamepad Chrome extension",
-  "action": { "default_popup": "src/popup/index.html" },
+  "description": "Play Xbox Cloud Gaming with keyboard and mouse",
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
   "background": {
-    "service_worker": "src/background/index.ts",
+    "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
   "content_scripts": [
@@ -15,12 +17,27 @@
         "https://gamepad-tester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*"
       ],
-      "js": ["src/content/index.ts"]
+      "js": ["src/content/index.ts"],
+      "run_at": "document_start"
     }
   ],
-  "permissions": [],
+  "permissions": ["storage", "tabs"],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/assets/img/*"],
+      "matches": [
+        "https://www.xbox.com/*",
+        "https://gamepad-tester.com/*",
+        "http://localhost:9332/*",
+        "http://localhost:9333/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*"
+      ]
+    }
+  ],
   "icons": {
     "16": "src/assets/img/icon16.png",
     "48": "src/assets/img/icon48.png",
