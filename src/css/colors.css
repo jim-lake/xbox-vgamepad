@@ -1,0 +1,28 @@
+:root {
+  --button-bg: #107c10;
+  --button-text: #fff;
+  --button-default-bg: #107c10;
+  --button-default-border: #0b5e0b;
+  --button-default-text: #fff;
+  --button-disabled-bg: #ccc;
+  --button-disabled-border: #aaa;
+  --button-disabled-text: #666;
+  --button-danger-bg: #d13438;
+  --button-danger-border: #a4262c;
+  --button-danger-text: #fff;
+  --button-ghost-inverted-border: #fff;
+  --button-ghost-inverted-bg: transparent;
+  --button-ghost-inverted-text: #fff;
+  --button-ghost-border: #107c10;
+  --button-ghost-bg: transparent;
+  --button-ghost-text: #107c10;
+  --button-inverted-bg: #fff;
+  --button-inverted-border: #ddd;
+  --button-inverted-text: #333;
+  --button-empty-bg: transparent;
+  --button-empty-border: transparent;
+  --button-empty-text: #333;
+  --button-blue-bg: #0078d4;
+  --button-blue-border: #005a9e;
+  --button-blue-text: #fff;
+}

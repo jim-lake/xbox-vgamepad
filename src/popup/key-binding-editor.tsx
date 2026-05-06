@@ -1,0 +1,229 @@
+import React from 'react';
+import { StyleSheet, Text, View } from '@/components/base_components';
+import type { GamepadKeyConfig, KeyMap } from '@/types/gamepad';
+
+const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
+  { key: 'a', label: 'A' },
+  { key: 'b', label: 'B' },
+  { key: 'x', label: 'X' },
+  { key: 'y', label: 'Y' },
+  { key: 'leftShoulder', label: 'LB' },
+  { key: 'rightShoulder', label: 'RB' },
+  { key: 'leftTrigger', label: 'LT' },
+  { key: 'rightTrigger', label: 'RT' },
+  { key: 'select', label: 'Select' },
+  { key: 'start', label: 'Start' },
+  { key: 'leftStickPressed', label: 'L3' },
+  { key: 'rightStickPressed', label: 'R3' },
+  { key: 'dpadUp', label: 'D-Up' },
+  { key: 'dpadDown', label: 'D-Down' },
+  { key: 'dpadLeft', label: 'D-Left' },
+  { key: 'dpadRight', label: 'D-Right' },
+  { key: 'home', label: 'Home' },
+  { key: 'leftStickUp', label: 'LS Up' },
+  { key: 'leftStickDown', label: 'LS Down' },
+  { key: 'leftStickLeft', label: 'LS Left' },
+  { key: 'leftStickRight', label: 'LS Right' },
+  { key: 'rightStickUp', label: 'RS Up' },
+  { key: 'rightStickDown', label: 'RS Down' },
+  { key: 'rightStickLeft', label: 'RS Left' },
+  { key: 'rightStickRight', label: 'RS Right' },
+];
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: '0.3rem',
+    paddingBottom: '0.3rem',
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f3460',
+  },
+  label: { width: '6rem', color: '#94a3b8', fontSize: '1.1rem' },
+  bindings: { flex: 1, flexDirection: 'row', gap: '0.4rem', flexWrap: 'wrap' },
+  badge: {
+    backgroundColor: '#0f3460',
+    paddingLeft: '0.5rem',
+    paddingRight: '0.5rem',
+    paddingTop: '0.2rem',
+    paddingBottom: '0.2rem',
+    borderRadius: '0.3rem',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '0.3rem',
+  },
+  badgeText: { color: '#e2e8f0', fontSize: '1rem' },
+  removeBtn: { color: '#d13438', fontSize: '1rem', cursor: 'pointer' },
+  addBtn: {
+    color: '#107c10',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
+    paddingLeft: '0.4rem',
+  },
+  modal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: '#1a1a2e',
+    padding: '2rem',
+    borderRadius: '0.8rem',
+    alignItems: 'center',
+  },
+  modalText: { color: '#e2e8f0', fontSize: '1.4rem', marginBottom: '1rem' },
+  modalSub: { color: '#94a3b8', fontSize: '1.1rem' },
+});
+
+function getBindings(keyMap: KeyMap): string[] {
+  if (keyMap === undefined) {
+    return [];
+  }
+  if (typeof keyMap === 'string') {
+    return [keyMap];
+  }
+  return [...keyMap];
+}
+
+function toKeyMap(bindings: string[]): KeyMap {
+  if (bindings.length === 0) {
+    return undefined;
+  }
+  if (bindings.length === 1) {
+    return bindings[0];
+  }
+  return bindings as [string, string];
+}
+
+interface Props {
+  keyConfig: GamepadKeyConfig;
+  onChange: (key: keyof GamepadKeyConfig, value: KeyMap) => void;
+}
+
+export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
+  const [listening, setListening] = React.useState<
+    keyof GamepadKeyConfig | null
+  >(null);
+
+  React.useEffect(() => {
+    if (listening === null) {
+      return;
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') {
+        setListening(null);
+        return;
+      }
+      addBinding(e.code);
+    }
+
+    function handleMouseDown(e: MouseEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.button === 0) {
+        addBinding('Click');
+      } else if (e.button === 2) {
+        addBinding('RightClick');
+      }
+    }
+
+    function handleWheel(e: WheelEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      addBinding('Scroll');
+    }
+
+    function handleContextMenu(e: Event) {
+      e.preventDefault();
+    }
+
+    function addBinding(code: string) {
+      if (listening === null) {
+        return;
+      }
+      const current = getBindings(keyConfig[listening]);
+      if (current.length >= 2 || current.includes(code)) {
+        setListening(null);
+        return;
+      }
+      onChange(listening, toKeyMap([...current, code]));
+      setListening(null);
+    }
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('mousedown', handleMouseDown, true);
+    document.addEventListener('wheel', handleWheel, true);
+    document.addEventListener('contextmenu', handleContextMenu, true);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('mousedown', handleMouseDown, true);
+      document.removeEventListener('wheel', handleWheel, true);
+      document.removeEventListener('contextmenu', handleContextMenu, true);
+    };
+  }, [listening, keyConfig, onChange]);
+
+  const handleRemove = React.useCallback(
+    (key: keyof GamepadKeyConfig, code: string) => {
+      const current = getBindings(keyConfig[key]);
+      onChange(key, toKeyMap(current.filter((c) => c !== code)));
+    },
+    [keyConfig, onChange]
+  );
+
+  return (
+    <View style={{ flexDirection: 'column' }}>
+      {INPUT_LABELS.map(({ key, label }) => {
+        const bindings = getBindings(keyConfig[key]);
+        return (
+          <View key={key} style={styles.row}>
+            <Text style={styles.label}>{label}</Text>
+            <View style={styles.bindings}>
+              {bindings.map((code) => (
+                <View key={code} style={styles.badge}>
+                  <Text style={styles.badgeText}>{code}</Text>
+                  <Text
+                    style={styles.removeBtn}
+                    onClick={() => {
+                      handleRemove(key, code);
+                    }}
+                  >
+                    ×
+                  </Text>
+                </View>
+              ))}
+              {bindings.length < 2 && (
+                <Text
+                  style={styles.addBtn}
+                  onClick={() => {
+                    setListening(key);
+                  }}
+                >
+                  +
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      })}
+
+      {listening !== null && (
+        <View style={styles.modal}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>Press a key or mouse button</Text>
+            <Text style={styles.modalSub}>Escape to cancel</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
