@@ -9,7 +9,8 @@
     "ts:check": "tsc -b --noEmit",
     "lint": "eslint . --fix",
     "pretty": "prettier --write .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node test/gamepad.test.cjs"
   },
   "dependencies": {
     "aphrodite": "^2.4.0",

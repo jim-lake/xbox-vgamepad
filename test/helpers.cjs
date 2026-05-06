@@ -53,12 +53,14 @@ async function launchBrowserWithExtension() {
       `--load-extension=${DIST_DIR}`,
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
     ],
   });
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'load' });
   await page.waitForFunction(
-    () => document.getElementById('status')?.textContent === 'connected',
+    () =>
+      document.getElementById('status')?.getAttribute('data-ready') === 'true',
     { timeout: 10000 }
   );
   return { browser, page };
@@ -194,6 +196,22 @@ async function waitForStatus(page, status, timeout = 10000) {
     { timeout },
     status
   );
+  if (status === 'connected') {
+    await page.waitForFunction(
+      () =>
+        document.getElementById('status')?.getAttribute('data-ready') ===
+        'true',
+      { timeout }
+    );
+  }
+}
+
+async function waitForReady(page, timeout = 10000) {
+  await page.waitForFunction(
+    () =>
+      document.getElementById('status')?.getAttribute('data-ready') === 'true',
+    { timeout }
+  );
 }
 
 /**
@@ -300,6 +318,7 @@ module.exports = {
   waitForAxis,
   waitForAxesCentered,
   waitForStatus,
+  waitForReady,
   setStorageSync,
   getStorageSync,
   sendConfigToPage,

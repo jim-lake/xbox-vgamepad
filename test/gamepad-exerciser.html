@@ -5,7 +5,7 @@
   </head>
   <body>
     <h1>Gamepad Exerciser</h1>
-    <div id="status">no-gamepad</div>
+    <div id="status" data-ready="false">no-gamepad</div>
     <div id="gamepad-id"></div>
     <div id="gamepad-index"></div>
     <div id="gamepad-mapping"></div>
@@ -43,6 +43,7 @@
       window.addEventListener('gamepaddisconnected', () => {
         disconnectCount++;
         statusEl.textContent = 'disconnected';
+        statusEl.setAttribute('data-ready', 'false');
         eventLogEl.setAttribute('data-connect-count', String(connectCount));
         eventLogEl.setAttribute(
           'data-disconnect-count',
@@ -73,6 +74,10 @@
           const axeData = gp.axes.map((a) => a.toFixed(2));
           axesEl.setAttribute('data-axes', axeData.join(','));
           axesEl.textContent = axeData.join(',');
+
+          if (statusEl.getAttribute('data-ready') !== 'true') {
+            statusEl.setAttribute('data-ready', 'true');
+          }
         }
         requestAnimationFrame(poll);
       }

@@ -165,22 +165,56 @@ async function teardown() {
   stopServer();
 }
 
+async function freshPage() {
+  const newPage = await browser.newPage();
+  await newPage.goto(`http://127.0.0.1:${helpers.serverPort()}/`, {
+    waitUntil: 'load',
+  });
+  await newPage.waitForFunction(
+    () =>
+      document.getElementById('status')?.getAttribute('data-ready') === 'true',
+    { timeout: 10000 }
+  );
+  try {
+    await page.close();
+  } catch {}
+  page = newPage;
+}
+
 async function runSuites(suiteFiles) {
   try {
     await setup();
     console.log('Running gamepad integration tests...\n');
-    const ctx = {
-      page,
-      browser,
-      assert,
-      expect,
-      helpers,
-      releaseAll,
-      DEFAULT_CONFIG,
-    };
     for (const file of suiteFiles) {
+      try {
+        await helpers.waitForReady(page);
+      } catch {
+        await freshPage();
+      }
+      const ctx = {
+        page,
+        browser,
+        assert,
+        expect,
+        helpers,
+        releaseAll,
+        DEFAULT_CONFIG,
+      };
       const suite = require(file);
-      await suite(ctx);
+      try {
+        await suite(ctx);
+      } catch (err) {
+        if (
+          err.message &&
+          (err.message.includes('detached') ||
+            err.message.includes('Session closed'))
+        ) {
+          console.log('    (page crashed, recovering...)');
+          await freshPage();
+        } else {
+          throw err;
+        }
+      }
     }
   } catch (err) {
     console.error('Fatal error:', err);

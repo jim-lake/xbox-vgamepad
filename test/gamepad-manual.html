@@ -99,7 +99,9 @@
   </head>
   <body>
     <h1>🎮 Gamepad Manual Tester</h1>
-    <div id="status" class="waiting">Waiting for gamepad...</div>
+    <div id="status" class="waiting" data-ready="false">
+      Waiting for gamepad...
+    </div>
 
     <div class="section">
       <h2>Buttons</h2>
@@ -167,6 +169,7 @@
       window.addEventListener('gamepaddisconnected', (e) => {
         statusEl.textContent = 'Disconnected';
         statusEl.className = 'disconnected';
+        statusEl.setAttribute('data-ready', 'false');
         lastEventEl.textContent = `gamepaddisconnected — ${e.gamepad.id}`;
       });
 
@@ -228,6 +231,10 @@
             `X: ${lx.toFixed(2)}  Y: ${ly.toFixed(2)}`;
           document.getElementById('stick-right-val').textContent =
             `X: ${rx.toFixed(2)}  Y: ${ry.toFixed(2)}`;
+
+          if (statusEl.getAttribute('data-ready') !== 'true') {
+            statusEl.setAttribute('data-ready', 'true');
+          }
         }
         requestAnimationFrame(poll);
       }

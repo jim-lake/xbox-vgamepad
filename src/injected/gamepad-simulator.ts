@@ -104,6 +104,11 @@ class GamepadSimulator {
     return this.enabled;
   }
 
+  resetState(): void {
+    this.reset();
+    this.timestamp = performance.now();
+  }
+
   pressButton(index: number): void {
     const btn = this.buttons[index];
     if (btn) {

@@ -343,6 +343,7 @@ module.exports = async function ({
       for (let i = 0; i < 3; i++) {
         await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
         await waitForStatus(page, 'disconnected');
+        await new Promise((r) => setTimeout(r, 200));
         await sendConfigToPage(page, {
           type: 'ACTIVATE_GAMEPAD_CONFIG',
           name: 'default',
@@ -459,10 +460,14 @@ module.exports = async function ({
 
   // Restore default
   await releaseAll(page);
-  await sendConfigToPage(page, {
-    type: 'ACTIVATE_GAMEPAD_CONFIG',
-    name: 'default',
-    gamepadConfig: DEFAULT_CONFIG,
-  });
-  await new Promise((r) => setTimeout(r, 500));
+  try {
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'default',
+      gamepadConfig: DEFAULT_CONFIG,
+    });
+    await new Promise((r) => setTimeout(r, 500));
+  } catch {
+    // Page may have crashed during earlier tests
+  }
 };

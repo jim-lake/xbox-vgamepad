@@ -104,7 +104,32 @@ class InputProcessor {
   private overlay: HTMLDivElement | null = null;
 
   activate(config: GamepadConfig): void {
-    this.deactivate();
+    if (this.active) {
+      // Hot-swap: just update bindings without disconnect/reconnect
+      this.removeListeners();
+      if (this.scrollTimer !== null) {
+        clearTimeout(this.scrollTimer);
+        this.scrollTimer = null;
+      }
+      if (this.moveTimer !== null) {
+        clearTimeout(this.moveTimer);
+        this.moveTimer = null;
+      }
+      if (this.stopTimer !== null) {
+        clearTimeout(this.stopTimer);
+        this.stopTimer = null;
+      }
+      gamepadSimulator.resetState();
+      this.keyMap = buildKeyMap(config);
+      this.sensitivity = config.mouseConfig.sensitivity || 10;
+      this.mouseStick = config.mouseConfig.mouseControls ?? null;
+      this.attachKeyboard();
+      this.attachMouseButtons();
+      if (this.mouseStick !== null) {
+        this.attachMouseMovement();
+      }
+      return;
+    }
     this.keyMap = buildKeyMap(config);
     this.sensitivity = config.mouseConfig.sensitivity || 10;
     this.mouseStick = config.mouseConfig.mouseControls ?? null;
