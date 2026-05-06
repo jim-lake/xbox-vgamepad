@@ -13,7 +13,9 @@ const directionToAxis: Record<Direction, AxisDirection> = {
   [Direction.RIGHT]: AxisDirection.RIGHT,
 };
 
-function parseAxisField(field: string): { stick: number; direction: Direction } | null {
+function parseAxisField(
+  field: string
+): { stick: number; direction: Direction } | null {
   let stick: number;
   let suffix: string;
   if (field.startsWith('leftStick') && field !== 'leftStickPressed') {
@@ -61,7 +63,11 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction> {
       }
       const axisInfo = parseAxisField(field);
       if (axisInfo) {
-        map.set(code, { type: 'axis', stick: axisInfo.stick, direction: axisInfo.direction });
+        map.set(code, {
+          type: 'axis',
+          stick: axisInfo.stick,
+          direction: axisInfo.direction,
+        });
       }
     }
   }
@@ -177,7 +183,8 @@ class InputProcessor {
 
     if (hasClick || hasRightClick) {
       this.onMouseDown = (e: MouseEvent) => {
-        const code = e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
+        const code =
+          e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
         if (!code) {
           return;
         }
@@ -187,7 +194,8 @@ class InputProcessor {
         }
       };
       this.onMouseUp = (e: MouseEvent) => {
-        const code = e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
+        const code =
+          e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
         if (!code) {
           return;
         }
@@ -196,8 +204,16 @@ class InputProcessor {
           this.executeUnpress(action);
         }
       };
-      container.addEventListener('mousedown', this.onMouseDown as EventListener, true);
-      container.addEventListener('mouseup', this.onMouseUp as EventListener, true);
+      container.addEventListener(
+        'mousedown',
+        this.onMouseDown as EventListener,
+        true
+      );
+      container.addEventListener(
+        'mouseup',
+        this.onMouseUp as EventListener,
+        true
+      );
     }
 
     if (hasScroll) {
@@ -220,7 +236,10 @@ class InputProcessor {
           e.preventDefault();
         }
       };
-      container.addEventListener('wheel', this.onWheel as EventListener, { capture: true, passive: false });
+      container.addEventListener('wheel', this.onWheel as EventListener, {
+        capture: true,
+        passive: false,
+      });
     }
   }
 
@@ -254,10 +273,13 @@ class InputProcessor {
       if (now - this.lastMoveProcess >= MOUSE_THROTTLE_MS) {
         this.processMouseMovement();
       } else if (this.moveTimer === null) {
-        this.moveTimer = setTimeout(() => {
-          this.moveTimer = null;
-          this.processMouseMovement();
-        }, MOUSE_THROTTLE_MS - (now - this.lastMoveProcess));
+        this.moveTimer = setTimeout(
+          () => {
+            this.moveTimer = null;
+            this.processMouseMovement();
+          },
+          MOUSE_THROTTLE_MS - (now - this.lastMoveProcess)
+        );
       }
     };
     document.addEventListener('mousemove', this.onMouseMove);
@@ -338,20 +360,35 @@ class InputProcessor {
     const container = this.getGameContainer();
     if (container) {
       if (this.onMouseDown) {
-        container.removeEventListener('mousedown', this.onMouseDown as EventListener, true);
+        container.removeEventListener(
+          'mousedown',
+          this.onMouseDown as EventListener,
+          true
+        );
       }
       if (this.onMouseUp) {
-        container.removeEventListener('mouseup', this.onMouseUp as EventListener, true);
+        container.removeEventListener(
+          'mouseup',
+          this.onMouseUp as EventListener,
+          true
+        );
       }
       if (this.onWheel) {
-        container.removeEventListener('wheel', this.onWheel as EventListener, true);
+        container.removeEventListener(
+          'wheel',
+          this.onWheel as EventListener,
+          true
+        );
       }
     }
     this.onMouseDown = null;
     this.onMouseUp = null;
     this.onWheel = null;
     if (this.onPointerLockChange) {
-      document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+      document.removeEventListener(
+        'pointerlockchange',
+        this.onPointerLockChange
+      );
       this.onPointerLockChange = null;
     }
     this.stopMouseListening();
@@ -361,7 +398,10 @@ class InputProcessor {
     if (action.type === 'button') {
       gamepadSimulator.pressButton(action.index);
     } else {
-      gamepadSimulator.pressDirection(action.stick, directionToAxis[action.direction]);
+      gamepadSimulator.pressDirection(
+        action.stick,
+        directionToAxis[action.direction]
+      );
     }
   }
 
@@ -369,7 +409,10 @@ class InputProcessor {
     if (action.type === 'button') {
       gamepadSimulator.unpressButton(action.index);
     } else {
-      gamepadSimulator.unpressDirection(action.stick, directionToAxis[action.direction]);
+      gamepadSimulator.unpressDirection(
+        action.stick,
+        directionToAxis[action.direction]
+      );
     }
   }
 

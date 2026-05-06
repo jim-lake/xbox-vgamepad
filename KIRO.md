@@ -25,14 +25,14 @@ Four runtime contexts communicate via message passing:
 
 ## Key Commands
 
-| Task | Command |
-|------|---------|
-| Dev server | `npm run dev` |
-| Build | `npm run build` |
-| Type check | `npm run ts:check` |
-| Lint + fix | `npm run lint` |
-| Format | `npm run pretty` |
-| Run tests | `node test/gamepad.test.cjs` (requires built extension in `dist/` and Chromium) |
+| Task       | Command                                                                         |
+| ---------- | ------------------------------------------------------------------------------- |
+| Dev server | `npm run dev`                                                                   |
+| Build      | `npm run build`                                                                 |
+| Type check | `npm run ts:check`                                                              |
+| Lint + fix | `npm run lint`                                                                  |
+| Format     | `npm run pretty`                                                                |
+| Run tests  | `node test/gamepad.test.cjs` (requires built extension in `dist/` and Chromium) |
 
 ## Important Conventions
 
@@ -51,6 +51,7 @@ Four runtime contexts communicate via message passing:
 The `spec/` directory contains the authoritative design specs (00–10). `JSON.md` at the project root defines the gamepad configuration JSON format. These are the source of truth for behavior — always consult them before implementing features.
 
 Key behavioral requirements:
+
 - Virtual gamepad ID: `"Xbox 360 Controller (XInput STANDARD GAMEPAD)"`
 - 17 buttons, 4 axes (standard mapping)
 - `gamepadconnected`/`gamepaddisconnected` events must fire
@@ -61,6 +62,7 @@ Key behavioral requirements:
 ## Testing
 
 Tests are Puppeteer-based integration tests in `test/`. They:
+
 1. Build the extension (`dist/`)
 2. Start a local HTTP server serving `test/gamepad-exerciser.html`
 3. Patch the built manifest to include the test server URL

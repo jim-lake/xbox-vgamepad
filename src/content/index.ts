@@ -16,14 +16,17 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
   if (data.type === 'INITIALIZED') {
     try {
-      chrome.runtime.sendMessage(data, (response: ExtensionMessage | undefined) => {
-        if (chrome.runtime.lastError) {
-          return;
+      chrome.runtime.sendMessage(
+        data,
+        (response: ExtensionMessage | undefined) => {
+          if (chrome.runtime.lastError) {
+            return;
+          }
+          if (response) {
+            window.postMessage(response, '*');
+          }
         }
-        if (response) {
-          window.postMessage(response, '*');
-        }
-      });
+      );
     } catch {
       // Extension context invalidated
     }

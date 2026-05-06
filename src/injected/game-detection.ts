@@ -3,7 +3,9 @@ export function detectGame(): boolean {
     return true;
   }
   const h1 = document.querySelector('h1');
-  const closeBtn = document.querySelector("[data-id='ui-container'] [aria-label='Close']");
+  const closeBtn = document.querySelector(
+    "[data-id='ui-container'] [aria-label='Close']"
+  );
   const streamDiv = document.getElementById('game-stream');
   return !h1 && !closeBtn && !!streamDiv;
 }

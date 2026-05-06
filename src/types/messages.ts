@@ -31,9 +31,7 @@ export interface DisableGamepadMessage {
   type: 'DISABLE_GAMEPAD';
 }
 
-export type PageToContentMessage =
-  | InitializedMessage
-  | GameChangedMessage;
+export type PageToContentMessage = InitializedMessage | GameChangedMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage

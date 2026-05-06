@@ -6,20 +6,26 @@ interface FakeButton {
   value: number;
 }
 
-export const AxisDirection = {
-  UP: 0,
-  DOWN: 1,
-  LEFT: 2,
-  RIGHT: 3,
-} as const;
+export const AxisDirection = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 } as const;
 
 export type AxisDirection = (typeof AxisDirection)[keyof typeof AxisDirection];
 
-const directionMeta: Record<AxisDirection, { position: number; value: number; opposite: AxisDirection }> = {
+const directionMeta: Record<
+  AxisDirection,
+  { position: number; value: number; opposite: AxisDirection }
+> = {
   [AxisDirection.UP]: { position: 1, value: -1, opposite: AxisDirection.DOWN },
   [AxisDirection.DOWN]: { position: 1, value: 1, opposite: AxisDirection.UP },
-  [AxisDirection.LEFT]: { position: 0, value: -1, opposite: AxisDirection.RIGHT },
-  [AxisDirection.RIGHT]: { position: 0, value: 1, opposite: AxisDirection.LEFT },
+  [AxisDirection.LEFT]: {
+    position: 0,
+    value: -1,
+    opposite: AxisDirection.RIGHT,
+  },
+  [AxisDirection.RIGHT]: {
+    position: 0,
+    value: 1,
+    opposite: AxisDirection.LEFT,
+  },
 };
 
 function createButton(): FakeButton {

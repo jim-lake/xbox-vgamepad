@@ -1,5 +1,8 @@
 import { MSG_SOURCE } from '@/types/messages';
-import type { ExtensionMessage, ActivateGamepadConfigMessage } from '@/types/messages';
+import type {
+  ExtensionMessage,
+  ActivateGamepadConfigMessage,
+} from '@/types/messages';
 import { detectGame, getGameName } from './game-detection';
 import { inputProcessor } from './input-processor';
 import { showToast } from './toast';
@@ -17,7 +20,7 @@ function sendMessage(msg: ExtensionMessage): void {
 
 function handleMessage(msg: ExtensionMessage): void {
   if (msg.type === 'ACTIVATE_GAMEPAD_CONFIG') {
-    const activateMsg = msg as ActivateGamepadConfigMessage;
+    const activateMsg = msg;
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(activateMsg.gamepadConfig);
   } else if (msg.type === 'DISABLE_GAMEPAD') {
@@ -78,7 +81,10 @@ function onWindowMessage(event: MessageEvent): void {
   if (!data || data.source !== MSG_SOURCE) {
     return;
   }
-  if (data.type === 'ACTIVATE_GAMEPAD_CONFIG' || data.type === 'DISABLE_GAMEPAD') {
+  if (
+    data.type === 'ACTIVATE_GAMEPAD_CONFIG' ||
+    data.type === 'DISABLE_GAMEPAD'
+  ) {
     handleMessage(data);
   }
 }
