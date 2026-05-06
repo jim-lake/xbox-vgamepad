@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-C_1z1_ov.js"
+        "assets/index.ts-loader-DYonJ_Fc.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
@@ -27,7 +27,7 @@
     },
     {
       "js": [
-        "assets/main-world.ts-loader-DDX-U81B.js"
+        "assets/main-world.ts-loader-DBrMds66.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
@@ -59,12 +59,12 @@
         "src/assets/img/*",
         "assets/messages-CSoHXWTP.js",
         "assets/messages-CSoHXWTP.js.map",
-        "assets/index.ts-DjfmCEYH.js",
-        "assets/index.ts-DjfmCEYH.js.map",
+        "assets/index.ts-Czxqz_ly.js",
+        "assets/index.ts-Czxqz_ly.js.map",
         "assets/gamepad-ClnJ_keH.js",
         "assets/gamepad-ClnJ_keH.js.map",
-        "assets/main-world.ts-DQL4XSsm.js",
-        "assets/main-world.ts-DQL4XSsm.js.map"
+        "assets/main-world.ts-CRULODdT.js",
+        "assets/main-world.ts-CRULODdT.js.map"
       ],
       "use_dynamic_url": false
     }

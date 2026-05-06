@@ -10,9 +10,9 @@ import { DEFAULT_CONFIG } from '@/types/gamepad';
 const CONFIG_PREFIX = 'GP_CONF:';
 
 chrome.runtime.onInstalled.addListener((details) => {
-  chrome.action.disable();
+  void chrome.action.disable();
   if (details.reason === 'install') {
-    chrome.storage.sync.set({
+    void chrome.storage.sync.set({
       ACTIVE_GP_CONF: 'default',
       ENABLED: true,
       [`${CONFIG_PREFIX}default`]: DEFAULT_CONFIG,
@@ -28,13 +28,13 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'INJECTED') {
       if (sender.tab.id !== undefined) {
-        chrome.action.enable(sender.tab.id);
+        void chrome.action.enable(sender.tab.id);
       }
       return false;
     }
 
     if (message.type === 'INITIALIZED') {
-      chrome.storage.local.set({ gameName: message.gameName });
+      void chrome.storage.local.set({ gameName: message.gameName });
       chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
         const isEnabled = (data['ENABLED'] as boolean | undefined) ?? true;
         const activeConfig =
@@ -65,7 +65,7 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'GAME_CHANGED') {
-      chrome.storage.local.set({ gameName: message.gameName });
+      void chrome.storage.local.set({ gameName: message.gameName });
       return false;
     }
 

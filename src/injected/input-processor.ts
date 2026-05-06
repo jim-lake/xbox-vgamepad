@@ -44,11 +44,14 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction> {
   const map = new Map<string, GamepadAction>();
   const keyConfig = config.keyConfig;
 
-  for (const [field, value] of Object.entries(keyConfig)) {
-    if (value === undefined || value === null) {
+  for (const [field, value] of Object.entries(keyConfig) as [
+    string,
+    string | [string, string] | undefined,
+  ][]) {
+    if (value === undefined) {
       continue;
     }
-    const codes = Array.isArray(value) ? value : [value];
+    const codes: string[] = Array.isArray(value) ? value : [value];
     for (const code of codes) {
       if (code === 'Escape') {
         continue;
@@ -350,7 +353,7 @@ class InputProcessor {
     this.overlay.addEventListener('click', () => {
       const c = this.getGameContainer();
       if (c) {
-        (c as HTMLElement).requestPointerLock();
+        void (c as HTMLElement).requestPointerLock();
         const stream = document.getElementById('game-stream');
         if (stream) {
           stream.focus();

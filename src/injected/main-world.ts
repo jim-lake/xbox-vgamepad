@@ -1,8 +1,5 @@
 import { MSG_SOURCE } from '@/types/messages';
-import type {
-  ExtensionMessage,
-  ActivateGamepadConfigMessage,
-} from '@/types/messages';
+import type { ExtensionMessage } from '@/types/messages';
 import { detectGame, getGameName } from './game-detection';
 import { inputProcessor } from './input-processor';
 import { showToast } from './toast';
@@ -46,10 +43,8 @@ function startWaitingForGame(): void {
   }, POLL_INTERVAL);
   // Check immediately
   if (detectGame()) {
-    if (pollTimer !== null) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
+    clearInterval(pollTimer);
+    pollTimer = null;
     onGameDetected();
   }
 }
@@ -77,15 +72,20 @@ function onGameDetected(): void {
 }
 
 function onWindowMessage(event: MessageEvent): void {
-  const data = event.data as ExtensionMessage | undefined;
-  if (!data || data.source !== MSG_SOURCE) {
+  const data: unknown = event.data;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    (data as { source?: unknown }).source !== MSG_SOURCE
+  ) {
     return;
   }
+  const msg = data as ExtensionMessage;
   if (
-    data.type === 'ACTIVATE_GAMEPAD_CONFIG' ||
-    data.type === 'DISABLE_GAMEPAD'
+    msg.type === 'ACTIVATE_GAMEPAD_CONFIG' ||
+    msg.type === 'DISABLE_GAMEPAD'
   ) {
-    handleMessage(data);
+    handleMessage(msg);
   }
 }
 

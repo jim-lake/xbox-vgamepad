@@ -51,12 +51,11 @@ class GamepadSimulator {
   }
 
   private patch(): void {
-    const self = this;
-    navigator.getGamepads = function (): (Gamepad | null)[] {
-      if (self.enabled) {
-        return [self.snapshot(), null, null, null];
+    navigator.getGamepads = (): (Gamepad | null)[] => {
+      if (this.enabled) {
+        return [this.snapshot(), null, null, null];
       }
-      return self.originalGetGamepads();
+      return this.originalGetGamepads();
     };
   }
 

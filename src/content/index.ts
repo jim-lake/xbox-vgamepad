@@ -3,21 +3,26 @@ import type { ExtensionMessage } from '@/types/messages';
 
 // Notify background that content script loaded
 try {
-  chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
+  void chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
 } catch {
   // Extension context invalidated
 }
 
 // Relay messages from page → background
 window.addEventListener('message', (event: MessageEvent) => {
-  const data = event.data as ExtensionMessage | undefined;
-  if (!data || data.source !== MSG_SOURCE) {
+  const data: unknown = event.data;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    (data as { source?: unknown }).source !== MSG_SOURCE
+  ) {
     return;
   }
-  if (data.type === 'INITIALIZED') {
+  const msg = data as ExtensionMessage;
+  if (msg.type === 'INITIALIZED') {
     try {
       chrome.runtime.sendMessage(
-        data,
+        msg,
         (response: ExtensionMessage | undefined) => {
           if (chrome.runtime.lastError) {
             return;
@@ -30,9 +35,9 @@ window.addEventListener('message', (event: MessageEvent) => {
     } catch {
       // Extension context invalidated
     }
-  } else if (data.type === 'GAME_CHANGED') {
+  } else if (msg.type === 'GAME_CHANGED') {
     try {
-      chrome.runtime.sendMessage(data);
+      void chrome.runtime.sendMessage(msg);
     } catch {
       // Extension context invalidated
     }
