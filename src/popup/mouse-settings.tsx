@@ -5,7 +5,7 @@ import TextButton from '@/components/buttons/text_button';
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
   row: { flexDirection: 'row', alignItems: 'center', gap: '0.8rem' },
-  label: { color: '#94a3b8', fontSize: '1.1rem', width: '7rem' },
+  label: { color: '#94a3b8', fontSize: '1.4rem', width: '7rem' },
   option: {
     paddingLeft: '0.6rem',
     paddingRight: '0.6rem',
@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f3460',
   },
   optionActive: { backgroundColor: '#107c10' },
-  sensitivityValue: { color: '#e2e8f0', fontSize: '1.1rem', width: '3rem' },
+  sensitivityValue: { color: '#e2e8f0', fontSize: '1.4rem', width: '3rem' },
 });
 
 interface Props {

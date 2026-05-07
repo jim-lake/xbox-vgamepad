@@ -4,7 +4,7 @@ import '../../css/colors.css';
 
 export const styles = StyleSheet.create({
   textButton: {
-    height: '3.2rem',
+    height: '2.8rem',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -14,8 +14,8 @@ export const styles = StyleSheet.create({
     overflow: 'visible',
   },
   inner: {
-    paddingLeft: '1.5rem',
-    paddingRight: '1.5rem',
+    paddingLeft: '1rem',
+    paddingRight: '1rem',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

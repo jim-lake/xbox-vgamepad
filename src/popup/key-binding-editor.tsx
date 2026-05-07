@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#0f3460',
   },
-  label: { width: '6rem', color: '#94a3b8', fontSize: '1.1rem' },
+  label: { width: '6rem', color: '#94a3b8', fontSize: '1.4rem' },
   bindings: { flex: 1, flexDirection: 'row', gap: '0.4rem', flexWrap: 'wrap' },
   badge: {
     backgroundColor: '#0f3460',
@@ -54,8 +54,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: '0.3rem',
   },
-  badgeText: { color: '#e2e8f0', fontSize: '1rem' },
-  addBtn: { paddingLeft: '0.4rem' },
+  badgeText: { color: '#e2e8f0', fontSize: '1.3rem' },
+  addBtn: { marginLeft: '0.4rem' },
   modal: {
     position: 'fixed',
     top: 0,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalText: { color: '#e2e8f0', fontSize: '1.4rem', marginBottom: '1rem' },
-  modalSub: { color: '#94a3b8', fontSize: '1.1rem' },
+  modalSub: { color: '#94a3b8', fontSize: '1.3rem' },
 });
 
 function getBindings(keyMap: KeyMap): string[] {
@@ -189,6 +189,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                   <Text style={styles.badgeText}>{code}</Text>
                   <TextButton
                     text='×'
+                    type='danger'
                     onPress={() => {
                       handleRemove(key, code);
                     }}
