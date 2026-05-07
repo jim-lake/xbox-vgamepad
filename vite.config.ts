@@ -13,7 +13,9 @@ export default defineConfig(({ mode }) => {
   const outDir =
     mode === 'development' ? 'build' : mode === 'test' ? 'build-test' : 'dist';
 
-  const manifestCopy = JSON.parse(JSON.stringify(manifest));
+  const manifestCopy: typeof manifest = JSON.parse(
+    JSON.stringify(manifest)
+  ) as typeof manifest;
   if (mode === 'test') {
     const testMatch = 'http://127.0.0.1:9444/*';
     for (const script of manifestCopy.content_scripts) {
