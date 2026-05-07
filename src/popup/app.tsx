@@ -93,9 +93,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  toolBtn: {
-    backgroundColor: '#0f3460',
-  },
+  toolBtn: { backgroundColor: '#0f3460' },
   toolBtnDanger: { backgroundColor: '#d13438' },
   body: { maxHeight: 400, flexDirection: 'column' },
   section: { padding: '0.8rem', flexDirection: 'column' },
@@ -114,9 +112,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#0f3460',
   },
-  undoBtn: {
-    backgroundColor: '#0f3460',
-  },
+  undoBtn: { backgroundColor: '#0f3460' },
   undoBtnDisabled: { opacity: 0.4, cursor: 'default' },
   statusText: {
     flex: 1,
@@ -525,11 +521,7 @@ export default function App() {
 
       {dirty && (
         <View style={styles.statusBar}>
-          <TextButton
-            style={styles.undoBtn}
-            text='Undo'
-            onPress={handleUndo}
-          />
+          <TextButton style={styles.undoBtn} text='Undo' onPress={handleUndo} />
           <Text style={styles.statusText}>Saved</Text>
         </View>
       )}

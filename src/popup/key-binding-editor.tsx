@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
-import TextButton from '@/components/buttons/text_button';
+import IconButton from '@/components/icon_button';
 import type { GamepadKeyConfig, KeyMap } from '@/types/gamepad';
 
 const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
@@ -45,16 +45,17 @@ const styles = StyleSheet.create({
   bindings: { flex: 1, flexDirection: 'row', gap: '0.4rem', flexWrap: 'wrap' },
   badge: {
     backgroundColor: '#0f3460',
-    paddingLeft: '0.5rem',
-    paddingRight: '0.5rem',
+    paddingLeft: '0.6rem',
     paddingTop: '0.2rem',
     paddingBottom: '0.2rem',
     borderRadius: '0.3rem',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: '0.3rem',
+    gap: '0.4rem',
   },
   badgeText: { color: '#e2e8f0', fontSize: '1.3rem' },
+  removeIcon: { color: '#d13438' },
+  addIcon: { color: '#107c10' },
   addBtn: { marginLeft: '0.4rem' },
   modal: {
     position: 'fixed',
@@ -85,6 +86,25 @@ function getBindings(keyMap: KeyMap): string[] {
     return [keyMap];
   }
   return [...keyMap];
+}
+
+function formatCode(code: string): string {
+  if (code.startsWith('Key')) {
+    return code.slice(3);
+  }
+  if (code.startsWith('Digit')) {
+    return code.slice(5);
+  }
+  if (code === 'ControlLeft' || code === 'ControlRight') {
+    return 'Ctrl';
+  }
+  if (code === 'ShiftLeft' || code === 'ShiftRight') {
+    return 'Shift';
+  }
+  if (code === 'AltLeft' || code === 'AltRight') {
+    return 'Alt';
+  }
+  return code;
 }
 
 function toKeyMap(bindings: string[]): KeyMap {
@@ -186,19 +206,20 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
             <View style={styles.bindings}>
               {bindings.map((code) => (
                 <View key={code} style={styles.badge}>
-                  <Text style={styles.badgeText}>{code}</Text>
-                  <TextButton
-                    text='×'
-                    type='danger'
+                  <Text style={styles.badgeText}>{formatCode(code)}</Text>
+                  <IconButton
+                    icon='×'
+                    iconStyle={styles.removeIcon}
                     onPress={() => {
                       handleRemove(key, code);
                     }}
                   />
                 </View>
               ))}
-              <TextButton
+              <IconButton
+                icon='+'
                 style={styles.addBtn}
-                text='+'
+                iconStyle={styles.addIcon}
                 onPress={() => {
                   setListening(key);
                 }}
