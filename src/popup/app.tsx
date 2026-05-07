@@ -4,6 +4,7 @@ import {
   Text,
   View,
   ScrollView,
+  TouchableWithoutFeedback,
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import type { GamepadConfig, GamepadKeyConfig, KeyMap } from '@/types/gamepad';
@@ -417,20 +418,16 @@ export default function App() {
         <View style={styles.headerLeft}>
           <Text style={styles.gameName}>{gameName ?? 'No game detected'}</Text>
         </View>
-        <View
-          style={[
-            styles.toggle,
-            isEnabled ? styles.toggleOn : styles.toggleOff,
-          ]}
-        >
-          <View style={styles.toggleKnob} />
-          <TextButton
-            style={StyleSheet.absoluteFill}
-            text=''
-            onPress={() => void handleToggle()}
-            underlayColor='transparent'
-          />
-        </View>
+        <TouchableWithoutFeedback onPress={() => void handleToggle()}>
+          <View
+            style={[
+              styles.toggle,
+              isEnabled ? styles.toggleOn : styles.toggleOff,
+            ]}
+          >
+            <View style={styles.toggleKnob} />
+          </View>
+        </TouchableWithoutFeedback>
       </View>
 
       {/* Profile navigation */}

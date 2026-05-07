@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
+import TextButton from '@/components/buttons/text_button';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
@@ -11,7 +12,6 @@ const styles = StyleSheet.create({
     paddingTop: '0.3rem',
     paddingBottom: '0.3rem',
     borderRadius: '0.3rem',
-    cursor: 'pointer',
     backgroundColor: '#0f3460',
   },
   optionActive: { backgroundColor: '#107c10' },
@@ -56,18 +56,18 @@ export default function MouseSettings({
       <View style={styles.row}>
         <Text style={styles.label}>Stick</Text>
         {STICK_OPTIONS.map(({ label, value }) => (
-          <View
+          <TextButton
             key={label}
             style={[
               styles.option,
               mouseControls === value ? styles.optionActive : undefined,
             ]}
-            onClick={() => {
+            text={label}
+            textStyle={styles.optionText}
+            onPress={() => {
               onChangeStick(value);
             }}
-          >
-            <Text style={styles.optionText}>{label}</Text>
-          </View>
+          />
         ))}
       </View>
       <View style={styles.row}>

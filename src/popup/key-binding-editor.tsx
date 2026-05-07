@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
+import TextButton from '@/components/buttons/text_button';
 import type { GamepadKeyConfig, KeyMap } from '@/types/gamepad';
 
 const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
@@ -54,13 +55,8 @@ const styles = StyleSheet.create({
     gap: '0.3rem',
   },
   badgeText: { color: '#e2e8f0', fontSize: '1rem' },
-  removeBtn: { color: '#d13438', fontSize: '1rem', cursor: 'pointer' },
-  addBtn: {
-    color: '#107c10',
-    fontSize: '1.1rem',
-    cursor: 'pointer',
-    paddingLeft: '0.4rem',
-  },
+  removeBtn: { color: '#d13438', fontSize: '1rem' },
+  addBtn: { color: '#107c10', fontSize: '1.1rem', paddingLeft: '0.4rem' },
   modal: {
     position: 'fixed',
     top: 0,
@@ -192,24 +188,24 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
               {bindings.map((code) => (
                 <View key={code} style={styles.badge}>
                   <Text style={styles.badgeText}>{code}</Text>
-                  <Text
+                  <TextButton
                     style={styles.removeBtn}
-                    onClick={() => {
+                    text='×'
+                    textStyle={styles.removeBtn}
+                    onPress={() => {
                       handleRemove(key, code);
                     }}
-                  >
-                    ×
-                  </Text>
+                  />
                 </View>
               ))}
-              <Text
+              <TextButton
                 style={styles.addBtn}
-                onClick={() => {
+                text='+'
+                textStyle={styles.addBtn}
+                onPress={() => {
                   setListening(key);
                 }}
-              >
-                +
-              </Text>
+              />
             </View>
           </View>
         );
