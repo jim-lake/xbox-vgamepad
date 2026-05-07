@@ -15,7 +15,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f3460',
   },
   optionActive: { backgroundColor: '#107c10' },
-  optionText: { color: '#e2e8f0', fontSize: '1.1rem' },
   sensitivityValue: { color: '#e2e8f0', fontSize: '1.1rem', width: '3rem' },
 });
 
@@ -63,7 +62,6 @@ export default function MouseSettings({
               mouseControls === value ? styles.optionActive : undefined,
             ]}
             text={label}
-            textStyle={styles.optionText}
             onPress={() => {
               onChangeStick(value);
             }}

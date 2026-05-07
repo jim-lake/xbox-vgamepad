@@ -73,7 +73,6 @@ const styles = StyleSheet.create({
     paddingRight: '1rem',
   },
   navArrowDisabled: { opacity: 0.3, cursor: 'default' },
-  navArrowText: { color: '#e2e8f0', fontSize: '1.6rem' },
   navLabel: {
     color: '#e2e8f0',
     fontSize: '1.3rem',
@@ -104,7 +103,6 @@ const styles = StyleSheet.create({
     cursor: 'pointer',
   },
   toolBtnDanger: { backgroundColor: '#d13438' },
-  toolBtnText: { color: '#e2e8f0', fontSize: '1.1rem' },
   body: { maxHeight: 400, flexDirection: 'column' },
   section: { padding: '0.8rem', flexDirection: 'column' },
   sectionTitle: {
@@ -132,7 +130,6 @@ const styles = StyleSheet.create({
     cursor: 'pointer',
   },
   undoBtnDisabled: { opacity: 0.4, cursor: 'default' },
-  undoBtnText: { color: '#e2e8f0', fontSize: '1rem' },
   statusText: {
     flex: 1,
     textAlign: 'right',
@@ -438,7 +435,6 @@ export default function App() {
             renaming ? styles.navArrowDisabled : undefined,
           ]}
           text='◀'
-          textStyle={styles.navArrowText}
           disabled={renaming}
           onPress={() => void cyclePreset(-1)}
         />
@@ -468,7 +464,6 @@ export default function App() {
             <TextButton
               style={styles.toolBtn}
               text='Save'
-              textStyle={styles.toolBtnText}
               onPress={() => void handleSaveRename()}
             />
           </View>
@@ -481,7 +476,6 @@ export default function App() {
             renaming ? styles.navArrowDisabled : undefined,
           ]}
           text='▶'
-          textStyle={styles.navArrowText}
           disabled={renaming}
           onPress={() => void cyclePreset(1)}
         />
@@ -492,31 +486,26 @@ export default function App() {
         <TextButton
           style={styles.toolBtn}
           text='New'
-          textStyle={styles.toolBtnText}
           onPress={() => void handleNew()}
         />
         <TextButton
           style={styles.toolBtn}
           text='Copy'
-          textStyle={styles.toolBtnText}
           onPress={() => void handleCopy()}
         />
         <TextButton
           style={styles.toolBtn}
           text='Import'
-          textStyle={styles.toolBtnText}
           onPress={handleImport}
         />
         <TextButton
           style={styles.toolBtn}
           text='Export'
-          textStyle={styles.toolBtnText}
           onPress={handleExport}
         />
         <TextButton
           style={styles.toolBtn}
           text='Rename'
-          textStyle={styles.toolBtnText}
           onPress={handleEditName}
         />
       </View>
@@ -551,7 +540,6 @@ export default function App() {
           <TextButton
             style={styles.undoBtn}
             text='Undo'
-            textStyle={styles.undoBtnText}
             onPress={handleUndo}
           />
           <Text style={styles.statusText}>Saved</Text>

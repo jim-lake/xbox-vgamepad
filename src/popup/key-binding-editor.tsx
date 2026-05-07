@@ -55,8 +55,7 @@ const styles = StyleSheet.create({
     gap: '0.3rem',
   },
   badgeText: { color: '#e2e8f0', fontSize: '1rem' },
-  removeBtn: { color: '#d13438', fontSize: '1rem' },
-  addBtn: { color: '#107c10', fontSize: '1.1rem', paddingLeft: '0.4rem' },
+  addBtn: { paddingLeft: '0.4rem' },
   modal: {
     position: 'fixed',
     top: 0,
@@ -189,9 +188,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                 <View key={code} style={styles.badge}>
                   <Text style={styles.badgeText}>{code}</Text>
                   <TextButton
-                    style={styles.removeBtn}
                     text='×'
-                    textStyle={styles.removeBtn}
                     onPress={() => {
                       handleRemove(key, code);
                     }}
@@ -201,7 +198,6 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
               <TextButton
                 style={styles.addBtn}
                 text='+'
-                textStyle={styles.addBtn}
                 onPress={() => {
                   setListening(key);
                 }}
