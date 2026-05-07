@@ -11,9 +11,7 @@ module.exports = async function ({
   const { sendConfigToPage, setStorageSync, getStorageSync } = helpers;
 
   async function hasOverlay(pg) {
-    return pg.evaluate(
-      () => !!document.getElementById('xvg-pointer-overlay')
-    );
+    return pg.evaluate(() => !!document.getElementById('xvg-pointer-overlay'));
   }
   async function hasMinimizedBtn(pg) {
     return pg.evaluate(

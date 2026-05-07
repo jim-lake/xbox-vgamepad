@@ -11,9 +11,7 @@ module.exports = async function ({
 
   // Helper to check overlay/minimized presence
   async function hasOverlay(pg) {
-    return pg.evaluate(
-      () => !!document.getElementById('xvg-pointer-overlay')
-    );
+    return pg.evaluate(() => !!document.getElementById('xvg-pointer-overlay'));
   }
   async function hasMinimizedBtn(pg) {
     return pg.evaluate(
@@ -44,19 +42,16 @@ module.exports = async function ({
 
   console.log('  [Mouse Axis Switching: no-axis → left → no-axis]');
 
-  await assert(
-    'no-axis config does not show overlay',
-    async () => {
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'noMouse',
-        gamepadConfig: noMouseConfig,
-      });
-      await new Promise((r) => setTimeout(r, 300));
-      expect(await hasOverlay(page)).toBeFalse();
-      expect(await hasMinimizedBtn(page)).toBeFalse();
-    }
-  );
+  await assert('no-axis config does not show overlay', async () => {
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'noMouse',
+      gamepadConfig: noMouseConfig,
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(await hasOverlay(page)).toBeFalse();
+    expect(await hasMinimizedBtn(page)).toBeFalse();
+  });
 
   await assert(
     'switching from no-axis to left stick shows overlay',
@@ -187,7 +182,9 @@ module.exports = async function ({
     }
   );
 
-  console.log('  [Mouse Axis Switching: keyboard still works after transitions]');
+  console.log(
+    '  [Mouse Axis Switching: keyboard still works after transitions]'
+  );
 
   await assert(
     'keyboard bindings work after mouse axis transitions',

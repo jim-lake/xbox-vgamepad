@@ -269,10 +269,7 @@ async function getStorageSync(browser, keys) {
  */
 async function sendConfigToPage(page, message) {
   await page.evaluate((msg) => {
-    window.postMessage(
-      { source: 'xbox-vgamepad-content-script', ...msg },
-      '*'
-    );
+    window.postMessage({ source: 'xbox-vgamepad-content-script', ...msg }, '*');
   }, message);
 }
 

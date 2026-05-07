@@ -120,10 +120,7 @@ class InputProcessor {
   private _minimizedDismissed = false;
   private overlayMinimized = false;
 
-  activate(
-    config: GamepadConfig,
-    opts?: { overlayMinimized?: boolean }
-  ): void {
+  activate(config: GamepadConfig, opts?: { overlayMinimized?: boolean }): void {
     this.config = config;
     if (opts?.overlayMinimized !== undefined) {
       this.overlayMinimized = opts.overlayMinimized;

@@ -43,9 +43,7 @@ window.addEventListener('message', (event: MessageEvent) => {
     }
   } else if (msg.type === 'SET_OVERLAY_MINIMIZED') {
     try {
-      void chrome.storage.sync.set({
-        OVERLAY_MINIMIZED: msg.minimized,
-      });
+      void chrome.storage.sync.set({ OVERLAY_MINIMIZED: msg.minimized });
     } catch {
       // Extension context invalidated
     }
