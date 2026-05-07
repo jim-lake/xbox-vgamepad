@@ -11,7 +11,6 @@ import './gamepad-simulator';
 const POLL_INTERVAL = 1000;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
-let lastConfigName: string | null = null;
 let pendingConfig: { name: string; gamepadConfig: GamepadConfig } | null = null;
 
 function sendMessage(msg: ExtensionMessage): void {
@@ -24,7 +23,6 @@ function applyPendingConfig(): void {
   }
   const { name, gamepadConfig } = pendingConfig;
   pendingConfig = null;
-  lastConfigName = name;
   updateToggleCodes(gamepadConfig);
   showToast(`'${name}' preset activated`);
   inputProcessor.activate(gamepadConfig, { resetDismissed: true });
@@ -33,7 +31,6 @@ function applyPendingConfig(): void {
 function handleMessage(msg: ExtensionMessage): void {
   if (msg.type === 'ACTIVATE_GAMEPAD_CONFIG') {
     const activateMsg = msg;
-    lastConfigName = activateMsg.name;
     updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(
@@ -73,17 +70,10 @@ document.addEventListener(
   'keydown',
   (e: KeyboardEvent) => {
     if (!e.repeat && toggleCodes.has(e.code)) {
-      inputProcessor.toggle();
-      const nowActive = inputProcessor.isActive();
-      if (nowActive) {
-        showToast(`'${lastConfigName ?? 'default'}' reconnected`);
-      } else {
-        showToast('Gamepad disconnected');
-      }
       sendMessage({
         source: MSG_SOURCE,
         type: 'TOGGLE_ENABLED',
-        enabled: nowActive,
+        enabled: !inputProcessor.isActive(),
       });
       if (e.cancelable) {
         e.preventDefault();

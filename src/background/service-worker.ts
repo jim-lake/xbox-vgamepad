@@ -96,8 +96,36 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'TOGGLE_ENABLED') {
+      const tabId = sender.tab.id;
       void chrome.storage.sync.set({ ENABLED: message.enabled });
-      updateIcon(message.enabled);
+      if (message.enabled) {
+        chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
+          const activeConfig =
+            (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
+          const config =
+            (data[`${CONFIG_PREFIX}${activeConfig}`] as
+              | GamepadConfig
+              | undefined) ??
+            (activeConfig === 'default' ? DEFAULT_CONFIG : undefined);
+          if (config && tabId !== undefined) {
+            const msg: ActivateGamepadConfigMessage = {
+              source: MSG_SOURCE,
+              type: 'ACTIVATE_GAMEPAD_CONFIG',
+              name: activeConfig,
+              gamepadConfig: config,
+            };
+            void chrome.tabs.sendMessage(tabId, msg);
+          }
+        });
+      } else {
+        if (tabId !== undefined) {
+          const msg: DisableGamepadMessage = {
+            source: MSG_SOURCE,
+            type: 'DISABLE_GAMEPAD',
+          };
+          void chrome.tabs.sendMessage(tabId, msg);
+        }
+      }
       return false;
     }
 

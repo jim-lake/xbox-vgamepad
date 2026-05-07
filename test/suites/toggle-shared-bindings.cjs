@@ -16,10 +16,12 @@ module.exports = async function ({
     waitForButton,
     waitForStatus,
     sendConfigToPage,
+    setStorageSync,
   } = helpers;
 
-  // Ensure we start clean with default config
+  // Ensure we start clean with default config (both page and storage)
   await releaseAll(page);
+  await setStorageSync(browser, { ACTIVE_GP_CONF: 'default', ENABLED: true });
   await sendConfigToPage(page, {
     type: 'ACTIVATE_GAMEPAD_CONFIG',
     name: 'default',
@@ -49,7 +51,7 @@ module.exports = async function ({
     expect(before).toBe('disconnected');
 
     await page.keyboard.press('F9');
-    await waitForStatus(page, 'connected', 3000);
+    await waitForStatus(page, 'connected', 5000);
 
     const after = await getConnectionStatus(page);
     expect(after).toBe('connected');
@@ -59,13 +61,15 @@ module.exports = async function ({
     'Toggle fires gamepadconnected/disconnected events',
     async () => {
       await releaseAll(page);
+      await new Promise((r) => setTimeout(r, 300));
       const countsBefore = await getEventCounts(page);
 
       await page.keyboard.press('F9');
-      await waitForStatus(page, 'disconnected', 3000);
+      await waitForStatus(page, 'disconnected', 5000);
+      await new Promise((r) => setTimeout(r, 300));
 
       await page.keyboard.press('F9');
-      await waitForStatus(page, 'connected', 3000);
+      await waitForStatus(page, 'connected', 5000);
 
       const countsAfter = await getEventCounts(page);
       expect(countsAfter.disconnectCount).toBe(
@@ -89,10 +93,10 @@ module.exports = async function ({
     await new Promise((r) => setTimeout(r, 300));
 
     await page.keyboard.press('F8');
-    await waitForStatus(page, 'disconnected', 3000);
+    await waitForStatus(page, 'disconnected', 5000);
 
     await page.keyboard.press('F8');
-    await waitForStatus(page, 'connected', 3000);
+    await waitForStatus(page, 'connected', 5000);
 
     // Restore default config
     await sendConfigToPage(page, {
@@ -108,10 +112,11 @@ module.exports = async function ({
 
     // Disconnect and reconnect
     await page.keyboard.press('F9');
-    await waitForStatus(page, 'disconnected', 3000);
+    await waitForStatus(page, 'disconnected', 5000);
+    await new Promise((r) => setTimeout(r, 300));
     await page.keyboard.press('F9');
-    await waitForStatus(page, 'connected', 3000);
-    await new Promise((r) => setTimeout(r, 200));
+    await waitForStatus(page, 'connected', 5000);
+    await new Promise((r) => setTimeout(r, 300));
 
     // Verify inputs still work
     await page.keyboard.down('Space');
