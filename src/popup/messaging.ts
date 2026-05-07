@@ -1,6 +1,7 @@
 import { MSG_SOURCE } from '@/types/messages';
 import type {
   ActivateGamepadConfigMessage,
+  ConfigChangedMessage,
   DisableGamepadMessage,
 } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
@@ -35,6 +36,23 @@ export async function sendDisableGamepad(): Promise<void> {
   const msg: DisableGamepadMessage = {
     source: MSG_SOURCE,
     type: 'DISABLE_GAMEPAD',
+  };
+  await chrome.tabs.sendMessage(tabId, msg);
+}
+
+export async function sendConfigChanged(
+  name: string,
+  config: GamepadConfig
+): Promise<void> {
+  const tabId = await getActiveTabId();
+  if (tabId === undefined) {
+    return;
+  }
+  const msg: ConfigChangedMessage = {
+    source: MSG_SOURCE,
+    type: 'CONFIG_CHANGED',
+    name,
+    gamepadConfig: config,
   };
   await chrome.tabs.sendMessage(tabId, msg);
 }

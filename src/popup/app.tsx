@@ -15,7 +15,11 @@ import {
   setEnabled,
   getGameName,
 } from './storage';
-import { sendActivateConfig, sendDisableGamepad } from './messaging';
+import {
+  sendActivateConfig,
+  sendDisableGamepad,
+  sendConfigChanged,
+} from './messaging';
 import { validateConfig } from './validate';
 import KeyBindingEditor from './key-binding-editor';
 import MouseSettings from './mouse-settings';
@@ -234,26 +238,12 @@ export default function App() {
         setActiveConfigName(name);
         await setActiveConfig(name);
       }
-    },
-    [mode, newName, activeConfigName, presetNames]
-  );
-
-  // Send config to content script only on popup close
-  React.useEffect(() => {
-    if (mode === 'view' || !isEnabled) {
-      return;
-    }
-    const handleUnload = () => {
-      const name = mode === 'create' ? newName.trim() : activeConfigName;
-      if (name) {
-        void sendActivateConfig(name, editConfig);
+      if (isEnabled) {
+        await sendConfigChanged(name, config);
       }
-    };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, [mode, isEnabled, activeConfigName, newName, editConfig]);
+    },
+    [mode, newName, activeConfigName, presetNames, isEnabled]
+  );
 
   const handleUndo = React.useCallback(() => {
     if (!dirty) {

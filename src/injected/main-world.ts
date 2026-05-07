@@ -12,9 +12,22 @@ const POLL_INTERVAL = 1000;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let lastConfigName: string | null = null;
+let pendingConfig: { name: string; gamepadConfig: GamepadConfig } | null = null;
 
 function sendMessage(msg: ExtensionMessage): void {
   window.postMessage(msg, '*');
+}
+
+function applyPendingConfig(): void {
+  if (!pendingConfig) {
+    return;
+  }
+  const { name, gamepadConfig } = pendingConfig;
+  pendingConfig = null;
+  lastConfigName = name;
+  updateToggleCodes(gamepadConfig);
+  showToast(`'${name}' preset activated`);
+  inputProcessor.activate(gamepadConfig);
 }
 
 function handleMessage(msg: ExtensionMessage): void {
@@ -29,6 +42,11 @@ function handleMessage(msg: ExtensionMessage): void {
         ? { overlayMinimized: activateMsg.overlayMinimized }
         : undefined
     );
+  } else if (msg.type === 'CONFIG_CHANGED') {
+    pendingConfig = { name: msg.name, gamepadConfig: msg.gamepadConfig };
+    if (document.hasFocus()) {
+      applyPendingConfig();
+    }
   } else if (msg.type === 'DISABLE_GAMEPAD') {
     if (inputProcessor.isActive()) {
       showToast('Mouse/keyboard disabled');
@@ -124,6 +142,7 @@ function onWindowMessage(event: MessageEvent): void {
   const msg = data as ExtensionMessage;
   if (
     msg.type === 'ACTIVATE_GAMEPAD_CONFIG' ||
+    msg.type === 'CONFIG_CHANGED' ||
     msg.type === 'DISABLE_GAMEPAD'
   ) {
     handleMessage(msg);
@@ -133,6 +152,11 @@ function onWindowMessage(event: MessageEvent): void {
 // Handle bfcache
 window.addEventListener('pageshow', () => {
   startWaitingForGame();
+});
+
+// Apply pending config when window gains focus
+window.addEventListener('focus', () => {
+  applyPendingConfig();
 });
 
 startWaitingForGame();
