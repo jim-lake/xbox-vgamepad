@@ -13,9 +13,7 @@ export default defineConfig(({ mode }) => {
   const outDir =
     mode === 'development' ? 'build' : mode === 'test' ? 'build-test' : 'dist';
 
-  const manifestCopy: typeof manifest = JSON.parse(
-    JSON.stringify(manifest)
-  ) as typeof manifest;
+  const manifestCopy = _clone(manifest);
   if (mode === 'test') {
     const testMatch = 'http://127.0.0.1:9444/*';
     for (const script of manifestCopy.content_scripts) {
@@ -43,3 +41,6 @@ export default defineConfig(({ mode }) => {
     server: { cors: { origin: '*' } },
   };
 });
+function _clone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}
