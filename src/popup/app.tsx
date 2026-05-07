@@ -73,8 +73,15 @@ const styles = StyleSheet.create({
   navLabel: {
     color: '#e2e8f0',
     fontSize: '1.3rem',
+    fontWeight: '600',
     flex: 1,
     textAlign: 'center',
+  },
+  renameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: '0.4rem',
   },
   toolbar: {
     flexDirection: 'row',
@@ -130,8 +137,6 @@ const styles = StyleSheet.create({
   },
 });
 
-type Mode = 'view' | 'create' | 'edit';
-
 export default function App() {
   const [loading, setLoading] = React.useState(true);
   const [isEnabled, setIsEnabled] = React.useState(true);
@@ -140,10 +145,8 @@ export default function App() {
     default: DEFAULT_CONFIG,
   });
   const [gameName, setGameName] = React.useState<string | null>(null);
-  const [mode, setMode] = React.useState<Mode>('view');
-  const [editConfig, setEditConfig] =
-    React.useState<GamepadConfig>(DEFAULT_CONFIG);
-  const [newName, setNewName] = React.useState('');
+  const [renaming, setRenaming] = React.useState(false);
+  const [renameValue, setRenameValue] = React.useState('');
   const [dirty, setDirty] = React.useState(false);
   const [savedConfig, setSavedConfig] =
     React.useState<GamepadConfig>(DEFAULT_CONFIG);
@@ -154,6 +157,9 @@ export default function App() {
       setIsEnabled(data.isEnabled);
       setActiveConfigName(data.activeConfig);
       setConfigs(data.configs);
+      setSavedConfig(
+        structuredClone(data.configs[data.activeConfig] ?? DEFAULT_CONFIG)
+      );
       setGameName(name);
       setLoading(false);
     })();
@@ -164,6 +170,7 @@ export default function App() {
     [configs]
   );
   const activeIndex = presetNames.indexOf(activeConfigName);
+  const activeConfig = configs[activeConfigName] ?? DEFAULT_CONFIG;
 
   const handleToggle = React.useCallback(async () => {
     const next = !isEnabled;
@@ -182,6 +189,9 @@ export default function App() {
       const idx = (activeIndex + dir + presetNames.length) % presetNames.length;
       const name = presetNames[idx] ?? 'default';
       setActiveConfigName(name);
+      setSavedConfig(structuredClone(configs[name] ?? DEFAULT_CONFIG));
+      setDirty(false);
+      setRenaming(false);
       await setActiveConfig(name);
       if (isEnabled) {
         const config = configs[name] ?? DEFAULT_CONFIG;
@@ -191,58 +201,94 @@ export default function App() {
     [activeIndex, presetNames, isEnabled, configs]
   );
 
-  const handleCreate = React.useCallback(() => {
-    const base = structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG);
-    setNewName('');
-    setEditConfig(base);
-    setSavedConfig(base);
+  const handleNew = React.useCallback(async () => {
+    if (presetNames.length >= MAX_PRESETS) {
+      return;
+    }
+    let name = 'New Profile';
+    let i = 1;
+    while (presetNames.includes(name)) {
+      i++;
+      name = `New Profile ${String(i)}`;
+    }
+    const config = structuredClone(DEFAULT_CONFIG);
+    const newConfigs = { ...configs, [name]: config };
+    setConfigs(newConfigs);
+    setActiveConfigName(name);
+    setSavedConfig(structuredClone(config));
     setDirty(false);
-    setMode('create');
-  }, [configs, activeConfigName]);
+    await saveConfig(name, config);
+    await setActiveConfig(name);
+    if (isEnabled) {
+      await sendActivateConfig(name, config);
+    }
+  }, [configs, presetNames, isEnabled]);
 
-  const handleEdit = React.useCallback(() => {
-    const base = structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG);
-    setEditConfig(base);
-    setSavedConfig(base);
+  const handleCopy = React.useCallback(async () => {
+    if (presetNames.length >= MAX_PRESETS) {
+      return;
+    }
+    let name = `${activeConfigName} Copy`;
+    let i = 1;
+    while (presetNames.includes(name)) {
+      i++;
+      name = `${activeConfigName} Copy ${String(i)}`;
+    }
+    const config = structuredClone(activeConfig);
+    const newConfigs = { ...configs, [name]: config };
+    setConfigs(newConfigs);
+    setActiveConfigName(name);
+    setSavedConfig(structuredClone(config));
     setDirty(false);
-    setMode('edit');
-  }, [configs, activeConfigName]);
+    await saveConfig(name, config);
+    await setActiveConfig(name);
+    if (isEnabled) {
+      await sendActivateConfig(name, config);
+    }
+  }, [configs, presetNames, activeConfigName, activeConfig, isEnabled]);
 
-  const handleDelete = React.useCallback(async () => {
+  const handleEditName = React.useCallback(() => {
     if (activeConfigName === 'default') {
       return;
     }
+    setRenameValue(activeConfigName);
+    setRenaming(true);
+  }, [activeConfigName]);
+
+  const handleSaveRename = React.useCallback(async () => {
+    const trimmed = renameValue.trim();
+    if (
+      !trimmed ||
+      trimmed === activeConfigName ||
+      presetNames.includes(trimmed)
+    ) {
+      setRenaming(false);
+      return;
+    }
+    const config = configs[activeConfigName] ?? DEFAULT_CONFIG;
     const newConfigs = Object.fromEntries(
       Object.entries(configs).filter(([k]) => k !== activeConfigName)
     );
+    newConfigs[trimmed] = config;
     setConfigs(newConfigs);
-    setActiveConfigName('default');
+    setActiveConfigName(trimmed);
     await deleteConfig(activeConfigName);
-    await setActiveConfig('default');
-    if (isEnabled) {
-      await sendActivateConfig('default', DEFAULT_CONFIG);
-    }
-  }, [activeConfigName, configs, isEnabled]);
+    await saveConfig(trimmed, config);
+    await setActiveConfig(trimmed);
+    setRenaming(false);
+  }, [renameValue, activeConfigName, configs, presetNames]);
 
   const persist = React.useCallback(
     async (config: GamepadConfig) => {
-      const name = mode === 'create' ? newName.trim() : activeConfigName;
-      if (!name || !validateConfig(config)) {
+      if (!validateConfig(config)) {
         return;
       }
-      if (mode === 'create' && presetNames.length >= MAX_PRESETS) {
-        return;
-      }
-      await saveConfig(name, config);
-      if (mode === 'create') {
-        setActiveConfigName(name);
-        await setActiveConfig(name);
-      }
+      await saveConfig(activeConfigName, config);
       if (isEnabled) {
-        await sendConfigChanged(name, config);
+        await sendConfigChanged(activeConfigName, config);
       }
     },
-    [mode, newName, activeConfigName, presetNames, isEnabled]
+    [activeConfigName, isEnabled]
   );
 
   const handleUndo = React.useCallback(() => {
@@ -250,10 +296,10 @@ export default function App() {
       return;
     }
     const reverted = structuredClone(savedConfig);
-    setEditConfig(reverted);
+    setConfigs((prev) => ({ ...prev, [activeConfigName]: reverted }));
     setDirty(false);
     void persist(reverted);
-  }, [dirty, savedConfig, persist]);
+  }, [dirty, savedConfig, activeConfigName, persist]);
 
   const handleImport = React.useCallback(() => {
     const input = document.createElement('input');
@@ -269,12 +315,23 @@ export default function App() {
         try {
           const parsed: unknown = JSON.parse(reader.result as string);
           if (validateConfig(parsed)) {
-            const base = structuredClone(parsed);
-            setEditConfig(parsed);
-            setSavedConfig(base);
-            setNewName('');
+            if (presetNames.length >= MAX_PRESETS) {
+              return;
+            }
+            const baseName = file.name.replace(/\.json$/i, '') || 'Imported';
+            let name = baseName;
+            let i = 1;
+            while (presetNames.includes(name)) {
+              i++;
+              name = `${baseName} ${String(i)}`;
+            }
+            const config = structuredClone(parsed);
+            const newConfigs = { ...configs, [name]: config };
+            setConfigs(newConfigs);
+            setActiveConfigName(name);
+            setSavedConfig(structuredClone(config));
             setDirty(false);
-            setMode('create');
+            void saveConfig(name, config).then(() => setActiveConfig(name));
           }
         } catch {
           // invalid JSON, ignore
@@ -283,11 +340,10 @@ export default function App() {
       reader.readAsText(file);
     };
     input.click();
-  }, []);
+  }, [configs, presetNames]);
 
   const handleExport = React.useCallback(() => {
-    const config = configs[activeConfigName] ?? DEFAULT_CONFIG;
-    const blob = new Blob([JSON.stringify(config, null, 2)], {
+    const blob = new Blob([JSON.stringify(activeConfig, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
@@ -296,51 +352,54 @@ export default function App() {
     a.download = `${activeConfigName}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [configs, activeConfigName]);
+  }, [activeConfig, activeConfigName]);
 
   const updateKeyConfig = React.useCallback(
     (key: keyof GamepadKeyConfig, value: KeyMap) => {
-      setEditConfig((prev) => {
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
         const next = {
-          ...prev,
-          keyConfig: { ...prev.keyConfig, [key]: value },
+          ...current,
+          keyConfig: { ...current.keyConfig, [key]: value },
         };
         void persist(next);
-        return next;
+        return { ...prev, [activeConfigName]: next };
       });
       setDirty(true);
     },
-    [persist]
+    [activeConfigName, persist]
   );
 
   const updateMouseControls = React.useCallback(
     (val: 0 | 1 | undefined) => {
-      setEditConfig((prev) => {
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
         const next = {
-          ...prev,
-          mouseConfig: { ...prev.mouseConfig, mouseControls: val ?? null },
+          ...current,
+          mouseConfig: { ...current.mouseConfig, mouseControls: val ?? null },
         };
         void persist(next);
-        return next;
+        return { ...prev, [activeConfigName]: next };
       });
       setDirty(true);
     },
-    [persist]
+    [activeConfigName, persist]
   );
 
   const updateSensitivity = React.useCallback(
     (val: number) => {
-      setEditConfig((prev) => {
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
         const next = {
-          ...prev,
-          mouseConfig: { ...prev.mouseConfig, sensitivity: val },
+          ...current,
+          mouseConfig: { ...current.mouseConfig, sensitivity: val },
         };
         void persist(next);
-        return next;
+        return { ...prev, [activeConfigName]: next };
       });
       setDirty(true);
     },
-    [persist]
+    [activeConfigName, persist]
   );
 
   if (loading) {
@@ -357,7 +416,6 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.gameName}>{gameName ?? 'No game detected'}</Text>
-          <Text style={styles.presetName}>{activeConfigName}</Text>
         </View>
         <View
           style={[
@@ -370,101 +428,100 @@ export default function App() {
         </View>
       </View>
 
-      {mode === 'view' ? (
-        <>
-          {/* Preset navigation */}
-          <View style={styles.presetNav}>
-            <Text style={styles.navArrow} onClick={() => void cyclePreset(-1)}>
-              ◀
-            </Text>
-            <Text style={styles.navLabel}>
-              {activeConfigName} ({activeIndex + 1}/{presetNames.length})
-            </Text>
-            <Text style={styles.navArrow} onClick={() => void cyclePreset(1)}>
-              ▶
-            </Text>
-          </View>
-
-          {/* Toolbar */}
-          <View style={styles.toolbar}>
-            <View style={styles.toolBtn} onClick={handleCreate}>
-              <Text style={styles.toolBtnText}>New</Text>
-            </View>
-            <View style={styles.toolBtn} onClick={handleEdit}>
-              <Text style={styles.toolBtnText}>Edit</Text>
-            </View>
-            {activeConfigName !== 'default' && (
-              <View
-                style={[styles.toolBtn, styles.toolBtnDanger]}
-                onClick={() => void handleDelete()}
-              >
-                <Text style={styles.toolBtnText}>Delete</Text>
-              </View>
-            )}
-            <View style={styles.toolBtn} onClick={handleImport}>
-              <Text style={styles.toolBtnText}>Import</Text>
-            </View>
-            <View style={styles.toolBtn} onClick={handleExport}>
-              <Text style={styles.toolBtnText}>Export</Text>
-            </View>
-          </View>
-        </>
-      ) : (
-        <>
-          <ScrollView style={styles.body}>
-            {mode === 'create' && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Preset Name</Text>
-                <input
-                  style={{
-                    backgroundColor: '#0f3460',
-                    color: '#e2e8f0',
-                    fontSize: '1.3rem',
-                    padding: '0.6rem',
-                    borderRadius: '0.4rem',
-                    border: 'none',
-                  }}
-                  value={newName}
-                  onChange={(e) => {
-                    setNewName(e.target.value);
-                  }}
-                  placeholder='Enter preset name'
-                />
-              </View>
-            )}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Mouse</Text>
-              <MouseSettings
-                mouseControls={
-                  editConfig.mouseConfig.mouseControls === null
-                    ? undefined
-                    : editConfig.mouseConfig.mouseControls
+      {/* Profile navigation */}
+      <View style={styles.presetNav}>
+        <Text style={styles.navArrow} onClick={() => void cyclePreset(-1)}>
+          ◀
+        </Text>
+        {renaming ? (
+          <View style={styles.renameRow}>
+            <input
+              style={{
+                flex: 1,
+                backgroundColor: '#0f3460',
+                color: '#e2e8f0',
+                fontSize: '1.3rem',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '0.4rem',
+                border: 'none',
+              }}
+              value={renameValue}
+              onChange={(e) => {
+                setRenameValue(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  void handleSaveRename();
                 }
-                sensitivity={editConfig.mouseConfig.sensitivity}
-                onChangeStick={updateMouseControls}
-                onChangeSensitivity={updateSensitivity}
-              />
+              }}
+              autoFocus
+            />
+            <View
+              style={styles.toolBtn}
+              onClick={() => void handleSaveRename()}
+            >
+              <Text style={styles.toolBtnText}>Save</Text>
             </View>
+          </View>
+        ) : (
+          <Text style={styles.navLabel}>{activeConfigName}</Text>
+        )}
+        <Text style={styles.navArrow} onClick={() => void cyclePreset(1)}>
+          ▶
+        </Text>
+      </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Key Bindings</Text>
-              <KeyBindingEditor
-                keyConfig={editConfig.keyConfig}
-                onChange={updateKeyConfig}
-              />
-            </View>
-          </ScrollView>
+      {/* Toolbar */}
+      <View style={styles.toolbar}>
+        <View style={styles.toolBtn} onClick={handleEditName}>
+          <Text style={styles.toolBtnText}>Edit</Text>
+        </View>
+        <View style={styles.toolBtn} onClick={() => void handleNew()}>
+          <Text style={styles.toolBtnText}>New</Text>
+        </View>
+        <View style={styles.toolBtn} onClick={() => void handleCopy()}>
+          <Text style={styles.toolBtnText}>Copy</Text>
+        </View>
+        <View style={styles.toolBtn} onClick={handleImport}>
+          <Text style={styles.toolBtnText}>Import</Text>
+        </View>
+        <View style={styles.toolBtn} onClick={handleExport}>
+          <Text style={styles.toolBtnText}>Export</Text>
+        </View>
+      </View>
 
-          {dirty && (
-            <View style={styles.statusBar}>
-              <View style={styles.undoBtn} onClick={handleUndo}>
-                <Text style={styles.undoBtnText}>Undo</Text>
-              </View>
-              <Text style={styles.statusText}>Saved</Text>
-            </View>
-          )}
-        </>
+      {/* Config editor - always visible */}
+      <ScrollView style={styles.body}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mouse</Text>
+          <MouseSettings
+            mouseControls={
+              activeConfig.mouseConfig.mouseControls === null
+                ? undefined
+                : activeConfig.mouseConfig.mouseControls
+            }
+            sensitivity={activeConfig.mouseConfig.sensitivity}
+            onChangeStick={updateMouseControls}
+            onChangeSensitivity={updateSensitivity}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Key Bindings</Text>
+          <KeyBindingEditor
+            keyConfig={activeConfig.keyConfig}
+            onChange={updateKeyConfig}
+          />
+        </View>
+      </ScrollView>
+
+      {dirty && (
+        <View style={styles.statusBar}>
+          <View style={styles.undoBtn} onClick={handleUndo}>
+            <Text style={styles.undoBtnText}>Undo</Text>
+          </View>
+          <Text style={styles.statusText}>Saved</Text>
+        </View>
       )}
     </View>
   );

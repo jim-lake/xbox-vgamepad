@@ -37,22 +37,22 @@ Four runtime contexts communicate via message passing:
 
 ## Key Commands
 
-| Task       | Command          | Notes                                                              |
-| ---------- | ---------------- | ------------------------------------------------------------------ |
-| Dev server | `npm run dev`    | Outputs to `build/`, includes HMR                                  |
-| Build      | `npm run build`  | Type-checks then builds production to `dist/`                      |
-| Type check | `npm run ts:check` | `tsc -b --noEmit`                                               |
-| Lint + fix | `npm run lint`   | `eslint . --fix`                                                   |
-| Format     | `npm run pretty` | `prettier --write .`                                               |
-| Run tests  | `npm test`       | Builds to `build-test/` (test mode) then runs Puppeteer suites     |
+| Task       | Command            | Notes                                                          |
+| ---------- | ------------------ | -------------------------------------------------------------- |
+| Dev server | `npm run dev`      | Outputs to `build/`, includes HMR                              |
+| Build      | `npm run build`    | Type-checks then builds production to `dist/`                  |
+| Type check | `npm run ts:check` | `tsc -b --noEmit`                                              |
+| Lint + fix | `npm run lint`     | `eslint . --fix`                                               |
+| Format     | `npm run pretty`   | `prettier --write .`                                           |
+| Run tests  | `npm test`         | Builds to `build-test/` (test mode) then runs Puppeteer suites |
 
 ## Build Modes
 
-| Mode          | Output Dir   | Trigger                        |
-| ------------- | ------------ | ------------------------------ |
-| `development` | `build/`     | `npm run dev`                  |
-| `test`        | `build-test/`| `npm test` (vite build --mode test) |
-| `production`  | `dist/`      | `npm run build`                |
+| Mode          | Output Dir    | Trigger                             |
+| ------------- | ------------- | ----------------------------------- |
+| `development` | `build/`      | `npm run dev`                       |
+| `test`        | `build-test/` | `npm test` (vite build --mode test) |
+| `production`  | `dist/`       | `npm run build`                     |
 
 The test mode patches the manifest to include `http://127.0.0.1:9444/*` in content script matches and web_accessible_resources so the test harness page can interact with the extension.
 
