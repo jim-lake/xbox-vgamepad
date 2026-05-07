@@ -74,11 +74,17 @@ document.addEventListener(
   (e: KeyboardEvent) => {
     if (!e.repeat && toggleCodes.has(e.code)) {
       inputProcessor.toggle();
-      if (inputProcessor.isActive()) {
+      const nowActive = inputProcessor.isActive();
+      if (nowActive) {
         showToast(`'${lastConfigName ?? 'default'}' reconnected`);
       } else {
         showToast('Gamepad disconnected');
       }
+      sendMessage({
+        source: MSG_SOURCE,
+        type: 'TOGGLE_ENABLED',
+        enabled: nowActive,
+      });
       if (e.cancelable) {
         e.preventDefault();
       }

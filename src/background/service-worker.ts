@@ -9,6 +9,24 @@ import { DEFAULT_CONFIG } from '@/types/gamepad';
 
 const CONFIG_PREFIX = 'GP_CONF:';
 
+const ICONS_ENABLED = {
+  16: 'src/assets/img/icon16.png',
+  48: 'src/assets/img/icon48.png',
+  128: 'src/assets/img/icon128.png',
+};
+
+const ICONS_DISABLED = {
+  16: 'src/assets/img/icon16_disabled.png',
+  48: 'src/assets/img/icon48_disabled.png',
+  128: 'src/assets/img/icon128_disabled.png',
+};
+
+function updateIcon(enabled: boolean): void {
+  void chrome.action.setIcon({
+    path: enabled ? ICONS_ENABLED : ICONS_DISABLED,
+  });
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   void chrome.action.disable();
   if (details.reason === 'install') {
@@ -17,6 +35,12 @@ chrome.runtime.onInstalled.addListener((details) => {
       ENABLED: true,
       [`${CONFIG_PREFIX}default`]: DEFAULT_CONFIG,
     });
+  }
+});
+
+chrome.storage.sync.onChanged.addListener((changes) => {
+  if (changes['ENABLED']) {
+    updateIcon(changes['ENABLED'].newValue as boolean);
   }
 });
 
@@ -68,6 +92,12 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'GAME_CHANGED') {
       void chrome.storage.local.set({ gameName: message.gameName });
+      return false;
+    }
+
+    if (message.type === 'TOGGLE_ENABLED') {
+      void chrome.storage.sync.set({ ENABLED: message.enabled });
+      updateIcon(message.enabled);
       return false;
     }
 

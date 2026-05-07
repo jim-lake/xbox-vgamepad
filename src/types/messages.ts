@@ -38,6 +38,12 @@ export interface SetOverlayMinimizedMessage {
   minimized: boolean;
 }
 
+export interface ToggleEnabledMessage {
+  source: typeof MSG_SOURCE;
+  type: 'TOGGLE_ENABLED';
+  enabled: boolean;
+}
+
 export interface ConfigChangedMessage {
   source: typeof MSG_SOURCE;
   type: 'CONFIG_CHANGED';
@@ -48,7 +54,8 @@ export interface ConfigChangedMessage {
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
-  | SetOverlayMinimizedMessage;
+  | SetOverlayMinimizedMessage
+  | ToggleEnabledMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -62,4 +69,5 @@ export type ExtensionMessage =
   | ActivateGamepadConfigMessage
   | DisableGamepadMessage
   | SetOverlayMinimizedMessage
+  | ToggleEnabledMessage
   | ConfigChangedMessage;

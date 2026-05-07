@@ -47,6 +47,12 @@ window.addEventListener('message', (event: MessageEvent) => {
     } catch {
       // Extension context invalidated
     }
+  } else if (msg.type === 'TOGGLE_ENABLED') {
+    try {
+      void chrome.runtime.sendMessage(msg);
+    } catch {
+      // Extension context invalidated
+    }
   }
 });
 
