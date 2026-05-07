@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
-import ImageButton from '@/components/buttons/image_button';
+import IconButton from '@/components/buttons/icon_button';
 import type { GamepadKeyConfig, KeyMap } from '@/types/gamepad';
 
 import closeIcon from '@/assets/img/close.svg';
@@ -57,8 +57,7 @@ const styles = StyleSheet.create({
     gap: '0.4rem',
   },
   badgeText: { color: '#e2e8f0', fontSize: '1.3rem' },
-  removeBtn: { width: '2rem', height: '2rem' },
-  addBtn: { width: '2rem', height: '2rem', marginLeft: '0.4rem' },
+  addBtn: { marginLeft: '0.4rem' },
   modal: {
     position: 'fixed',
     top: 0,
@@ -209,16 +208,16 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
               {bindings.map((code) => (
                 <View key={code} style={styles.badge}>
                   <Text style={styles.badgeText}>{formatCode(code)}</Text>
-                  <ImageButton
-                    style={styles.removeBtn}
+                  <IconButton
                     source={closeIcon}
+                    type='danger'
                     onPress={() => {
                       handleRemove(key, code);
                     }}
                   />
                 </View>
               ))}
-              <ImageButton
+              <IconButton
                 style={styles.addBtn}
                 source={plusIcon}
                 onPress={() => {
