@@ -4,7 +4,7 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 
 const EXERCISER_HTML = path.join(__dirname, 'gamepad-exerciser.html');
-const DIST_DIR = path.join(__dirname, '..', 'dist');
+const DIST_DIR = path.join(__dirname, '..', 'build-test');
 
 let server;
 let serverPort;
@@ -15,7 +15,7 @@ function startServer() {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(fs.readFileSync(EXERCISER_HTML, 'utf8'));
     });
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(9444, '127.0.0.1', () => {
       serverPort = server.address().port;
       resolve(serverPort);
     });
@@ -26,22 +26,8 @@ function stopServer() {
   if (server) server.close();
 }
 
-function patchManifest(port) {
-  const manifestPath = path.join(DIST_DIR, 'manifest.json');
-  const original = fs.readFileSync(manifestPath, 'utf8');
-  const manifest = JSON.parse(original);
-  for (const script of manifest.content_scripts) {
-    script.matches.push(`http://127.0.0.1:${port}/*`);
-  }
-  for (const entry of manifest.web_accessible_resources) {
-    entry.matches.push(`http://127.0.0.1:${port}/*`);
-  }
-  // Add tabs permission so we can query tab IDs for messaging
-  if (!manifest.permissions.includes('tabs')) {
-    manifest.permissions.push('tabs');
-  }
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  return () => fs.writeFileSync(manifestPath, original);
+function patchManifest(_port) {
+  return () => {};
 }
 
 async function launchBrowserWithExtension() {

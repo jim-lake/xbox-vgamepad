@@ -9,19 +9,35 @@ import buildNumberPlugin, {
 import manifest from './manifest.json';
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  plugins: [
-    react(),
-    buildNumberPlugin(),
-    {
-      name: 'html-transform',
-      transformIndexHtml(html: string) {
-        return html.replace(/<%= __VERSION__ %>/g, getVersion());
+export default defineConfig(({ mode }) => {
+  const outDir =
+    mode === 'development' ? 'build' : mode === 'test' ? 'build-test' : 'dist';
+
+  const manifestCopy = JSON.parse(JSON.stringify(manifest));
+  if (mode === 'test') {
+    const testMatch = 'http://127.0.0.1:9444/*';
+    for (const script of manifestCopy.content_scripts) {
+      script.matches.push(testMatch);
+    }
+    for (const entry of manifestCopy.web_accessible_resources) {
+      entry.matches.push(testMatch);
+    }
+  }
+
+  return {
+    resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+    plugins: [
+      react(),
+      buildNumberPlugin(),
+      {
+        name: 'html-transform',
+        transformIndexHtml(html: string) {
+          return html.replace(/<%= __VERSION__ %>/g, getVersion());
+        },
       },
-    },
-    crx({ manifest }),
-  ],
-  build: { outDir: mode === 'development' ? 'build' : 'dist', sourcemap: true },
-  server: { cors: { origin: '*' } },
-}));
+      crx({ manifest: manifestCopy }),
+    ],
+    build: { outDir, sourcemap: true },
+    server: { cors: { origin: '*' } },
+  };
+});

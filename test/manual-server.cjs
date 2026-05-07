@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const DIST_DIR = path.join(__dirname, '..', 'dist');
+const DIST_DIR = path.join(__dirname, '..', 'build-test');
 const HTML_FILE = path.join(__dirname, 'gamepad-manual.html');
 const PORT = 9333;
 

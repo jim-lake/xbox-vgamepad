@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.34",
+  "version": "0.0.40",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,7 @@
     "lint": "eslint . --fix",
     "pretty": "prettier --write .",
     "preview": "vite preview",
-    "test": "node test/gamepad.test.cjs"
+    "test": "vite build --mode test && node test/gamepad.test.cjs"
   },
   "dependencies": {
     "aphrodite": "^2.4.0",
