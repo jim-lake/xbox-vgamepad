@@ -27,7 +27,7 @@ function applyPendingConfig(): void {
   lastConfigName = name;
   updateToggleCodes(gamepadConfig);
   showToast(`'${name}' preset activated`);
-  inputProcessor.activate(gamepadConfig);
+  inputProcessor.activate(gamepadConfig, { resetDismissed: true });
 }
 
 function handleMessage(msg: ExtensionMessage): void {
