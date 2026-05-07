@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
 } from '@/components/base_components';
+import TextButton from '@/components/buttons/text_button';
 import type { GamepadConfig, GamepadKeyConfig, KeyMap } from '@/types/gamepad';
 import { DEFAULT_CONFIG } from '@/types/gamepad';
 import {
@@ -70,6 +71,8 @@ const styles = StyleSheet.create({
     paddingLeft: '1rem',
     paddingRight: '1rem',
   },
+  navArrowDisabled: { opacity: 0.3, cursor: 'default' },
+  navArrowText: { color: '#e2e8f0', fontSize: '1.6rem' },
   navLabel: {
     color: '#e2e8f0',
     fontSize: '1.3rem',
@@ -248,9 +251,6 @@ export default function App() {
   }, [configs, presetNames, activeConfigName, activeConfig, isEnabled]);
 
   const handleEditName = React.useCallback(() => {
-    if (activeConfigName === 'default') {
-      return;
-    }
     setRenameValue(activeConfigName);
     setRenaming(true);
   }, [activeConfigName]);
@@ -422,17 +422,29 @@ export default function App() {
             styles.toggle,
             isEnabled ? styles.toggleOn : styles.toggleOff,
           ]}
-          onClick={() => void handleToggle()}
         >
           <View style={styles.toggleKnob} />
+          <TextButton
+            style={StyleSheet.absoluteFill}
+            text=''
+            onPress={() => void handleToggle()}
+            underlayColor='transparent'
+          />
         </View>
       </View>
 
       {/* Profile navigation */}
       <View style={styles.presetNav}>
-        <Text style={styles.navArrow} onClick={() => void cyclePreset(-1)}>
-          ◀
-        </Text>
+        <TextButton
+          style={[
+            styles.navArrow,
+            renaming ? styles.navArrowDisabled : undefined,
+          ]}
+          text='◀'
+          textStyle={styles.navArrowText}
+          disabled={renaming}
+          onPress={() => void cyclePreset(-1)}
+        />
         {renaming ? (
           <View style={styles.renameRow}>
             <input
@@ -456,38 +468,60 @@ export default function App() {
               }}
               autoFocus
             />
-            <View
+            <TextButton
               style={styles.toolBtn}
-              onClick={() => void handleSaveRename()}
-            >
-              <Text style={styles.toolBtnText}>Save</Text>
-            </View>
+              text='Save'
+              textStyle={styles.toolBtnText}
+              onPress={() => void handleSaveRename()}
+            />
           </View>
         ) : (
           <Text style={styles.navLabel}>{activeConfigName}</Text>
         )}
-        <Text style={styles.navArrow} onClick={() => void cyclePreset(1)}>
-          ▶
-        </Text>
+        <TextButton
+          style={[
+            styles.navArrow,
+            renaming ? styles.navArrowDisabled : undefined,
+          ]}
+          text='▶'
+          textStyle={styles.navArrowText}
+          disabled={renaming}
+          onPress={() => void cyclePreset(1)}
+        />
       </View>
 
       {/* Toolbar */}
       <View style={styles.toolbar}>
-        <View style={styles.toolBtn} onClick={handleEditName}>
-          <Text style={styles.toolBtnText}>Edit</Text>
-        </View>
-        <View style={styles.toolBtn} onClick={() => void handleNew()}>
-          <Text style={styles.toolBtnText}>New</Text>
-        </View>
-        <View style={styles.toolBtn} onClick={() => void handleCopy()}>
-          <Text style={styles.toolBtnText}>Copy</Text>
-        </View>
-        <View style={styles.toolBtn} onClick={handleImport}>
-          <Text style={styles.toolBtnText}>Import</Text>
-        </View>
-        <View style={styles.toolBtn} onClick={handleExport}>
-          <Text style={styles.toolBtnText}>Export</Text>
-        </View>
+        <TextButton
+          style={styles.toolBtn}
+          text='New'
+          textStyle={styles.toolBtnText}
+          onPress={() => void handleNew()}
+        />
+        <TextButton
+          style={styles.toolBtn}
+          text='Copy'
+          textStyle={styles.toolBtnText}
+          onPress={() => void handleCopy()}
+        />
+        <TextButton
+          style={styles.toolBtn}
+          text='Import'
+          textStyle={styles.toolBtnText}
+          onPress={handleImport}
+        />
+        <TextButton
+          style={styles.toolBtn}
+          text='Export'
+          textStyle={styles.toolBtnText}
+          onPress={handleExport}
+        />
+        <TextButton
+          style={styles.toolBtn}
+          text='Rename'
+          textStyle={styles.toolBtnText}
+          onPress={handleEditName}
+        />
       </View>
 
       {/* Config editor - always visible */}
@@ -517,9 +551,12 @@ export default function App() {
 
       {dirty && (
         <View style={styles.statusBar}>
-          <View style={styles.undoBtn} onClick={handleUndo}>
-            <Text style={styles.undoBtnText}>Undo</Text>
-          </View>
+          <TextButton
+            style={styles.undoBtn}
+            text='Undo'
+            textStyle={styles.undoBtnText}
+            onPress={handleUndo}
+          />
           <Text style={styles.statusText}>Saved</Text>
         </View>
       )}
