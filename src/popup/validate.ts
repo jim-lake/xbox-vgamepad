@@ -47,7 +47,6 @@ export function validateConfig(config: unknown): config is GamepadConfig {
     return false;
   }
 
-  const allCodes: string[] = [];
   for (const val of Object.values(kc as Record<string, unknown>)) {
     if (val === undefined || val === null) {
       continue;
@@ -56,11 +55,7 @@ export function validateConfig(config: unknown): config is GamepadConfig {
       if (val === 'Escape') {
         return false;
       }
-      allCodes.push(val);
     } else if (Array.isArray(val)) {
-      if ((val as unknown[]).length > 2) {
-        return false;
-      }
       for (const code of val as unknown[]) {
         if (typeof code !== 'string') {
           return false;
@@ -68,20 +63,10 @@ export function validateConfig(config: unknown): config is GamepadConfig {
         if (code === 'Escape') {
           return false;
         }
-        allCodes.push(code);
       }
     } else {
       return false;
     }
-  }
-
-  // Check duplicates
-  const seen = new Set<string>();
-  for (const code of allCodes) {
-    if (seen.has(code)) {
-      return false;
-    }
-    seen.add(code);
   }
 
   return true;

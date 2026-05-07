@@ -32,4 +32,5 @@ runSuites([
   path.join(__dirname, 'suites', 'gamepad-comprehensive.cjs'),
   path.join(__dirname, 'suites', 'json-spec-comprehensive.cjs'),
   path.join(__dirname, 'suites', 'e2e-scenarios.cjs'),
+  path.join(__dirname, 'suites', 'toggle-shared-bindings.cjs'),
 ]);

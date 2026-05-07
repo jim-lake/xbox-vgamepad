@@ -12,66 +12,53 @@ module.exports = async function ({
   const { getButtonStates, getAxesStates, waitForButton, sendConfigToPage } =
     helpers;
 
-  console.log('  [Validation - Duplicate Key Codes]');
+  console.log('  [Validation - Shared Key Codes]');
 
   await assert(
-    'duplicate key code across two button fields is rejected (no activation)',
+    'shared key code across two button fields activates both',
     async () => {
-      // Bind "Space" to both a and b — this is invalid per JSON.md
-      const dupeConfig = {
+      // Bind "Space" to both a and b — this is valid (shared bindings)
+      const sharedConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyConfig: { a: 'Space', b: 'Space' },
       };
-      // First ensure default is active
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'default',
-        gamepadConfig: DEFAULT_CONFIG,
+        name: 'shared',
+        gamepadConfig: sharedConfig,
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Now try to activate the invalid config
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'dupe',
-        gamepadConfig: dupeConfig,
-      });
-      await new Promise((r) => setTimeout(r, 500));
-
-      // Space should either still map to default (A=0) or be rejected entirely.
-      // The key point: Space must NOT activate both button 0 AND button 1.
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       const buttons = await getButtonStates(page);
-      // It must not be the case that both 0 and 1 are pressed
-      const bothPressed = buttons[0] && buttons[1];
-      if (bothPressed)
-        throw new Error('Duplicate binding was accepted — both buttons active');
+      // Both buttons should be pressed
+      if (!buttons[0] || !buttons[1])
+        throw new Error('Shared binding did not activate both buttons');
       await page.keyboard.up('Space');
       await new Promise((r) => setTimeout(r, 100));
     }
   );
 
   await assert(
-    'duplicate key in array binding across fields is rejected',
+    'shared key in array binding across fields activates both',
     async () => {
-      const dupeConfig = {
+      const sharedConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyConfig: { a: ['KeyP', 'KeyQ'], x: 'KeyQ' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'dupe2',
-        gamepadConfig: dupeConfig,
+        name: 'shared2',
+        gamepadConfig: sharedConfig,
       });
       await new Promise((r) => setTimeout(r, 500));
 
       await page.keyboard.down('q');
       await new Promise((r) => setTimeout(r, 200));
       const buttons = await getButtonStates(page);
-      const bothPressed = buttons[0] && buttons[2];
-      if (bothPressed)
-        throw new Error('Duplicate binding in array was accepted');
+      if (!buttons[0] || !buttons[2])
+        throw new Error('Shared binding in array did not activate both');
       await page.keyboard.up('q');
       await new Promise((r) => setTimeout(r, 100));
     }

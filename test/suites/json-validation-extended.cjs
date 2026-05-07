@@ -38,10 +38,10 @@ module.exports = async function ({
     }
   );
 
-  console.log('  [Validation - Duplicate Key Between Button and Axis]');
+  console.log('  [Validation - Shared Key Between Button and Axis]');
 
   await assert(
-    'duplicate key across button and axis field is rejected',
+    'shared key across button and axis field activates both',
     async () => {
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -56,7 +56,7 @@ module.exports = async function ({
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'dupeBA',
+        name: 'sharedBA',
         gamepadConfig: config,
       });
       await new Promise((r) => setTimeout(r, 500));
@@ -68,8 +68,10 @@ module.exports = async function ({
       const bothActive = buttons[0] && Math.abs(axes[1]) > 0.5;
       await page.keyboard.up('w');
       await new Promise((r) => setTimeout(r, 100));
-      if (bothActive)
-        throw new Error('Duplicate key across button and axis was accepted');
+      if (!bothActive)
+        throw new Error(
+          'Shared key across button and axis did not activate both'
+        );
     }
   );
 

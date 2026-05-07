@@ -40,13 +40,13 @@ function parseAxisField(
   return { stick, direction: dir };
 }
 
-function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction> {
-  const map = new Map<string, GamepadAction>();
+function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
+  const map = new Map<string, GamepadAction[]>();
   const keyConfig = config.keyConfig;
 
   for (const [field, value] of Object.entries(keyConfig) as [
     string,
-    string | [string, string] | undefined,
+    string | string[] | undefined,
   ][]) {
     if (value === undefined) {
       continue;
@@ -56,21 +56,30 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction> {
       if (code === 'Escape') {
         continue;
       }
-      if (map.has(code)) {
+      let action: GamepadAction | undefined;
+      if (field === 'toggleGamepad') {
         continue;
       }
       const buttonIndex = BUTTON_MAP[field];
       if (buttonIndex !== undefined) {
-        map.set(code, { type: 'button', index: buttonIndex });
-        continue;
+        action = { type: 'button', index: buttonIndex };
+      } else {
+        const axisInfo = parseAxisField(field);
+        if (axisInfo) {
+          action = {
+            type: 'axis',
+            stick: axisInfo.stick,
+            direction: axisInfo.direction,
+          };
+        }
       }
-      const axisInfo = parseAxisField(field);
-      if (axisInfo) {
-        map.set(code, {
-          type: 'axis',
-          stick: axisInfo.stick,
-          direction: axisInfo.direction,
-        });
+      if (action) {
+        const existing = map.get(code);
+        if (existing) {
+          existing.push(action);
+        } else {
+          map.set(code, [action]);
+        }
       }
     }
   }
@@ -78,10 +87,11 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction> {
 }
 
 class InputProcessor {
-  private keyMap = new Map<string, GamepadAction>();
+  private keyMap = new Map<string, GamepadAction[]>();
   private mouseStick: number | null = null;
   private sensitivity = 10;
   private active = false;
+  private config: GamepadConfig | null = null;
 
   // Listeners (stored for removal)
   private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
@@ -101,12 +111,15 @@ class InputProcessor {
 
   // Scroll state
   private scrollTimer: ReturnType<typeof setTimeout> | null = null;
-  private scrollAction: GamepadAction | null = null;
+  private scrollActions: GamepadAction[] | null = null;
 
   // Overlay element
   private overlay: HTMLDivElement | null = null;
+  private minimizedBtn: HTMLDivElement | null = null;
+  private minimizedDismissed = false;
 
   activate(config: GamepadConfig): void {
+    this.config = config;
     if (this.active) {
       // Hot-swap: just update bindings without disconnect/reconnect
       this.removeListeners();
@@ -153,6 +166,7 @@ class InputProcessor {
     this.removeListeners();
     this.exitPointerLock();
     this.removeOverlay();
+    this.removeMinimized();
     gamepadSimulator.disable();
     this.active = false;
     this.keyMap.clear();
@@ -174,26 +188,38 @@ class InputProcessor {
     return this.active;
   }
 
+  toggle(): void {
+    if (this.active) {
+      this.deactivate();
+    } else if (this.config) {
+      this.activate(this.config);
+    }
+  }
+
   private attachKeyboard(): void {
     this.onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) {
         return;
       }
-      const action = this.keyMap.get(e.code);
-      if (!action) {
+      const actions = this.keyMap.get(e.code);
+      if (!actions) {
         return;
       }
-      this.executePress(action);
+      for (const action of actions) {
+        this.executePress(action);
+      }
       if (e.cancelable) {
         e.preventDefault();
       }
     };
     this.onKeyUp = (e: KeyboardEvent) => {
-      const action = this.keyMap.get(e.code);
-      if (!action) {
+      const actions = this.keyMap.get(e.code);
+      if (!actions) {
         return;
       }
-      this.executeUnpress(action);
+      for (const action of actions) {
+        this.executeUnpress(action);
+      }
     };
     document.addEventListener('keydown', this.onKeyDown, true);
     document.addEventListener('keyup', this.onKeyUp, true);
@@ -216,9 +242,11 @@ class InputProcessor {
         if (!code) {
           return;
         }
-        const action = this.keyMap.get(code);
-        if (action) {
-          this.executePress(action);
+        const actions = this.keyMap.get(code);
+        if (actions) {
+          for (const action of actions) {
+            this.executePress(action);
+          }
         }
       };
       this.onMouseUp = (e: MouseEvent) => {
@@ -227,9 +255,11 @@ class InputProcessor {
         if (!code) {
           return;
         }
-        const action = this.keyMap.get(code);
-        if (action) {
-          this.executeUnpress(action);
+        const actions = this.keyMap.get(code);
+        if (actions) {
+          for (const action of actions) {
+            this.executeUnpress(action);
+          }
         }
       };
       container.addEventListener(
@@ -245,18 +275,22 @@ class InputProcessor {
     }
 
     if (hasScroll) {
-      this.scrollAction = this.keyMap.get('Scroll') ?? null;
+      this.scrollActions = this.keyMap.get('Scroll') ?? null;
       this.onWheel = (e: WheelEvent) => {
-        if (!this.scrollAction) {
+        if (!this.scrollActions) {
           return;
         }
-        this.executePress(this.scrollAction);
+        for (const action of this.scrollActions) {
+          this.executePress(action);
+        }
         if (this.scrollTimer !== null) {
           clearTimeout(this.scrollTimer);
         }
         this.scrollTimer = setTimeout(() => {
-          if (this.scrollAction) {
-            this.executeUnpress(this.scrollAction);
+          if (this.scrollActions) {
+            for (const action of this.scrollActions) {
+              this.executeUnpress(action);
+            }
           }
           this.scrollTimer = null;
         }, SCROLL_UNPRESS_MS);
@@ -281,11 +315,14 @@ class InputProcessor {
     this.onPointerLockChange = () => {
       if (document.pointerLockElement === this.getGameContainer()) {
         this.removeOverlay();
+        this.removeMinimized();
         this.startMouseListening();
       } else {
         this.stopMouseListening();
         const c = this.getGameContainer();
         if (c) {
+          // Reset dismissed state so minimized button re-shows
+          this.minimizedDismissed = false;
           this.showOverlay(c);
         }
       }
@@ -345,11 +382,29 @@ class InputProcessor {
     if (this.overlay) {
       return;
     }
+    // Re-show minimized button whenever overlay appears
+    this.minimizedDismissed = false;
+
     this.overlay = document.createElement('div');
     this.overlay.id = 'xvg-pointer-overlay';
-    this.overlay.textContent = 'Click to enable mouse control';
     this.overlay.style.cssText =
       'position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);color:#fff;font-size:18px;cursor:pointer;z-index:99999;';
+
+    const text = document.createElement('span');
+    text.textContent = 'Click to enable mouse control';
+    this.overlay.appendChild(text);
+
+    // Minimize button (upper right)
+    const minimizeBtn = document.createElement('span');
+    minimizeBtn.textContent = '—';
+    minimizeBtn.style.cssText =
+      'position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:4px;font-size:14px;cursor:pointer;';
+    minimizeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.minimizeOverlay(container);
+    });
+    this.overlay.appendChild(minimizeBtn);
+
     this.overlay.addEventListener('click', () => {
       const c = this.getGameContainer();
       if (c) {
@@ -361,6 +416,56 @@ class InputProcessor {
       }
     });
     container.appendChild(this.overlay);
+  }
+
+  private minimizeOverlay(container: Element): void {
+    this.removeOverlay();
+    this.showMinimizedBtn(container);
+  }
+
+  private showMinimizedBtn(container: Element): void {
+    if (this.minimizedBtn || this.minimizedDismissed) {
+      return;
+    }
+    this.minimizedBtn = document.createElement('div');
+    this.minimizedBtn.id = 'xvg-pointer-minimized';
+    this.minimizedBtn.style.cssText =
+      'position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;cursor:pointer;z-index:99999;';
+
+    const label = document.createElement('span');
+    label.textContent = '🖱️';
+    label.title = 'Click to enable mouse control';
+    label.addEventListener('click', () => {
+      this.removeMinimized();
+      const c = this.getGameContainer();
+      if (c) {
+        void (c as HTMLElement).requestPointerLock();
+        const stream = document.getElementById('game-stream');
+        if (stream) {
+          stream.focus();
+        }
+      }
+    });
+    this.minimizedBtn.appendChild(label);
+
+    const closeBtn = document.createElement('span');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'cursor:pointer;margin-left:4px;';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.minimizedDismissed = true;
+      this.removeMinimized();
+    });
+    this.minimizedBtn.appendChild(closeBtn);
+
+    container.appendChild(this.minimizedBtn);
+  }
+
+  private removeMinimized(): void {
+    if (this.minimizedBtn) {
+      this.minimizedBtn.remove();
+      this.minimizedBtn = null;
+    }
   }
 
   private removeOverlay(): void {

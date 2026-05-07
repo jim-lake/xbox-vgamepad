@@ -135,10 +135,10 @@ module.exports = async function ({
     }
   );
 
-  console.log('  [JSON Spec - Duplicate Key in Array Across Fields]');
+  console.log('  [JSON Spec - Shared Key in Array Across Fields]');
 
   await assert(
-    'duplicate key in arrays across two different fields is rejected',
+    'shared key in arrays across two different fields activates both',
     async () => {
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -153,7 +153,7 @@ module.exports = async function ({
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'dupeArr',
+        name: 'sharedArr',
         gamepadConfig: config,
       });
       await new Promise((r) => setTimeout(r, 500));
@@ -162,8 +162,10 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 200));
       const buttons = await getButtonStates(page);
       const bothPressed = buttons[0] && buttons[1];
-      if (bothPressed)
-        throw new Error('Duplicate key in arrays across fields was accepted');
+      if (!bothPressed)
+        throw new Error(
+          'Shared key in arrays across fields did not activate both'
+        );
       await page.keyboard.up('q');
       await new Promise((r) => setTimeout(r, 100));
     }

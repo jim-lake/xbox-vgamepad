@@ -1,5 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import type { ExtensionMessage } from '@/types/messages';
+import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
 import { inputProcessor } from './input-processor';
 import { showToast } from './toast';
@@ -10,6 +11,7 @@ import './gamepad-simulator';
 const POLL_INTERVAL = 1000;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let lastConfigName: string | null = null;
 
 function sendMessage(msg: ExtensionMessage): void {
   window.postMessage(msg, '*');
@@ -18,6 +20,8 @@ function sendMessage(msg: ExtensionMessage): void {
 function handleMessage(msg: ExtensionMessage): void {
   if (msg.type === 'ACTIVATE_GAMEPAD_CONFIG') {
     const activateMsg = msg;
+    lastConfigName = activateMsg.name;
+    updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(activateMsg.gamepadConfig);
   } else if (msg.type === 'DISABLE_GAMEPAD') {
@@ -27,6 +31,38 @@ function handleMessage(msg: ExtensionMessage): void {
     inputProcessor.deactivate();
   }
 }
+
+// Global toggle listener (works regardless of active state, uses config-driven keys)
+let toggleCodes: Set<string> = new Set(['F9']);
+
+function updateToggleCodes(config: GamepadConfig): void {
+  const val = config.keyConfig.toggleGamepad;
+  if (val === undefined) {
+    toggleCodes = new Set();
+  } else if (typeof val === 'string') {
+    toggleCodes = new Set([val]);
+  } else {
+    toggleCodes = new Set(val);
+  }
+}
+
+document.addEventListener(
+  'keydown',
+  (e: KeyboardEvent) => {
+    if (!e.repeat && toggleCodes.has(e.code)) {
+      inputProcessor.toggle();
+      if (inputProcessor.isActive()) {
+        showToast(`'${lastConfigName ?? 'default'}' reconnected`);
+      } else {
+        showToast('Gamepad disconnected');
+      }
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    }
+  },
+  true
+);
 
 function startWaitingForGame(): void {
   if (pollTimer !== null) {

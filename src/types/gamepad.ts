@@ -1,4 +1,4 @@
-export type KeyMap = string | [string, string] | undefined;
+export type KeyMap = string | string[] | undefined;
 
 export interface GamepadKeyConfig {
   a?: KeyMap;
@@ -26,6 +26,7 @@ export interface GamepadKeyConfig {
   rightStickDown?: KeyMap;
   rightStickLeft?: KeyMap;
   rightStickRight?: KeyMap;
+  toggleGamepad?: KeyMap;
 }
 
 export interface GamepadMouseConfig {
@@ -116,5 +117,6 @@ export const DEFAULT_CONFIG: GamepadConfig = {
     rightStickRight: 'Semicolon',
     leftStickPressed: 'ShiftLeft',
     rightStickPressed: 'KeyF',
+    toggleGamepad: 'F9',
   },
 };

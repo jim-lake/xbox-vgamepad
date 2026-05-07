@@ -18,6 +18,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
@@ -27,11 +28,12 @@
     },
     {
       "js": [
-        "assets/main-world.ts-loader-DBrMds66.js"
+        "assets/main-world.ts-loader-CvxWLryS.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
@@ -53,7 +55,8 @@
         "http://localhost:5173/*",
         "http://localhost:9332/*",
         "http://localhost:9333/*",
-        "https://gamepad-tester.com/*"
+        "https://gamepad-tester.com/*",
+        "https://hardwaretester.com/*"
       ],
       "resources": [
         "src/assets/img/*",
@@ -61,10 +64,10 @@
         "assets/messages-CSoHXWTP.js.map",
         "assets/index.ts-Czxqz_ly.js",
         "assets/index.ts-Czxqz_ly.js.map",
-        "assets/gamepad-ClnJ_keH.js",
-        "assets/gamepad-ClnJ_keH.js.map",
-        "assets/main-world.ts-CRULODdT.js",
-        "assets/main-world.ts-CRULODdT.js.map"
+        "assets/gamepad-zjigURwv.js",
+        "assets/gamepad-zjigURwv.js.map",
+        "assets/main-world.ts-COGwfRnw.js",
+        "assets/main-world.ts-COGwfRnw.js.map"
       ],
       "use_dynamic_url": false
     }

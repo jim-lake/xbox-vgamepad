@@ -28,6 +28,7 @@ const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
   { key: 'rightStickDown', label: 'RS Down' },
   { key: 'rightStickLeft', label: 'RS Left' },
   { key: 'rightStickRight', label: 'RS Right' },
+  { key: 'toggleGamepad', label: 'Toggle' },
 ];
 
 const styles = StyleSheet.create({
@@ -98,7 +99,7 @@ function toKeyMap(bindings: string[]): KeyMap {
   if (bindings.length === 1) {
     return bindings[0];
   }
-  return bindings as [string, string];
+  return bindings;
 }
 
 interface Props {
@@ -151,7 +152,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
         return;
       }
       const current = getBindings(keyConfig[listening]);
-      if (current.length >= 2 || current.includes(code)) {
+      if (current.includes(code)) {
         setListening(null);
         return;
       }
@@ -201,16 +202,14 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                   </Text>
                 </View>
               ))}
-              {bindings.length < 2 && (
-                <Text
-                  style={styles.addBtn}
-                  onClick={() => {
-                    setListening(key);
-                  }}
-                >
-                  +
-                </Text>
-              )}
+              <Text
+                style={styles.addBtn}
+                onClick={() => {
+                  setListening(key);
+                }}
+              >
+                +
+              </Text>
             </View>
           </View>
         );

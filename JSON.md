@@ -58,17 +58,17 @@ Controls how mouse movement maps to an analog stick.
 
 ## GamepadKeyConfig
 
-Maps keyboard codes and virtual mouse codes to gamepad buttons and analog stick directions. Every field is optional — omitted or `undefined` fields leave that gamepad input unbound.
+Maps keyboard codes and virtual mouse codes to gamepad buttons, analog stick directions, and extension actions. Every field is optional — omitted or `undefined` fields leave that gamepad input unbound.
 
 ### Key Map Values
 
 Each field accepts a **KeyMap**, which is one of:
 
-| Form        | Example                        | Meaning                                                                  |
-| ----------- | ------------------------------ | ------------------------------------------------------------------------ |
-| `undefined` | —                              | Unbound.                                                                 |
-| `string`    | `"Space"`                      | Single key binding.                                                      |
-| `string[]`  | `["ControlLeft", "Backspace"]` | Up to 2 alternate bindings. Either key activates the same gamepad input. |
+| Form        | Example                                  | Meaning                                                                       |
+| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `undefined` | —                                        | Unbound.                                                                      |
+| `string`    | `"Space"`                                | Single key binding.                                                           |
+| `string[]`  | `["ControlLeft", "Backspace", "Delete"]` | Any number of alternate bindings. Any key in the array activates that action. |
 
 ### Key Code Format
 
@@ -79,6 +79,10 @@ Values are [KeyboardEvent.code](https://developer.mozilla.org/en-US/docs/Web/API
 | `"Click"`      | Left mouse button (button 0)  |
 | `"RightClick"` | Right mouse button (button 2) |
 | `"Scroll"`     | Mouse scroll wheel            |
+
+### Shared Key Codes
+
+A key code may appear in multiple fields. When a key that is bound to more than one field is pressed, all corresponding gamepad inputs activate simultaneously. This allows a single physical key to trigger multiple gamepad buttons or axes at once.
 
 ### Button Bindings
 
@@ -128,15 +132,25 @@ The `Gamepad.axes[]` array has 4 entries: `[leftX, leftY, rightX, rightY]`.
 - Releasing returns the axis to `0` (unless the opposite direction is held).
 - If both opposing directions on the same axis are held simultaneously, their values sum (resulting in `0`).
 
+### Extension Actions
+
+These fields control extension behavior rather than gamepad inputs.
+
+| Field           | Description                                                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toggleGamepad` | Toggles the virtual gamepad connection on/off. When toggled off, the gamepad disconnects (`gamepaddisconnected` fires). When toggled on, it reconnects with the current config. Default binding: `"F9"`. |
+
+The toggle keybinding works regardless of whether the gamepad is currently connected — it is always listening.
+
 ## Validation Rules
 
 A configuration is **invalid** if any of the following are true:
 
-1. **Duplicate key codes**: The same key code string appears in more than one field within `keyConfig`. Each code may only be bound to one gamepad input.
-2. **Escape key forbidden**: The code `"Escape"` must not be used in any binding.
-3. **Array length**: When a field is an array, it must contain at most 2 elements.
-4. **Mouse config range**: `sensitivity` must be between `1` and `1000` inclusive.
-5. **Mouse config stick**: `mouseControls` must be `0`, `1`, or `undefined`/`null`.
+1. **Escape key forbidden**: The code `"Escape"` must not be used in any binding.
+2. **Mouse config range**: `sensitivity` must be between `1` and `1000` inclusive.
+3. **Mouse config stick**: `mouseControls` must be `0`, `1`, or `undefined`/`null`.
+
+Note: Duplicate key codes across fields are allowed (shared bindings). Array fields may contain any number of elements.
 
 An implementation must reject invalid configurations and must not activate them.
 
@@ -172,7 +186,8 @@ The built-in default preset:
     "rightStickLeft": "KeyK",
     "rightStickRight": "Semicolon",
     "leftStickPressed": "ShiftLeft",
-    "rightStickPressed": "KeyF"
+    "rightStickPressed": "KeyF",
+    "toggleGamepad": "F9"
   }
 }
 ```
@@ -203,7 +218,9 @@ These are the observable behaviors any conforming implementation must exhibit, i
 5. **Key release → axis center**: When the key is released, the axis must return to `0` (unless the opposing direction is still held).
 6. **Opposing axes cancel**: If both opposing direction keys on the same axis are held, the axis value must be `0`.
 7. **Simultaneous inputs**: Multiple buttons and axes may be active at the same time. Pressing one input must not affect unrelated inputs.
-8. **Alternate bindings**: When a button has two key bindings, either key independently activates the button.
-9. **Mouse movement → stick**: When `mouseControls` is set, raw mouse movement (via Pointer Lock) must deflect the designated analog stick, scaled by `sensitivity`.
-10. **Gamepad disappears on deactivation**: When the extension is disabled or the game exits, the virtual gamepad must disconnect and a `gamepaddisconnected` event must fire.
-11. **No phantom input**: When no keys are pressed and the mouse is stationary, all buttons must be unpressed and all axes must be at `0`.
+8. **Alternate bindings**: When a button has multiple key bindings, any key independently activates the button.
+9. **Shared bindings**: When a key code is bound to multiple fields, pressing that key activates all corresponding gamepad inputs simultaneously.
+10. **Mouse movement → stick**: When `mouseControls` is set, raw mouse movement (via Pointer Lock) must deflect the designated analog stick, scaled by `sensitivity`.
+11. **Gamepad disappears on deactivation**: When the extension is disabled or the game exits, the virtual gamepad must disconnect and a `gamepaddisconnected` event must fire.
+12. **No phantom input**: When no keys are pressed and the mouse is stationary, all buttons must be unpressed and all axes must be at `0`.
+13. **Toggle keybinding**: Pressing the key(s) bound to `toggleGamepad` disconnects the virtual gamepad if connected, or reconnects it if disconnected. The toggle listener is always active regardless of gamepad connection state.

@@ -145,6 +145,7 @@ const DEFAULT_CONFIG = {
     rightStickRight: 'Semicolon',
     leftStickPressed: 'ShiftLeft',
     rightStickPressed: 'KeyF',
+    toggleGamepad: 'F9',
   },
 };
 
