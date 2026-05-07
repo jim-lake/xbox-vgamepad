@@ -51,6 +51,8 @@ chrome.runtime.onMessage.addListener(
             type: 'ACTIVATE_GAMEPAD_CONFIG',
             name: activeConfig,
             gamepadConfig: config,
+            overlayMinimized:
+              (data['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
           };
           sendResponse(response);
         } else {

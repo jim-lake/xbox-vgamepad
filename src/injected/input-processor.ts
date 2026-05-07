@@ -1,5 +1,6 @@
 import type { GamepadConfig, GamepadAction } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
+import { MSG_SOURCE } from '@/types/messages';
 import { gamepadSimulator, AxisDirection } from './gamepad-simulator';
 
 const MOUSE_THROTTLE_MS = 40;
@@ -116,12 +117,20 @@ class InputProcessor {
   // Overlay element
   private overlay: HTMLDivElement | null = null;
   private minimizedBtn: HTMLDivElement | null = null;
-  private minimizedDismissed = false;
+  private _minimizedDismissed = false;
+  private overlayMinimized = false;
 
-  activate(config: GamepadConfig): void {
+  activate(
+    config: GamepadConfig,
+    opts?: { overlayMinimized?: boolean }
+  ): void {
     this.config = config;
+    if (opts?.overlayMinimized !== undefined) {
+      this.overlayMinimized = opts.overlayMinimized;
+    }
     if (this.active) {
       // Hot-swap: just update bindings without disconnect/reconnect
+      const hadMouse = this.mouseStick !== null;
       this.removeListeners();
       if (this.scrollTimer !== null) {
         clearTimeout(this.scrollTimer);
@@ -143,6 +152,11 @@ class InputProcessor {
       this.attachMouseButtons();
       if (this.mouseStick !== null) {
         this.attachMouseMovement();
+      } else if (hadMouse) {
+        // Switching from mouse-enabled to mouse-disabled: clean up overlay/pointer lock
+        this.exitPointerLock();
+        this.removeOverlay();
+        this.removeMinimized();
       }
       return;
     }
@@ -321,8 +335,6 @@ class InputProcessor {
         this.stopMouseListening();
         const c = this.getGameContainer();
         if (c) {
-          // Reset dismissed state so minimized button re-shows
-          this.minimizedDismissed = false;
           this.showOverlay(c);
         }
       }
@@ -382,8 +394,15 @@ class InputProcessor {
     if (this.overlay) {
       return;
     }
-    // Re-show minimized button whenever overlay appears
-    this.minimizedDismissed = false;
+    // If user dismissed for this session, show nothing
+    if (this._minimizedDismissed) {
+      return;
+    }
+    // If user previously minimized, go straight to minimized button
+    if (this.overlayMinimized) {
+      this.showMinimizedBtn(container);
+      return;
+    }
 
     this.overlay = document.createElement('div');
     this.overlay.id = 'xvg-pointer-overlay';
@@ -419,12 +438,17 @@ class InputProcessor {
   }
 
   private minimizeOverlay(container: Element): void {
+    this.overlayMinimized = true;
+    window.postMessage(
+      { source: MSG_SOURCE, type: 'SET_OVERLAY_MINIMIZED', minimized: true },
+      '*'
+    );
     this.removeOverlay();
     this.showMinimizedBtn(container);
   }
 
   private showMinimizedBtn(container: Element): void {
-    if (this.minimizedBtn || this.minimizedDismissed) {
+    if (this.minimizedBtn || this._minimizedDismissed) {
       return;
     }
     this.minimizedBtn = document.createElement('div');
@@ -453,7 +477,7 @@ class InputProcessor {
     closeBtn.style.cssText = 'cursor:pointer;margin-left:4px;';
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.minimizedDismissed = true;
+      this._minimizedDismissed = true;
       this.removeMinimized();
     });
     this.minimizedBtn.appendChild(closeBtn);

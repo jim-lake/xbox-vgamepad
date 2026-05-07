@@ -24,6 +24,7 @@ export interface ActivateGamepadConfigMessage {
   type: 'ACTIVATE_GAMEPAD_CONFIG';
   name: string;
   gamepadConfig: GamepadConfig;
+  overlayMinimized?: boolean;
 }
 
 export interface DisableGamepadMessage {
@@ -31,7 +32,16 @@ export interface DisableGamepadMessage {
   type: 'DISABLE_GAMEPAD';
 }
 
-export type PageToContentMessage = InitializedMessage | GameChangedMessage;
+export interface SetOverlayMinimizedMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SET_OVERLAY_MINIMIZED';
+  minimized: boolean;
+}
+
+export type PageToContentMessage =
+  | InitializedMessage
+  | GameChangedMessage
+  | SetOverlayMinimizedMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -42,4 +52,5 @@ export type ExtensionMessage =
   | InitializedMessage
   | GameChangedMessage
   | ActivateGamepadConfigMessage
-  | DisableGamepadMessage;
+  | DisableGamepadMessage
+  | SetOverlayMinimizedMessage;

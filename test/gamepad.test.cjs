@@ -33,4 +33,7 @@ runSuites([
   path.join(__dirname, 'suites', 'json-spec-comprehensive.cjs'),
   path.join(__dirname, 'suites', 'e2e-scenarios.cjs'),
   path.join(__dirname, 'suites', 'toggle-shared-bindings.cjs'),
+  path.join(__dirname, 'suites', 'popup-autosave.cjs'),
+  path.join(__dirname, 'suites', 'mouse-axis-switching.cjs'),
+  path.join(__dirname, 'suites', 'overlay-minimize.cjs'),
 ]);

@@ -23,7 +23,12 @@ function handleMessage(msg: ExtensionMessage): void {
     lastConfigName = activateMsg.name;
     updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
-    inputProcessor.activate(activateMsg.gamepadConfig);
+    inputProcessor.activate(
+      activateMsg.gamepadConfig,
+      activateMsg.overlayMinimized !== undefined
+        ? { overlayMinimized: activateMsg.overlayMinimized }
+        : undefined
+    );
   } else if (msg.type === 'DISABLE_GAMEPAD') {
     if (inputProcessor.isActive()) {
       showToast('Mouse/keyboard disabled');
