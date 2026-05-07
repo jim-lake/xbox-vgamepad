@@ -5,14 +5,8 @@ import { styles, getButtonStyles } from './button_style';
 import type { StyleProps } from './button_style';
 
 const iconStyles = StyleSheet.create({
-  button: { width: '2.8rem', position: 'relative' },
-  image: {
-    position: 'absolute',
-    top: '0.5rem',
-    left: '0.5rem',
-    right: '0.5rem',
-    bottom: '0.5rem',
-  },
+  button: { width: '2.8rem' },
+  image: { width: '60%', height: '60%' },
 });
 
 interface Props extends StyleProps {
