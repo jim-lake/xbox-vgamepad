@@ -22,7 +22,8 @@
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
-        "http://127.0.0.1/*"
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:45777/*"
       ],
       "run_at": "document_start"
     },
@@ -37,7 +38,8 @@
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "http://localhost:5173/*",
-        "http://127.0.0.1/*"
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:45777/*"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -56,7 +58,8 @@
         "http://localhost:9332/*",
         "http://localhost:9333/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "http://127.0.0.1:45777/*"
       ],
       "resources": [
         "src/assets/img/*",

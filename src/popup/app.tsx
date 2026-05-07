@@ -99,15 +99,32 @@ const styles = StyleSheet.create({
     marginBottom: '0.4rem',
     textTransform: 'uppercase',
   },
-  nameInput: {
-    backgroundColor: '#0f3460',
-    color: '#e2e8f0',
-    fontSize: '1.3rem',
-    padding: '0.6rem',
-    borderRadius: '0.4rem',
-    borderWidth: 0,
-    marginBottom: '0.5rem',
+  statusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: '0.5rem 0.8rem',
+    backgroundColor: '#16213e',
+    borderTopWidth: 1,
+    borderTopColor: '#0f3460',
   },
+  undoBtn: {
+    paddingLeft: '0.6rem',
+    paddingRight: '0.6rem',
+    paddingTop: '0.3rem',
+    paddingBottom: '0.3rem',
+    backgroundColor: '#0f3460',
+    borderRadius: '0.3rem',
+    cursor: 'pointer',
+  },
+  undoBtnDisabled: { opacity: 0.4, cursor: 'default' },
+  undoBtnText: { color: '#e2e8f0', fontSize: '1rem' },
+  statusText: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#94a3b8',
+    fontSize: '1rem',
+  },
+  statusTextDirty: { color: '#f59e0b' },
 });
 
 type Mode = 'view' | 'create' | 'edit';
@@ -124,6 +141,9 @@ export default function App() {
   const [editConfig, setEditConfig] =
     React.useState<GamepadConfig>(DEFAULT_CONFIG);
   const [newName, setNewName] = React.useState('');
+  const [dirty, setDirty] = React.useState(false);
+  const [savedConfig, setSavedConfig] =
+    React.useState<GamepadConfig>(DEFAULT_CONFIG);
 
   React.useEffect(() => {
     void (async () => {
@@ -169,13 +189,19 @@ export default function App() {
   );
 
   const handleCreate = React.useCallback(() => {
+    const base = structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG);
     setNewName('');
-    setEditConfig(structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG));
+    setEditConfig(base);
+    setSavedConfig(base);
+    setDirty(false);
     setMode('create');
   }, [configs, activeConfigName]);
 
   const handleEdit = React.useCallback(() => {
-    setEditConfig(structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG));
+    const base = structuredClone(configs[activeConfigName] ?? DEFAULT_CONFIG);
+    setEditConfig(base);
+    setSavedConfig(base);
+    setDirty(false);
     setMode('edit');
   }, [configs, activeConfigName]);
 
@@ -195,7 +221,7 @@ export default function App() {
     }
   }, [activeConfigName, configs, isEnabled]);
 
-  const handleSave = React.useCallback(async () => {
+  const persistEdit = React.useCallback(async () => {
     const name = mode === 'create' ? newName.trim() : activeConfigName;
     if (!name || !validateConfig(editConfig)) {
       return;
@@ -213,7 +239,8 @@ export default function App() {
     if (isEnabled) {
       await sendActivateConfig(name, editConfig);
     }
-    setMode('view');
+    setSavedConfig(structuredClone(editConfig));
+    setDirty(false);
   }, [
     mode,
     newName,
@@ -223,6 +250,28 @@ export default function App() {
     presetNames,
     isEnabled,
   ]);
+
+  // Auto-save on popup close (unload)
+  React.useEffect(() => {
+    if (mode === 'view' || !dirty) {
+      return;
+    }
+    const handleUnload = () => {
+      void persistEdit();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [mode, dirty, persistEdit]);
+
+  const handleUndo = React.useCallback(() => {
+    if (!dirty) {
+      return;
+    }
+    setEditConfig(structuredClone(savedConfig));
+    setDirty(false);
+  }, [dirty, savedConfig]);
 
   const handleImport = React.useCallback(() => {
     const input = document.createElement('input');
@@ -238,8 +287,11 @@ export default function App() {
         try {
           const parsed: unknown = JSON.parse(reader.result as string);
           if (validateConfig(parsed)) {
+            const base = structuredClone(parsed);
             setEditConfig(parsed);
+            setSavedConfig(base);
             setNewName('');
+            setDirty(false);
             setMode('create');
           }
         } catch {
@@ -270,6 +322,7 @@ export default function App() {
         ...prev,
         keyConfig: { ...prev.keyConfig, [key]: value },
       }));
+      setDirty(true);
     },
     []
   );
@@ -279,6 +332,7 @@ export default function App() {
       ...prev,
       mouseConfig: { ...prev.mouseConfig, mouseControls: val ?? null },
     }));
+    setDirty(true);
   }, []);
 
   const updateSensitivity = React.useCallback((val: number) => {
@@ -286,6 +340,7 @@ export default function App() {
       ...prev,
       mouseConfig: { ...prev.mouseConfig, sensitivity: val },
     }));
+    setDirty(true);
   }, []);
 
   if (loading) {
@@ -355,65 +410,73 @@ export default function App() {
           </View>
         </>
       ) : (
-        <ScrollView style={styles.body}>
-          {mode === 'create' && (
+        <>
+          <ScrollView style={styles.body}>
+            {mode === 'create' && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Preset Name</Text>
+                <input
+                  style={{
+                    backgroundColor: '#0f3460',
+                    color: '#e2e8f0',
+                    fontSize: '1.3rem',
+                    padding: '0.6rem',
+                    borderRadius: '0.4rem',
+                    border: 'none',
+                  }}
+                  value={newName}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                  }}
+                  placeholder='Enter preset name'
+                />
+              </View>
+            )}
+
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Preset Name</Text>
-              <input
-                style={{
-                  backgroundColor: '#0f3460',
-                  color: '#e2e8f0',
-                  fontSize: '1.3rem',
-                  padding: '0.6rem',
-                  borderRadius: '0.4rem',
-                  border: 'none',
-                }}
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                }}
-                placeholder='Enter preset name'
+              <Text style={styles.sectionTitle}>Mouse</Text>
+              <MouseSettings
+                mouseControls={
+                  editConfig.mouseConfig.mouseControls === null
+                    ? undefined
+                    : editConfig.mouseConfig.mouseControls
+                }
+                sensitivity={editConfig.mouseConfig.sensitivity}
+                onChangeStick={updateMouseControls}
+                onChangeSensitivity={updateSensitivity}
               />
             </View>
-          )}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Mouse</Text>
-            <MouseSettings
-              mouseControls={
-                editConfig.mouseConfig.mouseControls === null
-                  ? undefined
-                  : editConfig.mouseConfig.mouseControls
-              }
-              sensitivity={editConfig.mouseConfig.sensitivity}
-              onChangeStick={updateMouseControls}
-              onChangeSensitivity={updateSensitivity}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Key Bindings</Text>
-            <KeyBindingEditor
-              keyConfig={editConfig.keyConfig}
-              onChange={updateKeyConfig}
-            />
-          </View>
-
-          {/* Save / Cancel */}
-          <View style={styles.toolbar}>
-            <View style={styles.toolBtn} onClick={() => void handleSave()}>
-              <Text style={styles.toolBtnText}>Save</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Key Bindings</Text>
+              <KeyBindingEditor
+                keyConfig={editConfig.keyConfig}
+                onChange={updateKeyConfig}
+              />
             </View>
+          </ScrollView>
+
+          {/* Status bar - outside scroll region */}
+          <View style={styles.statusBar}>
             <View
-              style={styles.toolBtn}
-              onClick={() => {
-                setMode('view');
-              }}
+              style={[
+                styles.undoBtn,
+                !dirty ? styles.undoBtnDisabled : undefined,
+              ]}
+              onClick={handleUndo}
             >
-              <Text style={styles.toolBtnText}>Cancel</Text>
+              <Text style={styles.undoBtnText}>Undo</Text>
             </View>
+            <Text
+              style={[
+                styles.statusText,
+                dirty ? styles.statusTextDirty : undefined,
+              ]}
+            >
+              {dirty ? 'Unsaved' : 'Saved'}
+            </Text>
           </View>
-        </ScrollView>
+        </>
       )}
     </View>
   );
