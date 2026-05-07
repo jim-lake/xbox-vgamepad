@@ -124,7 +124,6 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: '1rem',
   },
-  statusTextDirty: { color: '#f59e0b' },
 });
 
 type Mode = 'view' | 'create' | 'edit';
@@ -221,57 +220,36 @@ export default function App() {
     }
   }, [activeConfigName, configs, isEnabled]);
 
-  const persistEdit = React.useCallback(async () => {
-    const name = mode === 'create' ? newName.trim() : activeConfigName;
-    if (!name || !validateConfig(editConfig)) {
-      return;
-    }
-    if (mode === 'create' && presetNames.length >= MAX_PRESETS) {
-      return;
-    }
-    const newConfigs = { ...configs, [name]: editConfig };
-    setConfigs(newConfigs);
-    await saveConfig(name, editConfig);
-    if (mode === 'create') {
-      setActiveConfigName(name);
-      await setActiveConfig(name);
-    }
-    if (isEnabled) {
-      await sendActivateConfig(name, editConfig);
-    }
-    setSavedConfig(structuredClone(editConfig));
-    setDirty(false);
-  }, [
-    mode,
-    newName,
-    activeConfigName,
-    editConfig,
-    configs,
-    presetNames,
-    isEnabled,
-  ]);
-
-  // Auto-save on popup close (unload)
-  React.useEffect(() => {
-    if (mode === 'view' || !dirty) {
-      return;
-    }
-    const handleUnload = () => {
-      void persistEdit();
-    };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, [mode, dirty, persistEdit]);
+  const persist = React.useCallback(
+    async (config: GamepadConfig) => {
+      const name = mode === 'create' ? newName.trim() : activeConfigName;
+      if (!name || !validateConfig(config)) {
+        return;
+      }
+      if (mode === 'create' && presetNames.length >= MAX_PRESETS) {
+        return;
+      }
+      await saveConfig(name, config);
+      if (mode === 'create') {
+        setActiveConfigName(name);
+        await setActiveConfig(name);
+      }
+      if (isEnabled) {
+        await sendActivateConfig(name, config);
+      }
+    },
+    [mode, newName, activeConfigName, presetNames, isEnabled]
+  );
 
   const handleUndo = React.useCallback(() => {
     if (!dirty) {
       return;
     }
-    setEditConfig(structuredClone(savedConfig));
+    const reverted = structuredClone(savedConfig);
+    setEditConfig(reverted);
     setDirty(false);
-  }, [dirty, savedConfig]);
+    void persist(reverted);
+  }, [dirty, savedConfig, persist]);
 
   const handleImport = React.useCallback(() => {
     const input = document.createElement('input');
@@ -318,30 +296,48 @@ export default function App() {
 
   const updateKeyConfig = React.useCallback(
     (key: keyof GamepadKeyConfig, value: KeyMap) => {
-      setEditConfig((prev) => ({
-        ...prev,
-        keyConfig: { ...prev.keyConfig, [key]: value },
-      }));
+      setEditConfig((prev) => {
+        const next = {
+          ...prev,
+          keyConfig: { ...prev.keyConfig, [key]: value },
+        };
+        void persist(next);
+        return next;
+      });
       setDirty(true);
     },
-    []
+    [persist]
   );
 
-  const updateMouseControls = React.useCallback((val: 0 | 1 | undefined) => {
-    setEditConfig((prev) => ({
-      ...prev,
-      mouseConfig: { ...prev.mouseConfig, mouseControls: val ?? null },
-    }));
-    setDirty(true);
-  }, []);
+  const updateMouseControls = React.useCallback(
+    (val: 0 | 1 | undefined) => {
+      setEditConfig((prev) => {
+        const next = {
+          ...prev,
+          mouseConfig: { ...prev.mouseConfig, mouseControls: val ?? null },
+        };
+        void persist(next);
+        return next;
+      });
+      setDirty(true);
+    },
+    [persist]
+  );
 
-  const updateSensitivity = React.useCallback((val: number) => {
-    setEditConfig((prev) => ({
-      ...prev,
-      mouseConfig: { ...prev.mouseConfig, sensitivity: val },
-    }));
-    setDirty(true);
-  }, []);
+  const updateSensitivity = React.useCallback(
+    (val: number) => {
+      setEditConfig((prev) => {
+        const next = {
+          ...prev,
+          mouseConfig: { ...prev.mouseConfig, sensitivity: val },
+        };
+        void persist(next);
+        return next;
+      });
+      setDirty(true);
+    },
+    [persist]
+  );
 
   if (loading) {
     return (
@@ -456,26 +452,14 @@ export default function App() {
             </View>
           </ScrollView>
 
-          {/* Status bar - outside scroll region */}
-          <View style={styles.statusBar}>
-            <View
-              style={[
-                styles.undoBtn,
-                !dirty ? styles.undoBtnDisabled : undefined,
-              ]}
-              onClick={handleUndo}
-            >
-              <Text style={styles.undoBtnText}>Undo</Text>
+          {dirty && (
+            <View style={styles.statusBar}>
+              <View style={styles.undoBtn} onClick={handleUndo}>
+                <Text style={styles.undoBtnText}>Undo</Text>
+              </View>
+              <Text style={styles.statusText}>Saved</Text>
             </View>
-            <Text
-              style={[
-                styles.statusText,
-                dirty ? styles.statusTextDirty : undefined,
-              ]}
-            >
-              {dirty ? 'Unsaved' : 'Saved'}
-            </Text>
-          </View>
+          )}
         </>
       )}
     </View>
