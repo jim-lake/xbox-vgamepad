@@ -1,62 +1,77 @@
-// Tests: Full default config compliance — every binding from JSON.md verified end-to-end
-module.exports = async function ({ page, assert, expect, helpers }) {
+// Tests: Full default config compliance — every binding verified end-to-end,
+// derived entirely from test/default_config.cjs (no hardcoded keys).
+const {
+  DEFAULT_CONFIG,
+  ACTION_BUTTON_INDEX,
+  ACTION_AXIS,
+  CODE_TO_PUPPETEER_KEY,
+} = require('../default_config.cjs');
+
+module.exports = async function ({ page, assert, helpers }) {
   const { waitForButton, waitForAxis, waitForAxesCentered } = helpers;
 
-  console.log('  [Default Config - JSON Spec Compliance]');
+  console.log('  [Default Config - Button Bindings]');
 
-  const allButtonBindings = [
-    { field: 'a', key: 'Space', index: 0 },
-    { field: 'b', key: 'Control', index: 1 },
-    { field: 'b', key: 'Backspace', index: 1 },
-    { field: 'x', key: 'r', index: 2 },
-    { field: 'y', key: 'v', index: 3 },
-    { field: 'leftShoulder', key: 'c', index: 4 },
-    { field: 'leftShoulder', key: 'g', index: 4 },
-    { field: 'rightShoulder', key: 'q', index: 5 },
-    { field: 'select', key: 'Tab', index: 8 },
-    { field: 'start', key: 'Enter', index: 9 },
-    { field: 'leftStickPressed', key: 'Shift', index: 10 },
-    { field: 'rightStickPressed', key: 'f', index: 11 },
-    { field: 'dpadUp', key: 'ArrowUp', index: 12 },
-    { field: 'dpadUp', key: 'x', index: 12 },
-    { field: 'dpadDown', key: 'ArrowDown', index: 13 },
-    { field: 'dpadDown', key: 'z', index: 13 },
-    { field: 'dpadLeft', key: 'ArrowLeft', index: 14 },
-    { field: 'dpadLeft', key: 'n', index: 14 },
-    { field: 'dpadRight', key: 'ArrowRight', index: 15 },
-  ];
-
-  for (const { field, key, index } of allButtonBindings) {
-    await assert(
-      `default config: ${field} → ${key} → button[${index}]`,
-      async () => {
-        await page.keyboard.down(key);
-        await waitForButton(page, index, true);
-        await page.keyboard.up(key);
-        await waitForButton(page, index, false);
-      }
-    );
+  for (const [code, action] of Object.entries(DEFAULT_CONFIG.keyboardConfig)) {
+    const actions = Array.isArray(action) ? action : [action];
+    for (const act of actions) {
+      const index = ACTION_BUTTON_INDEX[act];
+      if (index === undefined) continue; // axis or toggle action
+      const key = CODE_TO_PUPPETEER_KEY[code];
+      if (!key) continue; // mouse virtual code — tested separately
+      await assert(
+        `default config: ${code} → ${act} → button[${index}]`,
+        async () => {
+          await page.keyboard.down(key);
+          await waitForButton(page, index, true);
+          await page.keyboard.up(key);
+          await waitForButton(page, index, false);
+        }
+      );
+    }
   }
 
-  const allAxisBindings = [
-    { field: 'leftStickUp', key: 'w', axisIndex: 1, expected: -1 },
-    { field: 'leftStickDown', key: 's', axisIndex: 1, expected: 1 },
-    { field: 'leftStickLeft', key: 'a', axisIndex: 0, expected: -1 },
-    { field: 'leftStickRight', key: 'd', axisIndex: 0, expected: 1 },
-    { field: 'rightStickUp', key: 'o', axisIndex: 3, expected: -1 },
-    { field: 'rightStickDown', key: 'l', axisIndex: 3, expected: 1 },
-    { field: 'rightStickLeft', key: 'k', axisIndex: 2, expected: -1 },
-    { field: 'rightStickRight', key: 'Semicolon', axisIndex: 2, expected: 1 },
-  ];
+  console.log('  [Default Config - Mouse Button Bindings]');
 
-  for (const { field, key, axisIndex, expected } of allAxisBindings) {
+  await page.mouse.move(200, 200);
+  for (const [code, action] of Object.entries(DEFAULT_CONFIG.keyboardConfig)) {
+    const index = ACTION_BUTTON_INDEX[action];
+    if (index === undefined) continue;
+    if (code === 'Click') {
+      await assert(`Click → ${action} → button[${index}]`, async () => {
+        await page.mouse.down();
+        await waitForButton(page, index, true);
+        await page.mouse.up();
+        await waitForButton(page, index, false);
+      });
+    } else if (code === 'RightClick') {
+      await assert(`RightClick → ${action} → button[${index}]`, async () => {
+        await page.mouse.down({ button: 'right' });
+        await waitForButton(page, index, true);
+        await page.mouse.up({ button: 'right' });
+        await waitForButton(page, index, false);
+      });
+    }
+  }
+
+  console.log('  [Default Config - Axis Bindings]');
+
+  for (const [code, action] of Object.entries(DEFAULT_CONFIG.keyboardConfig)) {
+    const axisInfo = ACTION_AXIS[action];
+    if (!axisInfo) continue;
+    const key = CODE_TO_PUPPETEER_KEY[code];
+    if (!key) continue;
+    const { axisIndex, value } = axisInfo;
     await assert(
-      `default config: ${field} → ${key} → axes[${axisIndex}] = ${expected}`,
+      `default config: ${code} → ${action} → axes[${axisIndex}] = ${value}`,
       async () => {
         await page.keyboard.down(key);
-        const cmp = expected < 0 ? 'lt' : 'gt';
-        const thr = expected < 0 ? -0.5 : 0.5;
-        await waitForAxis(page, axisIndex, cmp, thr);
+        await waitForAxis(
+          page,
+          axisIndex,
+          value < 0 ? 'lt' : 'gt',
+          value < 0 ? -0.5 : 0.5
+        );
         await page.keyboard.up(key);
         await waitForAxesCentered(page);
       }

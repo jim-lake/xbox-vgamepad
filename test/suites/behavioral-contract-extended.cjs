@@ -261,12 +261,12 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 500));
 
       await page.keyboard.down('Space');
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await waitForButton(page, 0, true);
       await waitForButton(page, 2, true);
 
       await page.keyboard.up('Space');
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await new Promise((r) => setTimeout(r, 200));
 
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });

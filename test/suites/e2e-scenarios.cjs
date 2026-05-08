@@ -40,7 +40,7 @@ module.exports = async function ({
     await releaseAll(page);
     await new Promise((r) => setTimeout(r, 200));
 
-    // Move forward-right (W+D) while pressing A button (Space) and right shoulder (Q)
+    // Move forward-right (W+D) while pressing A button (Space) and left shoulder (Q)
     await page.keyboard.down('w');
     await page.keyboard.down('d');
     await page.keyboard.down('Space');
@@ -49,7 +49,7 @@ module.exports = async function ({
     await waitForAxis(page, 1, 'lt', -0.5);
     await waitForAxis(page, 0, 'gt', 0.5);
     await waitForButton(page, 0, true);
-    await waitForButton(page, 5, true);
+    await waitForButton(page, 4, true);
 
     const axes = await getAxesStates(page);
     expect(axes[0]).toBe(1);
@@ -57,7 +57,7 @@ module.exports = async function ({
 
     // Release in realistic order
     await page.keyboard.up('q');
-    await waitForButton(page, 5, false);
+    await waitForButton(page, 4, false);
     expect((await getButtonStates(page))[0]).toBeTrue();
 
     await page.keyboard.up('Space');
@@ -161,9 +161,9 @@ module.exports = async function ({
     await page.keyboard.up('Enter');
     await waitForButton(page, 9, false);
 
-    await page.keyboard.down('Control');
+    await page.keyboard.down('b');
     await waitForButton(page, 1, true);
-    await page.keyboard.up('Control');
+    await page.keyboard.up('b');
     await waitForButton(page, 1, false);
   });
 
@@ -286,7 +286,7 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 500));
 
       await page.keyboard.down('Space');
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await page.keyboard.down('w');
       await page.keyboard.down('Semicolon');
 
@@ -323,7 +323,7 @@ module.exports = async function ({
       expect(snapshot.axes[3]).toBeCloseTo(0, 0.05);
 
       await page.keyboard.up('Space');
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await page.keyboard.up('w');
       await page.keyboard.up('Semicolon');
       await waitForButton(page, 0, false);
@@ -384,9 +384,9 @@ module.exports = async function ({
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
 
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await waitForButton(page, 2, true);
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await waitForButton(page, 2, false);
     }
   });

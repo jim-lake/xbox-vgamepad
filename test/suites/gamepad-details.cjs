@@ -275,7 +275,7 @@ module.exports = async function ({
     async () => {
       // Hold some keys with default config
       await page.keyboard.down('Space');
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await waitForButton(page, 0, true);
       await waitForButton(page, 2, true);
 
@@ -293,7 +293,7 @@ module.exports = async function ({
 
       // Release old keys
       await page.keyboard.up('Space');
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await new Promise((r) => setTimeout(r, 200));
 
       // New binding should work

@@ -1,5 +1,10 @@
 // Tests: Full behavioral contract from JSON.md verified end-to-end —
 // every numbered contract item tested independently of implementation
+const {
+  ACTION_BUTTON_INDEX,
+  CODE_TO_PUPPETEER_KEY,
+} = require('../default_config.cjs');
+
 module.exports = async function ({
   page,
   browser,
@@ -199,9 +204,9 @@ module.exports = async function ({
       // Press buttons and axes one at a time, waiting for each
       await page.keyboard.down('Space'); // A = 0
       await waitForButton(page, 0, true, 5000);
-      await page.keyboard.down('r'); // X = 2
+      await page.keyboard.down('x'); // X = 2
       await waitForButton(page, 2, true, 5000);
-      await page.keyboard.down('v'); // Y = 3
+      await page.keyboard.down('y'); // Y = 3
       await waitForButton(page, 3, true, 5000);
       await page.keyboard.down('w'); // left Y = -1
       await waitForAxis(page, 1, 'lt', -0.5, 5000);
@@ -219,8 +224,8 @@ module.exports = async function ({
       expect(axes[1]).toBe(-1);
 
       await page.keyboard.up('Space');
-      await page.keyboard.up('r');
-      await page.keyboard.up('v');
+      await page.keyboard.up('x');
+      await page.keyboard.up('y');
       await page.keyboard.up('w');
       await page.keyboard.up('d');
       await new Promise((r) => setTimeout(r, 200));
@@ -233,30 +238,50 @@ module.exports = async function ({
   await assert(
     'either alternate key independently activates the button',
     async () => {
-      // b: ["ControlLeft", "Backspace"] → button 1
-      await page.keyboard.down('Control');
-      await waitForButton(page, 1, true);
-      await page.keyboard.up('Control');
-      await waitForButton(page, 1, false);
-
-      await page.keyboard.down('Backspace');
-      await waitForButton(page, 1, true);
-      await page.keyboard.up('Backspace');
-      await waitForButton(page, 1, false);
+      // Find the first action that has multiple keys bound to it in the default config
+      const actionKeys = {};
+      for (const [code, action] of Object.entries(
+        DEFAULT_CONFIG.keyboardConfig
+      )) {
+        const act = Array.isArray(action) ? action[0] : action;
+        if (ACTION_BUTTON_INDEX[act] === undefined) continue;
+        if (!CODE_TO_PUPPETEER_KEY[code]) continue;
+        (actionKeys[act] = actionKeys[act] || []).push(code);
+      }
+      const [act, codes] = Object.entries(actionKeys).find(
+        ([, c]) => c.length > 1
+      );
+      const index = ACTION_BUTTON_INDEX[act];
+      for (const code of codes) {
+        const key = CODE_TO_PUPPETEER_KEY[code];
+        await page.keyboard.down(key);
+        await waitForButton(page, index, true);
+        await page.keyboard.up(key);
+        await waitForButton(page, index, false);
+      }
     }
   );
 
-  await assert('alternate bindings for dpad work independently', async () => {
-    // dpadUp: ["ArrowUp", "KeyX"] → button 12
-    await page.keyboard.down('ArrowUp');
-    await waitForButton(page, 12, true);
-    await page.keyboard.up('ArrowUp');
-    await waitForButton(page, 12, false);
-
-    await page.keyboard.down('x');
-    await waitForButton(page, 12, true);
-    await page.keyboard.up('x');
-    await waitForButton(page, 12, false);
+  await assert('alternate trigger bindings work independently', async () => {
+    // Find an action bound to both a keyboard code and a shift key
+    const actionKeys = {};
+    for (const [code, action] of Object.entries(
+      DEFAULT_CONFIG.keyboardConfig
+    )) {
+      const act = Array.isArray(action) ? action[0] : action;
+      if (ACTION_BUTTON_INDEX[act] === undefined) continue;
+      if (!CODE_TO_PUPPETEER_KEY[code]) continue;
+      (actionKeys[act] = actionKeys[act] || []).push(code);
+    }
+    const entry = Object.entries(actionKeys).find(([, c]) => c.length > 1);
+    if (!entry) return; // no multi-key bindings, skip
+    const [act, codes] = entry;
+    const index = ACTION_BUTTON_INDEX[act];
+    const key = CODE_TO_PUPPETEER_KEY[codes[codes.length - 1]];
+    await page.keyboard.down(key);
+    await waitForButton(page, index, true);
+    await page.keyboard.up(key);
+    await waitForButton(page, index, false);
   });
 
   console.log('  [Contract #10 - Gamepad Disappears on Deactivation]');

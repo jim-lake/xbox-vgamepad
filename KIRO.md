@@ -79,7 +79,8 @@ Key behavioral requirements:
 - `gamepadconnected`/`gamepaddisconnected` events must fire
 - Opposing axis keys cancel to 0
 - Escape key must never be bound
-- Max 25 config presets, max 2 alternate bindings per button
+- Max 25 config presets
+- A key code may map to multiple actions via an array value; multiple keys may map to the same action via separate entries
 
 ## Testing
 

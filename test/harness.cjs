@@ -116,43 +116,8 @@ async function releaseAll(pg) {
   await new Promise((r) => setTimeout(r, 100));
 }
 
-// Default config as specified in JSON.md
-const DEFAULT_CONFIG = {
-  mouseConfig: { mouseControls: 1, sensitivity: 10 },
-  keyboardConfig: {
-    Space: 'a',
-    ControlLeft: 'b',
-    Backspace: 'b',
-    KeyR: 'x',
-    KeyV: 'y',
-    Scroll: 'y',
-    KeyC: 'leftShoulder',
-    KeyG: 'leftShoulder',
-    KeyQ: 'rightShoulder',
-    RightClick: 'leftTrigger',
-    Click: 'rightTrigger',
-    Enter: 'start',
-    Tab: 'select',
-    ArrowUp: 'dpadUp',
-    KeyX: 'dpadUp',
-    ArrowDown: 'dpadDown',
-    KeyZ: 'dpadDown',
-    ArrowLeft: 'dpadLeft',
-    KeyN: 'dpadLeft',
-    ArrowRight: 'dpadRight',
-    KeyW: 'leftStickUp',
-    KeyS: 'leftStickDown',
-    KeyA: 'leftStickLeft',
-    KeyD: 'leftStickRight',
-    KeyO: 'rightStickUp',
-    KeyL: 'rightStickDown',
-    KeyK: 'rightStickLeft',
-    Semicolon: 'rightStickRight',
-    ShiftLeft: 'leftStickPressed',
-    KeyF: 'rightStickPressed',
-    F9: 'toggleGamepad',
-  },
-};
+// See test/default_config.cjs — must match DEFAULT_CONFIG in src/types/gamepad.ts
+const { DEFAULT_CONFIG } = require('./default_config.cjs');
 
 async function setup() {
   console.log('Setting up...');

@@ -20,14 +20,14 @@ module.exports = async function ({
   console.log('  [Simultaneous Inputs - JSON Spec]');
 
   await assert(
-    'pressing Space + KeyR activates A and X simultaneously',
+    'pressing Space + KeyX activates A and X simultaneously',
     async () => {
       await page.keyboard.down('Space');
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await waitForButton(page, 0, true);
       await waitForButton(page, 2, true);
       await page.keyboard.up('Space');
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await waitForButton(page, 0, false);
       await waitForButton(page, 2, false);
     }
@@ -95,9 +95,9 @@ module.exports = async function ({
   await assert(
     'both alternate bindings independently activate the same button',
     async () => {
-      await page.keyboard.down('Control');
+      await page.keyboard.down('b');
       await waitForButton(page, 1, true);
-      await page.keyboard.up('Control');
+      await page.keyboard.up('b');
       await waitForButton(page, 1, false);
       await page.keyboard.down('Backspace');
       await waitForButton(page, 1, true);
@@ -109,11 +109,11 @@ module.exports = async function ({
   await assert(
     'holding both alternates then releasing one keeps button pressed',
     async () => {
-      await page.keyboard.down('Control');
+      await page.keyboard.down('b');
       await waitForButton(page, 1, true);
       await page.keyboard.down('Backspace');
       expect((await getButtonStates(page))[1]).toBeTrue();
-      await page.keyboard.up('Control');
+      await page.keyboard.up('b');
       await new Promise((r) => setTimeout(r, 100));
       await page.keyboard.up('Backspace');
       await waitForButton(page, 1, false);
@@ -146,14 +146,14 @@ module.exports = async function ({
     'releasing keys in reverse order clears all buttons',
     async () => {
       await page.keyboard.down('Space');
-      await page.keyboard.down('r');
+      await page.keyboard.down('x');
       await page.keyboard.down('Enter');
       await waitForButton(page, 0, true);
       await waitForButton(page, 2, true);
       await waitForButton(page, 9, true);
       await page.keyboard.up('Enter');
       await waitForButton(page, 9, false);
-      await page.keyboard.up('r');
+      await page.keyboard.up('x');
       await waitForButton(page, 2, false);
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
@@ -203,6 +203,8 @@ module.exports = async function ({
   await assert(
     'pressing an unbound key does not affect any button',
     async () => {
+      await releaseAll(page);
+      await new Promise((r) => setTimeout(r, 100));
       await page.keyboard.down('h');
       await new Promise((r) => setTimeout(r, 200));
       expect(await getButtonStates(page)).toAllBeFalse();
@@ -211,11 +213,12 @@ module.exports = async function ({
   );
 
   await assert(
-    'home button (index 16) is unbound in default config',
+    'home button (index 16) is bound to Backslash in default config',
     async () => {
-      await releaseAll(page);
-      await new Promise((r) => setTimeout(r, 100));
-      expect((await getButtonStates(page))[16]).toBeFalse();
+      await page.keyboard.down('\\');
+      await waitForButton(page, 16, true);
+      await page.keyboard.up('\\');
+      await waitForButton(page, 16, false);
     }
   );
 };
