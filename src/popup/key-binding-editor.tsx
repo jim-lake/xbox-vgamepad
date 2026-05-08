@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     paddingTop: '0.3rem',
     paddingBottom: '0.3rem',
   },
-  label: { width: '6rem', color: '#94a3b8', fontSize: '1.4rem' },
+  label: { width: '6rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
   bindings: {
     flex: 1,
     flexDirection: 'row',
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badge: {
-    backgroundColor: '#0f3460',
+    backgroundColor: 'var(--chip-bg)',
     paddingLeft: '1rem',
     paddingRight: '1rem',
     paddingTop: '0.2rem',
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  badgeText: { color: '#e2e8f0', fontSize: '1.3rem' },
+  badgeText: { color: 'var(--text-primary)', fontSize: '1.3rem' },
   deleteBtn: { marginLeft: '0.9rem' },
   addBtn: { marginLeft: '0.4rem' },
   modal: {
@@ -69,19 +69,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'var(--modal-overlay)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'var(--app-bg)',
     padding: '2rem',
     borderRadius: '1rem',
     alignItems: 'center',
   },
-  modalText: { color: '#e2e8f0', fontSize: '1.4rem', marginBottom: '1rem' },
-  modalSub: { color: '#94a3b8', fontSize: '1.3rem' },
+  modalText: {
+    color: 'var(--text-primary)',
+    fontSize: '1.4rem',
+    marginBottom: '1rem',
+  },
+  modalSub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
 });
 
 function getBindings(keyMap: KeyMap): string[] {
