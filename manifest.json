@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Xbox Virtual Gamepad",
+  "name": "Xbox vGamepad",
   "version": "0.0.57",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": { "default_popup": "src/popup/index.html" },
@@ -13,11 +13,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*",
-        "http://localhost:9332/*",
-        "http://localhost:9333/*",
-        "http://localhost:5173/*",
-        "http://127.0.0.1/*"
+        "https://hardwaretester.com/*"
       ],
       "js": ["src/content/index.ts"],
       "run_at": "document_start"
@@ -26,11 +22,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*",
-        "http://localhost:9332/*",
-        "http://localhost:9333/*",
-        "http://localhost:5173/*",
-        "http://127.0.0.1/*"
+        "https://hardwaretester.com/*"
       ],
       "js": ["src/injected/main-world.ts"],
       "run_at": "document_start",
@@ -44,11 +36,7 @@
       "matches": [
         "*://*.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*",
-        "http://localhost:9332/*",
-        "http://localhost:9333/*",
-        "http://localhost:5173/*",
-        "http://127.0.0.1/*"
+        "https://hardwaretester.com/*"
       ]
     }
   ],

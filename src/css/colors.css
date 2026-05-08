@@ -65,3 +65,11 @@
   --button-blue-border: #005a9e;
   --button-blue-text: #fff;
 }
+
+@media (prefers-color-scheme: light) {
+:root {
+    --app-bg: #ffffff;
+    --surface-bg: #f3f4f6;
+    --text-primary: #111827;
+  }
+}
