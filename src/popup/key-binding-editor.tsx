@@ -119,6 +119,8 @@ function formatCode(code: string): string {
     return code.slice(5);
   }
   switch (code) {
+    case 'RightClick':
+      return 'Right Click';
     case 'ControlLeft':
       return 'Left Control';
     case 'ControlRight':

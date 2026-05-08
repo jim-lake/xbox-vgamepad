@@ -120,6 +120,7 @@ export const DEFAULT_CONFIG: GamepadConfig = {
     KeyL: 'rightStickDown',
     KeyK: 'rightStickLeft',
     Semicolon: 'rightStickRight',
+    Backslash: 'home',
     F9: 'toggleGamepad',
   },
 };
