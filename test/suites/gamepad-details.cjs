@@ -161,7 +161,7 @@ module.exports = async function ({
     async () => {
       const custom = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP', b: 'KeyB' },
+        keyboardConfig: { KeyP: 'a', KeyB: 'b' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -202,15 +202,15 @@ module.exports = async function ({
     const configs = [
       {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       },
       {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyB' },
+        keyboardConfig: { KeyB: 'a' },
       },
       {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyI' },
+        keyboardConfig: { KeyI: 'a' },
       },
     ];
     const keys = ['p', 'b', 'i'];
@@ -282,7 +282,7 @@ module.exports = async function ({
       // Switch to a config where those keys are unbound
       const newConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',

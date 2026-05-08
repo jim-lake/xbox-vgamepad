@@ -30,12 +30,12 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: 'KeyP',
-          b: 'KeyB',
-          x: 'KeyI',
-          leftStickUp: 'KeyW',
-          leftStickRight: 'KeyD',
+        keyboardConfig: {
+          KeyP: 'a',
+          KeyB: 'b',
+          KeyI: 'x',
+          KeyW: 'leftStickUp',
+          KeyD: 'leftStickRight',
         },
       };
       await setStorageSync(browser, {
@@ -46,7 +46,7 @@ module.exports = async function ({
 
       // Verify storage round-trip
       const stored = await getStorageSync(browser, ['GP_CONF:lifecycle']);
-      expect(stored['GP_CONF:lifecycle'].keyConfig.a).toBe('KeyP');
+      expect(stored['GP_CONF:lifecycle'].keyboardConfig.KeyP).toBe('a');
 
       // Activate
       await sendConfigToPage(page, {
@@ -80,14 +80,12 @@ module.exports = async function ({
   await assert(
     'disable, update storage, re-enable with new config works',
     async () => {
-      // Disable
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
       await waitForStatus(page, 'disconnected');
 
-      // Update storage with a different config
       const newConfig = {
         mouseConfig: { mouseControls: 0, sensitivity: 20 },
-        keyConfig: { a: 'KeyJ', start: 'KeyH' },
+        keyboardConfig: { KeyJ: 'a', KeyH: 'start' },
       };
       await setStorageSync(browser, {
         'GP_CONF:updated': newConfig,
@@ -95,7 +93,6 @@ module.exports = async function ({
         ENABLED: true,
       });
 
-      // Re-enable with the new config
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'updated',
@@ -103,7 +100,6 @@ module.exports = async function ({
       });
       await waitForStatus(page, 'connected');
 
-      // New bindings should work
       await page.keyboard.down('j');
       await waitForButton(page, 0, true);
       await page.keyboard.up('j');
@@ -114,7 +110,7 @@ module.exports = async function ({
       await page.keyboard.up('h');
       await waitForButton(page, 9, false);
 
-      // Old bindings should not work
+      // Old binding should not work
       await page.keyboard.down('p');
       await new Promise((r) => setTimeout(r, 200));
       expect((await getButtonStates(page))[0]).toBeFalse();
@@ -130,21 +126,25 @@ module.exports = async function ({
       const presets = {
         'GP_CONF:fps': {
           mouseConfig: { mouseControls: 1, sensitivity: 15 },
-          keyConfig: { a: 'Space', b: 'KeyB', rightTrigger: 'Click' },
+          keyboardConfig: { Space: 'a', KeyB: 'b', Click: 'rightTrigger' },
         },
         'GP_CONF:racing': {
           mouseConfig: { mouseControls: 0, sensitivity: 5 },
-          keyConfig: { rightTrigger: 'KeyW', leftTrigger: 'KeyS', a: 'KeyP' },
+          keyboardConfig: {
+            KeyW: 'rightTrigger',
+            KeyS: 'leftTrigger',
+            KeyP: 'a',
+          },
         },
         'GP_CONF:fighting': {
           mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-          keyConfig: {
-            a: 'KeyJ',
-            b: 'KeyK',
-            x: 'KeyU',
-            y: 'KeyI',
-            leftStickLeft: 'KeyA',
-            leftStickRight: 'KeyD',
+          keyboardConfig: {
+            KeyJ: 'a',
+            KeyK: 'b',
+            KeyU: 'x',
+            KeyI: 'y',
+            KeyA: 'leftStickLeft',
+            KeyD: 'leftStickRight',
           },
         },
       };
@@ -173,7 +173,6 @@ module.exports = async function ({
       await waitForButton(page, 0, true);
       await page.keyboard.up('p');
       await waitForButton(page, 0, false);
-      // Space should no longer work for A
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       expect((await getButtonStates(page))[0]).toBeFalse();
@@ -194,7 +193,6 @@ module.exports = async function ({
       await waitForButton(page, 1, true);
       await page.keyboard.up('k');
       await waitForButton(page, 1, false);
-      // Axes should work
       await page.keyboard.down('a');
       await waitForAxis(page, 0, 'lt', -0.5);
       await page.keyboard.up('a');
@@ -211,7 +209,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyM' },
+        keyboardConfig: { KeyM: 'a' },
       };
       await setStorageSync(browser, {
         'GP_CONF:persist': config,
@@ -219,7 +217,6 @@ module.exports = async function ({
         ENABLED: true,
       });
 
-      // Activate, verify, disable, verify storage, re-enable, verify
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'persist',
@@ -234,12 +231,10 @@ module.exports = async function ({
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
       await waitForStatus(page, 'disconnected');
 
-      // Config should still be in storage
       const stored = await getStorageSync(browser, ['GP_CONF:persist']);
       if (!stored['GP_CONF:persist'])
         throw new Error('Config lost from storage after disable');
 
-      // Re-enable
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'persist',

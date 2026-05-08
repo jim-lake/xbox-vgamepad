@@ -206,7 +206,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: { a: 'Space' },
+        keyboardConfig: { Space: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',

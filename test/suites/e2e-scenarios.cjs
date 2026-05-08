@@ -184,11 +184,11 @@ module.exports = async function ({
       // Switch to a completely different config
       const newConfig = {
         mouseConfig: { mouseControls: 0, sensitivity: 20 },
-        keyConfig: {
-          a: 'KeyJ',
-          b: 'KeyK',
-          leftStickUp: 'KeyI',
-          leftStickDown: 'KeyM',
+        keyboardConfig: {
+          KeyJ: 'a',
+          KeyK: 'b',
+          KeyI: 'leftStickUp',
+          KeyM: 'leftStickDown',
         },
       };
       await sendConfigToPage(page, {
@@ -227,11 +227,11 @@ module.exports = async function ({
 
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: {
-          leftShoulder: 'KeyQ',
-          rightShoulder: 'KeyE',
-          leftTrigger: 'KeyZ',
-          rightTrigger: 'KeyC',
+        keyboardConfig: {
+          KeyQ: 'leftShoulder',
+          KeyE: 'rightShoulder',
+          KeyZ: 'leftTrigger',
+          KeyC: 'rightTrigger',
         },
       };
       await sendConfigToPage(page, {
@@ -401,11 +401,11 @@ module.exports = async function ({
 
       const preset1 = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyU', b: 'KeyI', leftStickUp: 'KeyW' },
+        keyboardConfig: { KeyU: 'a', KeyI: 'b', KeyW: 'leftStickUp' },
       };
       const preset2 = {
         mouseConfig: { mouseControls: 0, sensitivity: 5 },
-        keyConfig: { a: 'KeyJ', x: 'KeyK', leftStickLeft: 'KeyA' },
+        keyboardConfig: { KeyJ: 'a', KeyK: 'x', KeyA: 'leftStickLeft' },
       };
 
       await setStorageSync(browser, {

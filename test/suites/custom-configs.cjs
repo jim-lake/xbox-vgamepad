@@ -20,16 +20,15 @@ module.exports = async function ({
 
   console.log('  [Custom Config - Single String Bindings]');
 
-  // Config where every binding is a single string (not array)
   const singleBindConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: {
-      a: 'KeyP',
-      b: 'KeyB',
-      x: 'KeyI',
-      y: 'KeyJ',
-      leftStickUp: 'KeyW',
-      leftStickDown: 'KeyS',
+    keyboardConfig: {
+      KeyP: 'a',
+      KeyB: 'b',
+      KeyI: 'x',
+      KeyJ: 'y',
+      KeyW: 'leftStickUp',
+      KeyS: 'leftStickDown',
     },
   };
 
@@ -61,9 +60,15 @@ module.exports = async function ({
 
   console.log('  [Custom Config - Array Bindings]');
 
+  // Two keys bound to the same action
   const arrayBindConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: { a: ['KeyP', 'KeyH'], leftStickUp: ['KeyW', 'KeyI'] },
+    keyboardConfig: {
+      KeyP: 'a',
+      KeyH: 'a',
+      KeyW: 'leftStickUp',
+      KeyI: 'leftStickUp',
+    },
   };
 
   await assert(
@@ -104,7 +109,7 @@ module.exports = async function ({
 
   const minimalConfig = {
     mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-    keyConfig: {},
+    keyboardConfig: {},
   };
 
   await assert('minimal config: no keys produce any button press', async () => {
@@ -132,7 +137,7 @@ module.exports = async function ({
 
   const homeConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: { home: 'KeyH', a: 'Space' },
+    keyboardConfig: { KeyH: 'home', Space: 'a' },
   };
 
   await assert('home button (index 16) works when bound', async () => {
@@ -154,28 +159,27 @@ module.exports = async function ({
 
   const fullConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: {
-      a: 'Digit1',
-      b: 'Digit2',
-      x: 'Digit3',
-      y: 'Digit4',
-      leftShoulder: 'Digit5',
-      rightShoulder: 'Digit6',
-      leftTrigger: 'Digit7',
-      rightTrigger: 'Digit8',
-      select: 'Digit9',
-      start: 'Digit0',
-      leftStickPressed: 'KeyP',
-      rightStickPressed: 'KeyB',
-      dpadUp: 'KeyI',
-      dpadDown: 'KeyJ',
-      dpadLeft: 'KeyK',
-      dpadRight: 'KeyL',
-      home: 'KeyH',
+    keyboardConfig: {
+      Digit1: 'a',
+      Digit2: 'b',
+      Digit3: 'x',
+      Digit4: 'y',
+      Digit5: 'leftShoulder',
+      Digit6: 'rightShoulder',
+      Digit7: 'leftTrigger',
+      Digit8: 'rightTrigger',
+      Digit9: 'select',
+      Digit0: 'start',
+      KeyP: 'leftStickPressed',
+      KeyB: 'rightStickPressed',
+      KeyI: 'dpadUp',
+      KeyJ: 'dpadDown',
+      KeyK: 'dpadLeft',
+      KeyL: 'dpadRight',
+      KeyH: 'home',
     },
   };
 
-  // Map of puppeteer key names for digit keys
   const digitKeys = [
     '1',
     '2',
@@ -216,7 +220,7 @@ module.exports = async function ({
 
   const mouseLeftStickConfig = {
     mouseConfig: { mouseControls: 0, sensitivity: 10 },
-    keyConfig: { a: 'Space' },
+    keyboardConfig: { Space: 'a' },
   };
 
   await assert('mouseControls=0 config activates without error', async () => {
@@ -227,7 +231,6 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    // Verify button still works with this config
     await page.keyboard.down('Space');
     await waitForButton(page, 0, true);
     await page.keyboard.up('Space');

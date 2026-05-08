@@ -29,7 +29,7 @@ module.exports = async function ({
         ACTIVE_GP_CONF: 'myPreset',
         'GP_CONF:myPreset': {
           mouseConfig: { mouseControls: 1, sensitivity: 10 },
-          keyConfig: { a: 'KeyP', b: 'KeyB' },
+          keyboardConfig: { KeyP: 'a', KeyB: 'b' },
         },
       };
       await setStorageSync(browser, topLevel);
@@ -41,49 +41,49 @@ module.exports = async function ({
       expect(data['ENABLED']).toBeTrue();
       expect(data['ACTIVE_GP_CONF']).toBe('myPreset');
       if (!data['GP_CONF:myPreset']) throw new Error('Config not found');
-      expect(data['GP_CONF:myPreset'].keyConfig.a).toBe('KeyP');
+      expect(data['GP_CONF:myPreset'].keyboardConfig.KeyP).toBe('a');
     }
   );
 
   console.log('  [Storage - Config Field Types]');
 
   await assert(
-    'keyConfig with single string values round-trips correctly',
+    'keyboardConfig with single string values round-trips correctly',
     async () => {
       const config = {
         mouseConfig: { mouseControls: 0, sensitivity: 500 },
-        keyConfig: { a: 'Digit1', b: 'Digit2', start: 'KeyP' },
+        keyboardConfig: { Digit1: 'a', Digit2: 'b', KeyP: 'start' },
       };
       await setStorageSync(browser, { 'GP_CONF:typeTest1': config });
       const data = await getStorageSync(browser, ['GP_CONF:typeTest1']);
       const stored = data['GP_CONF:typeTest1'];
-      expect(typeof stored.keyConfig.a).toBe('string');
-      expect(stored.keyConfig.a).toBe('Digit1');
+      expect(typeof stored.keyboardConfig.Digit1).toBe('string');
+      expect(stored.keyboardConfig.Digit1).toBe('a');
     }
   );
 
   await assert(
-    'keyConfig with array values round-trips correctly',
+    'keyboardConfig with array values round-trips correctly',
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: ['KeyP', 'KeyB'], x: ['Digit1', 'Digit2'] },
+        keyboardConfig: { KeyP: ['a', 'b'], Digit1: ['x', 'y'] },
       };
       await setStorageSync(browser, { 'GP_CONF:typeTest2': config });
       const data = await getStorageSync(browser, ['GP_CONF:typeTest2']);
       const stored = data['GP_CONF:typeTest2'];
-      if (!Array.isArray(stored.keyConfig.a))
-        throw new Error('a should be array');
-      expect(stored.keyConfig.a.length).toBe(2);
-      expect(stored.keyConfig.a[0]).toBe('KeyP');
-      expect(stored.keyConfig.a[1]).toBe('KeyB');
+      if (!Array.isArray(stored.keyboardConfig.KeyP))
+        throw new Error('KeyP should be array');
+      expect(stored.keyboardConfig.KeyP.length).toBe(2);
+      expect(stored.keyboardConfig.KeyP[0]).toBe('a');
+      expect(stored.keyboardConfig.KeyP[1]).toBe('b');
     }
   );
 
   await assert('mouseConfig values round-trip with correct types', async () => {
     const config = {
       mouseConfig: { mouseControls: 0, sensitivity: 999 },
-      keyConfig: {},
+      keyboardConfig: {},
     };
     await setStorageSync(browser, { 'GP_CONF:typeTest3': config });
     const data = await getStorageSync(browser, ['GP_CONF:typeTest3']);
@@ -100,7 +100,7 @@ module.exports = async function ({
     await setStorageSync(browser, {
       'GP_CONF:toDelete': {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       },
     });
     const before = await getStorageSync(browser, ['GP_CONF:toDelete']);
@@ -133,18 +133,18 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          rightTrigger: 'Click',
-          leftTrigger: 'RightClick',
-          y: 'Scroll',
+        keyboardConfig: {
+          Click: 'rightTrigger',
+          RightClick: 'leftTrigger',
+          Scroll: 'y',
         },
       };
       await setStorageSync(browser, { 'GP_CONF:mouseCodesRT': config });
       const data = await getStorageSync(browser, ['GP_CONF:mouseCodesRT']);
       const stored = data['GP_CONF:mouseCodesRT'];
-      expect(stored.keyConfig.rightTrigger).toBe('Click');
-      expect(stored.keyConfig.leftTrigger).toBe('RightClick');
-      expect(stored.keyConfig.y).toBe('Scroll');
+      expect(stored.keyboardConfig.Click).toBe('rightTrigger');
+      expect(stored.keyboardConfig.RightClick).toBe('leftTrigger');
+      expect(stored.keyboardConfig.Scroll).toBe('y');
     }
   );
 
@@ -153,11 +153,11 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          rightTrigger: 'Click',
-          leftTrigger: 'RightClick',
-          y: 'Scroll',
-          a: 'Space',
+        keyboardConfig: {
+          Click: 'rightTrigger',
+          RightClick: 'leftTrigger',
+          Scroll: 'y',
+          Space: 'a',
         },
       };
       await sendConfigToPage(page, {
@@ -187,18 +187,18 @@ module.exports = async function ({
     async () => {
       const v1 = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       };
       const v2 = {
         mouseConfig: { mouseControls: 0, sensitivity: 500 },
-        keyConfig: { a: 'KeyB', x: 'KeyI' },
+        keyboardConfig: { KeyB: 'a', KeyI: 'x' },
       };
       await setStorageSync(browser, { 'GP_CONF:overwrite': v1 });
       await setStorageSync(browser, { 'GP_CONF:overwrite': v2 });
       const data = await getStorageSync(browser, ['GP_CONF:overwrite']);
       const stored = data['GP_CONF:overwrite'];
-      expect(stored.keyConfig.a).toBe('KeyB');
-      expect(stored.keyConfig.x).toBe('KeyI');
+      expect(stored.keyboardConfig.KeyB).toBe('a');
+      expect(stored.keyboardConfig.KeyI).toBe('x');
       expect(stored.mouseConfig.mouseControls).toBe(0);
       expect(stored.mouseConfig.sensitivity).toBe(500);
     }

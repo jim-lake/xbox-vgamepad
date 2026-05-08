@@ -7,7 +7,7 @@ import {
   TouchableWithoutFeedback,
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GamepadConfig, GamepadKeyConfig, KeyMap } from '@/types/gamepad';
+import type { GamepadConfig, ActionMap } from '@/types/gamepad';
 import { DEFAULT_CONFIG } from '@/types/gamepad';
 import {
   loadStorage,
@@ -377,14 +377,19 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [activeConfig, activeConfigName]);
 
-  const updateKeyConfig = React.useCallback(
-    (key: keyof GamepadKeyConfig, value: KeyMap) => {
+  const updateKeyboardConfig = React.useCallback(
+    (code: string, value: ActionMap | undefined) => {
       setConfigs((prev) => {
         const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const next = {
-          ...current,
-          keyConfig: { ...current.keyConfig, [key]: value },
-        };
+        const nextKeyboardConfig =
+          value === undefined
+            ? Object.fromEntries(
+                Object.entries(current.keyboardConfig).filter(
+                  ([k]) => k !== code
+                )
+              )
+            : { ...current.keyboardConfig, [code]: value };
+        const next = { ...current, keyboardConfig: nextKeyboardConfig };
         void persist(next);
         return { ...prev, [activeConfigName]: next };
       });
@@ -563,8 +568,8 @@ export default function App() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Key Bindings</Text>
           <KeyBindingEditor
-            keyConfig={activeConfig.keyConfig}
-            onChange={updateKeyConfig}
+            keyboardConfig={activeConfig.keyboardConfig}
+            onChange={updateKeyboardConfig}
           />
         </View>
       </View>

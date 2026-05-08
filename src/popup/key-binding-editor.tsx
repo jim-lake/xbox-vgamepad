@@ -1,38 +1,42 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
-import type { GamepadKeyConfig, KeyMap } from '@/types/gamepad';
+import type {
+  GamepadKeyboardConfig,
+  GamepadActionName,
+  ActionMap,
+} from '@/types/gamepad';
 
 import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
 
-const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
-  { key: 'a', label: 'A' },
-  { key: 'b', label: 'B' },
-  { key: 'x', label: 'X' },
-  { key: 'y', label: 'Y' },
-  { key: 'leftShoulder', label: 'LB' },
-  { key: 'rightShoulder', label: 'RB' },
-  { key: 'leftTrigger', label: 'LT' },
-  { key: 'rightTrigger', label: 'RT' },
-  { key: 'select', label: 'Select' },
-  { key: 'start', label: 'Start' },
-  { key: 'dpadUp', label: 'D-Up' },
-  { key: 'dpadDown', label: 'D-Down' },
-  { key: 'dpadLeft', label: 'D-Left' },
-  { key: 'dpadRight', label: 'D-Right' },
-  { key: 'leftStickPressed', label: 'LS Press' },
-  { key: 'rightStickPressed', label: 'RS Press' },
-  { key: 'leftStickUp', label: 'LS Up' },
-  { key: 'leftStickDown', label: 'LS Down' },
-  { key: 'leftStickLeft', label: 'LS Left' },
-  { key: 'leftStickRight', label: 'LS Right' },
-  { key: 'rightStickUp', label: 'RS Up' },
-  { key: 'rightStickDown', label: 'RS Down' },
-  { key: 'rightStickLeft', label: 'RS Left' },
-  { key: 'rightStickRight', label: 'RS Right' },
-  { key: 'home', label: 'Home' },
-  { key: 'toggleGamepad', label: 'Toggle Gamepad' },
+const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
+  { action: 'a', label: 'A' },
+  { action: 'b', label: 'B' },
+  { action: 'x', label: 'X' },
+  { action: 'y', label: 'Y' },
+  { action: 'leftShoulder', label: 'LB' },
+  { action: 'rightShoulder', label: 'RB' },
+  { action: 'leftTrigger', label: 'LT' },
+  { action: 'rightTrigger', label: 'RT' },
+  { action: 'select', label: 'Select' },
+  { action: 'start', label: 'Start' },
+  { action: 'dpadUp', label: 'D-Up' },
+  { action: 'dpadDown', label: 'D-Down' },
+  { action: 'dpadLeft', label: 'D-Left' },
+  { action: 'dpadRight', label: 'D-Right' },
+  { action: 'leftStickPressed', label: 'LS Press' },
+  { action: 'rightStickPressed', label: 'RS Press' },
+  { action: 'leftStickUp', label: 'LS Up' },
+  { action: 'leftStickDown', label: 'LS Down' },
+  { action: 'leftStickLeft', label: 'LS Left' },
+  { action: 'leftStickRight', label: 'LS Right' },
+  { action: 'rightStickUp', label: 'RS Up' },
+  { action: 'rightStickDown', label: 'RS Down' },
+  { action: 'rightStickLeft', label: 'RS Left' },
+  { action: 'rightStickRight', label: 'RS Right' },
+  { action: 'home', label: 'Home' },
+  { action: 'toggleGamepad', label: 'Toggle Gamepad' },
 ];
 
 const styles = StyleSheet.create({
@@ -90,14 +94,19 @@ const styles = StyleSheet.create({
   modalSub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
 });
 
-function getBindings(keyMap: KeyMap): string[] {
-  if (keyMap === undefined) {
-    return [];
+/** Returns all key codes currently bound to the given action. */
+function getCodesForAction(
+  keyboardConfig: GamepadKeyboardConfig,
+  action: GamepadActionName
+): string[] {
+  const codes: string[] = [];
+  for (const [code, value] of Object.entries(keyboardConfig)) {
+    const names = Array.isArray(value) ? value : [value];
+    if (names.includes(action)) {
+      codes.push(code);
+    }
   }
-  if (typeof keyMap === 'string') {
-    return [keyMap];
-  }
-  return [...keyMap];
+  return codes;
 }
 
 const isMac = navigator.userAgent.includes('Mac');
@@ -205,29 +214,67 @@ function formatCode(code: string): string {
   }
 }
 
-function toKeyMap(bindings: string[]): KeyMap {
-  if (bindings.length === 0) {
+/**
+ * Add `action` to the entry for `code` in keyboardConfig.
+ * Returns the updated value for that code (or undefined if it should be removed).
+ */
+function addActionToCode(
+  keyboardConfig: GamepadKeyboardConfig,
+  code: string,
+  action: GamepadActionName
+): ActionMap {
+  const existing = keyboardConfig[code];
+  if (existing === undefined) {
+    return action;
+  }
+  const names = Array.isArray(existing) ? existing : [existing];
+  if (names.includes(action)) {
+    return existing;
+  }
+  return [...names, action];
+}
+
+/**
+ * Remove `action` from the entry for `code`.
+ * Returns undefined if the code should be deleted entirely.
+ */
+function removeActionFromCode(
+  existing: ActionMap,
+  action: GamepadActionName
+): ActionMap | undefined {
+  const names = Array.isArray(existing) ? existing : [existing];
+  const next = names.filter((n) => n !== action);
+  if (next.length === 0) {
     return undefined;
   }
-  if (bindings.length === 1) {
-    return bindings[0];
+  if (next.length === 1) {
+    return next[0];
   }
-  return bindings;
+  return next;
 }
 
 interface Props {
-  keyConfig: GamepadKeyConfig;
-  onChange: (key: keyof GamepadKeyConfig, value: KeyMap) => void;
+  keyboardConfig: GamepadKeyboardConfig;
+  onChange: (code: string, value: ActionMap | undefined) => void;
 }
 
-export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
-  const [listening, setListening] = React.useState<
-    keyof GamepadKeyConfig | null
-  >(null);
+export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
+  const [listening, setListening] = React.useState<GamepadActionName | null>(
+    null
+  );
 
   React.useEffect(() => {
     if (listening === null) {
       return;
+    }
+
+    function addBinding(code: string) {
+      if (listening === null) {
+        return;
+      }
+      const newValue = addActionToCode(keyboardConfig, code, listening);
+      onChange(code, newValue);
+      setListening(null);
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -260,19 +307,6 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
       e.preventDefault();
     }
 
-    function addBinding(code: string) {
-      if (listening === null) {
-        return;
-      }
-      const current = getBindings(keyConfig[listening]);
-      if (current.includes(code)) {
-        setListening(null);
-        return;
-      }
-      onChange(listening, toKeyMap([...current, code]));
-      setListening(null);
-    }
-
     document.addEventListener('keydown', handleKeyDown, true);
     document.addEventListener('mousedown', handleMouseDown, true);
     document.addEventListener('wheel', handleWheel, true);
@@ -284,25 +318,29 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
       document.removeEventListener('wheel', handleWheel, true);
       document.removeEventListener('contextmenu', handleContextMenu, true);
     };
-  }, [listening, keyConfig, onChange]);
+  }, [listening, keyboardConfig, onChange]);
 
   const handleRemove = React.useCallback(
-    (key: keyof GamepadKeyConfig, code: string) => {
-      const current = getBindings(keyConfig[key]);
-      onChange(key, toKeyMap(current.filter((c) => c !== code)));
+    (action: GamepadActionName, code: string) => {
+      const existing = keyboardConfig[code];
+      if (existing === undefined) {
+        return;
+      }
+      const next = removeActionFromCode(existing, action);
+      onChange(code, next);
     },
-    [keyConfig, onChange]
+    [keyboardConfig, onChange]
   );
 
   return (
     <View style={{ flexDirection: 'column' }}>
-      {INPUT_LABELS.map(({ key, label }) => {
-        const bindings = getBindings(keyConfig[key]);
+      {ACTION_LABELS.map(({ action, label }) => {
+        const codes = getCodesForAction(keyboardConfig, action);
         return (
-          <View key={key} style={styles.row}>
+          <View key={action} style={styles.row}>
             <Text style={styles.label}>{label}</Text>
             <View style={styles.bindings}>
-              {bindings.map((code) => (
+              {codes.map((code) => (
                 <View key={code} style={styles.badge}>
                   <Text style={styles.badgeText}>{formatCode(code)}</Text>
                   <IconButton
@@ -310,7 +348,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                     source={closeIcon}
                     type='danger'
                     onPress={() => {
-                      handleRemove(key, code);
+                      handleRemove(action, code);
                     }}
                   />
                 </View>
@@ -320,7 +358,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                 source={plusIcon}
                 type='green'
                 onPress={() => {
-                  setListening(key);
+                  setListening(action);
                 }}
               />
             </View>

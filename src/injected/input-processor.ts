@@ -1,4 +1,8 @@
-import type { GamepadConfig, GamepadAction } from '@/types/gamepad';
+import type {
+  GamepadConfig,
+  GamepadAction,
+  GamepadActionName,
+} from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
 import { MSG_SOURCE } from '@/types/messages';
 import { AxisDirection } from './gamepad-simulator';
@@ -15,74 +19,56 @@ const directionToAxis: Record<Direction, AxisDirection> = {
   [Direction.RIGHT]: AxisDirection.RIGHT,
 };
 
-function parseAxisField(
-  field: string
-): { stick: number; direction: Direction } | null {
-  let stick: number;
-  let suffix: string;
-  if (field.startsWith('leftStick') && field !== 'leftStickPressed') {
-    stick = 0;
-    suffix = field.slice('leftStick'.length);
-  } else if (field.startsWith('rightStick') && field !== 'rightStickPressed') {
-    stick = 1;
-    suffix = field.slice('rightStick'.length);
-  } else {
-    return null;
-  }
-  const dirMap: Record<string, Direction> = {
-    Up: Direction.UP,
-    Down: Direction.DOWN,
-    Left: Direction.LEFT,
-    Right: Direction.RIGHT,
+const AXIS_ACTION_MAP: Record<string, { stick: number; direction: Direction }> =
+  {
+    leftStickUp: { stick: 0, direction: Direction.UP },
+    leftStickDown: { stick: 0, direction: Direction.DOWN },
+    leftStickLeft: { stick: 0, direction: Direction.LEFT },
+    leftStickRight: { stick: 0, direction: Direction.RIGHT },
+    rightStickUp: { stick: 1, direction: Direction.UP },
+    rightStickDown: { stick: 1, direction: Direction.DOWN },
+    rightStickLeft: { stick: 1, direction: Direction.LEFT },
+    rightStickRight: { stick: 1, direction: Direction.RIGHT },
   };
-  const dir = dirMap[suffix];
-  if (dir === undefined) {
-    return null;
+
+function actionNameToGamepadAction(
+  name: GamepadActionName
+): GamepadAction | undefined {
+  if (name === 'toggleGamepad') {
+    return undefined;
   }
-  return { stick, direction: dir };
+  const buttonIndex = BUTTON_MAP[name];
+  if (buttonIndex !== undefined) {
+    return { type: 'button', index: buttonIndex };
+  }
+  const axisInfo = AXIS_ACTION_MAP[name];
+  if (axisInfo) {
+    return {
+      type: 'axis',
+      stick: axisInfo.stick,
+      direction: axisInfo.direction,
+    };
+  }
+  return undefined;
 }
 
 function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
   const map = new Map<string, GamepadAction[]>();
-  const keyConfig = config.keyConfig;
 
-  for (const [field, value] of Object.entries(keyConfig) as [
-    string,
-    string | string[] | undefined,
-  ][]) {
-    if (value === undefined) {
+  for (const [code, value] of Object.entries(config.keyboardConfig)) {
+    if (code === 'Escape') {
       continue;
     }
-    const codes: string[] = Array.isArray(value) ? value : [value];
-    for (const code of codes) {
-      if (code === 'Escape') {
-        continue;
-      }
-      let action: GamepadAction | undefined;
-      if (field === 'toggleGamepad') {
-        continue;
-      }
-      const buttonIndex = BUTTON_MAP[field];
-      if (buttonIndex !== undefined) {
-        action = { type: 'button', index: buttonIndex };
-      } else {
-        const axisInfo = parseAxisField(field);
-        if (axisInfo) {
-          action = {
-            type: 'axis',
-            stick: axisInfo.stick,
-            direction: axisInfo.direction,
-          };
-        }
-      }
+    const names: GamepadActionName[] = Array.isArray(value) ? value : [value];
+    const actions: GamepadAction[] = [];
+    for (const name of names) {
+      const action = actionNameToGamepadAction(name);
       if (action) {
-        const existing = map.get(code);
-        if (existing) {
-          existing.push(action);
-        } else {
-          map.set(code, [action]);
-        }
+        actions.push(action);
       }
+    }
+    if (actions.length > 0) {
+      map.set(code, actions);
     }
   }
   return map;

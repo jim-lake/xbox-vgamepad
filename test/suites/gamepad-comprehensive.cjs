@@ -28,7 +28,7 @@ module.exports = async function ({
 
   const triggerConfig = {
     mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-    keyConfig: { leftTrigger: 'KeyQ', rightTrigger: 'KeyE', a: 'Space' },
+    keyboardConfig: { KeyQ: 'leftTrigger', KeyE: 'rightTrigger', Space: 'a' },
   };
 
   await assert(
@@ -107,9 +107,11 @@ module.exports = async function ({
   await assert('triggers with array bindings work for both keys', async () => {
     const config = {
       mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-      keyConfig: {
-        leftTrigger: ['KeyQ', 'KeyZ'],
-        rightTrigger: ['KeyE', 'KeyX'],
+      keyboardConfig: {
+        KeyQ: 'leftTrigger',
+        KeyZ: 'leftTrigger',
+        KeyE: 'rightTrigger',
+        KeyX: 'rightTrigger',
       },
     };
     await sendConfigToPage(page, {

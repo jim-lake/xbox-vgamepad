@@ -68,7 +68,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 0, sensitivity: 10 },
-        keyConfig: { a: 'Space' },
+        keyboardConfig: { Space: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -108,7 +108,7 @@ module.exports = async function ({
       // Test with low sensitivity
       const lowSens = {
         mouseConfig: { mouseControls: 1, sensitivity: 1 },
-        keyConfig: {},
+        keyboardConfig: {},
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -137,7 +137,7 @@ module.exports = async function ({
       // Test with high sensitivity
       const highSens = {
         mouseConfig: { mouseControls: 1, sensitivity: 100 },
-        keyConfig: {},
+        keyboardConfig: {},
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',

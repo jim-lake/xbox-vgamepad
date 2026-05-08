@@ -1,33 +1,34 @@
-export type KeyMap = string | string[] | undefined;
+export type GamepadActionName =
+  | 'a'
+  | 'b'
+  | 'x'
+  | 'y'
+  | 'leftShoulder'
+  | 'rightShoulder'
+  | 'leftTrigger'
+  | 'rightTrigger'
+  | 'select'
+  | 'start'
+  | 'leftStickPressed'
+  | 'rightStickPressed'
+  | 'dpadUp'
+  | 'dpadDown'
+  | 'dpadLeft'
+  | 'dpadRight'
+  | 'home'
+  | 'leftStickUp'
+  | 'leftStickDown'
+  | 'leftStickLeft'
+  | 'leftStickRight'
+  | 'rightStickUp'
+  | 'rightStickDown'
+  | 'rightStickLeft'
+  | 'rightStickRight'
+  | 'toggleGamepad';
 
-export interface GamepadKeyConfig {
-  a?: KeyMap;
-  b?: KeyMap;
-  x?: KeyMap;
-  y?: KeyMap;
-  leftShoulder?: KeyMap;
-  rightShoulder?: KeyMap;
-  leftTrigger?: KeyMap;
-  rightTrigger?: KeyMap;
-  select?: KeyMap;
-  start?: KeyMap;
-  leftStickPressed?: KeyMap;
-  rightStickPressed?: KeyMap;
-  dpadUp?: KeyMap;
-  dpadDown?: KeyMap;
-  dpadLeft?: KeyMap;
-  dpadRight?: KeyMap;
-  home?: KeyMap;
-  leftStickUp?: KeyMap;
-  leftStickDown?: KeyMap;
-  leftStickLeft?: KeyMap;
-  leftStickRight?: KeyMap;
-  rightStickUp?: KeyMap;
-  rightStickDown?: KeyMap;
-  rightStickLeft?: KeyMap;
-  rightStickRight?: KeyMap;
-  toggleGamepad?: KeyMap;
-}
+export type ActionMap = GamepadActionName | GamepadActionName[];
+
+export type GamepadKeyboardConfig = Record<string, ActionMap>;
 
 export interface GamepadMouseConfig {
   mouseControls?: 0 | 1 | undefined | null;
@@ -35,7 +36,7 @@ export interface GamepadMouseConfig {
 }
 
 export interface GamepadConfig {
-  keyConfig: GamepadKeyConfig;
+  keyboardConfig: GamepadKeyboardConfig;
   mouseConfig: GamepadMouseConfig;
 }
 
@@ -91,32 +92,37 @@ export const DEFAULT_SENSITIVITY = 10;
 
 export const DEFAULT_CONFIG: GamepadConfig = {
   mouseConfig: { mouseControls: 1, sensitivity: DEFAULT_SENSITIVITY },
-  keyConfig: {
-    a: 'Space',
-    b: ['ControlLeft', 'Backspace'],
-    x: 'KeyR',
-    y: ['KeyV', 'Scroll'],
-    leftShoulder: ['KeyC', 'KeyG'],
-    rightShoulder: 'KeyQ',
-    leftTrigger: 'RightClick',
-    rightTrigger: 'Click',
-    start: 'Enter',
-    select: 'Tab',
-    home: undefined,
-    dpadUp: ['ArrowUp', 'KeyX'],
-    dpadDown: ['ArrowDown', 'KeyZ'],
-    dpadLeft: ['ArrowLeft', 'KeyN'],
-    dpadRight: 'ArrowRight',
-    leftStickUp: 'KeyW',
-    leftStickDown: 'KeyS',
-    leftStickLeft: 'KeyA',
-    leftStickRight: 'KeyD',
-    rightStickUp: 'KeyO',
-    rightStickDown: 'KeyL',
-    rightStickLeft: 'KeyK',
-    rightStickRight: 'Semicolon',
-    leftStickPressed: 'ShiftLeft',
-    rightStickPressed: 'KeyF',
-    toggleGamepad: 'F9',
+  keyboardConfig: {
+    Space: 'a',
+    ControlLeft: 'b',
+    Backspace: 'b',
+    KeyR: 'x',
+    KeyV: 'y',
+    Scroll: 'y',
+    KeyC: 'leftShoulder',
+    KeyG: 'leftShoulder',
+    KeyQ: 'rightShoulder',
+    RightClick: 'leftTrigger',
+    Click: 'rightTrigger',
+    Enter: 'start',
+    Tab: 'select',
+    ArrowUp: 'dpadUp',
+    KeyX: 'dpadUp',
+    ArrowDown: 'dpadDown',
+    KeyZ: 'dpadDown',
+    ArrowLeft: 'dpadLeft',
+    KeyN: 'dpadLeft',
+    ArrowRight: 'dpadRight',
+    KeyW: 'leftStickUp',
+    KeyS: 'leftStickDown',
+    KeyA: 'leftStickLeft',
+    KeyD: 'leftStickRight',
+    KeyO: 'rightStickUp',
+    KeyL: 'rightStickDown',
+    KeyK: 'rightStickLeft',
+    Semicolon: 'rightStickRight',
+    ShiftLeft: 'leftStickPressed',
+    KeyF: 'rightStickPressed',
+    F9: 'toggleGamepad',
   },
 };

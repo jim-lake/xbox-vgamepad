@@ -46,7 +46,6 @@ module.exports = async function ({
   });
 
   await assert('F9 reconnects the gamepad after disconnect', async () => {
-    // Should be disconnected from previous test
     const before = await getConnectionStatus(page);
     expect(before).toBe('disconnected');
 
@@ -81,9 +80,18 @@ module.exports = async function ({
 
   await assert('Custom toggle keybinding works', async () => {
     await releaseAll(page);
+    // Replace F9 toggle with F8 by updating keyboardConfig
     const customConfig = {
       ...DEFAULT_CONFIG,
-      keyConfig: { ...DEFAULT_CONFIG.keyConfig, toggleGamepad: 'F8' },
+      keyboardConfig: Object.fromEntries(
+        Object.entries(DEFAULT_CONFIG.keyboardConfig)
+          .filter(
+            ([, v]) =>
+              v !== 'toggleGamepad' &&
+              !(Array.isArray(v) && v.includes('toggleGamepad'))
+          )
+          .concat([['F8', 'toggleGamepad']])
+      ),
     };
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -110,7 +118,6 @@ module.exports = async function ({
   await assert('Gamepad inputs work after toggle reconnect', async () => {
     await releaseAll(page);
 
-    // Disconnect and reconnect
     await page.keyboard.press('F9');
     await waitForStatus(page, 'disconnected', 5000);
     await new Promise((r) => setTimeout(r, 300));
@@ -118,7 +125,6 @@ module.exports = async function ({
     await waitForStatus(page, 'connected', 5000);
     await new Promise((r) => setTimeout(r, 300));
 
-    // Verify inputs still work
     await page.keyboard.down('Space');
     await waitForButton(page, 0, true);
     const buttons = await getButtonStates(page);
@@ -137,9 +143,12 @@ module.exports = async function ({
       await releaseAll(page);
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: ['Space', 'KeyP', 'KeyI', 'KeyU'],
-          toggleGamepad: 'F9',
+        keyboardConfig: {
+          Space: 'a',
+          KeyP: 'a',
+          KeyI: 'a',
+          KeyU: 'a',
+          F9: 'toggleGamepad',
         },
       };
       await sendConfigToPage(page, {
@@ -149,7 +158,6 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 300));
 
-      // Test each binding
       await page.keyboard.down('p');
       await waitForButton(page, 0, true);
       await page.keyboard.up('p');
@@ -176,7 +184,12 @@ module.exports = async function ({
     await releaseAll(page);
     const config = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: { leftStickUp: ['KeyW', 'KeyP', 'KeyI'], toggleGamepad: 'F9' },
+      keyboardConfig: {
+        KeyW: 'leftStickUp',
+        KeyP: 'leftStickUp',
+        KeyI: 'leftStickUp',
+        F9: 'toggleGamepad',
+      },
     };
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -208,7 +221,7 @@ module.exports = async function ({
     await releaseAll(page);
     const config = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: { a: 'Space', b: 'Space', toggleGamepad: 'F9' },
+      keyboardConfig: { Space: ['a', 'b'], F9: 'toggleGamepad' },
     };
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -236,7 +249,7 @@ module.exports = async function ({
     await releaseAll(page);
     const config = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: { a: 'KeyW', leftStickUp: 'KeyW', toggleGamepad: 'F9' },
+      keyboardConfig: { KeyW: ['a', 'leftStickUp'], F9: 'toggleGamepad' },
     };
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -266,12 +279,16 @@ module.exports = async function ({
     await releaseAll(page);
     const config = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: {
-        a: ['Space', 'KeyP'],
-        x: ['KeyP', 'KeyR'],
-        toggleGamepad: 'F9',
+      keyboardConfig: {
+        Space: 'a',
+        KeyP: 'a',
+        KeyR: 'x',
+        // KeyP maps to both a and x via separate entries — use array value
+        F9: 'toggleGamepad',
       },
     };
+    // Override KeyP to map to both a and x
+    config.keyboardConfig.KeyP = ['a', 'x'];
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'shared-array',
@@ -279,7 +296,7 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 300));
 
-    // KeyP is shared between a and x
+    // KeyP activates both a and x
     await page.keyboard.down('p');
     await waitForButton(page, 0, true);
     await new Promise((r) => setTimeout(r, 100));

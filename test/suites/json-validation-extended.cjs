@@ -19,7 +19,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: null, sensitivity: 10 },
-        keyConfig: { a: 'Space' },
+        keyboardConfig: { Space: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -52,7 +52,7 @@ module.exports = async function ({
 
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyW', leftStickUp: 'KeyW' },
+        keyboardConfig: { KeyW: ['a', 'leftStickUp'] },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -87,7 +87,7 @@ module.exports = async function ({
 
     const config = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: { leftStickUp: 'Escape' },
+      keyboardConfig: { Escape: 'leftStickUp' },
     };
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',

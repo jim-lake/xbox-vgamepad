@@ -25,24 +25,24 @@ module.exports = async function ({
   await assert('all 17 buttons can be pressed at the same time', async () => {
     const config = {
       mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-      keyConfig: {
-        a: 'Digit1',
-        b: 'Digit2',
-        x: 'Digit3',
-        y: 'Digit4',
-        leftShoulder: 'Digit5',
-        rightShoulder: 'Digit6',
-        leftTrigger: 'Digit7',
-        rightTrigger: 'Digit8',
-        select: 'Digit9',
-        start: 'Digit0',
-        leftStickPressed: 'KeyP',
-        rightStickPressed: 'KeyB',
-        dpadUp: 'KeyI',
-        dpadDown: 'KeyJ',
-        dpadLeft: 'KeyK',
-        dpadRight: 'KeyL',
-        home: 'KeyH',
+      keyboardConfig: {
+        Digit1: 'a',
+        Digit2: 'b',
+        Digit3: 'x',
+        Digit4: 'y',
+        Digit5: 'leftShoulder',
+        Digit6: 'rightShoulder',
+        Digit7: 'leftTrigger',
+        Digit8: 'rightTrigger',
+        Digit9: 'select',
+        Digit0: 'start',
+        KeyP: 'leftStickPressed',
+        KeyB: 'rightStickPressed',
+        KeyI: 'dpadUp',
+        KeyJ: 'dpadDown',
+        KeyK: 'dpadLeft',
+        KeyL: 'dpadRight',
+        KeyH: 'home',
       },
     };
     const keys = [
@@ -72,7 +72,6 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    // Press all 17
     for (const k of keys) await page.keyboard.down(k);
     await new Promise((r) => setTimeout(r, 300));
 
@@ -82,7 +81,6 @@ module.exports = async function ({
         throw new Error(`Button ${i} not pressed when all 17 held`);
     }
 
-    // Release all
     for (const k of keys) await page.keyboard.up(k);
     await new Promise((r) => setTimeout(r, 300));
 
@@ -99,11 +97,11 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: {
-          leftStickUp: 'KeyW',
-          leftStickDown: 'KeyS',
-          leftStickLeft: 'KeyA',
-          leftStickRight: 'KeyD',
+        keyboardConfig: {
+          KeyW: 'leftStickUp',
+          KeyS: 'leftStickDown',
+          KeyA: 'leftStickLeft',
+          KeyD: 'leftStickRight',
         },
       };
       await sendConfigToPage(page, {
@@ -113,13 +111,11 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Axes should work
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
       await page.keyboard.up('w');
       await waitForAxesCentered(page);
 
-      // No buttons should be pressable
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       expect(await getButtonStates(page)).toAllBeFalse();
@@ -134,7 +130,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: { a: 'Space', b: 'KeyB', x: 'KeyX' },
+        keyboardConfig: { Space: 'a', KeyB: 'b', KeyX: 'x' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -143,13 +139,11 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Buttons should work
       await page.keyboard.down('Space');
       await waitForButton(page, 0, true);
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
 
-      // Axes should remain centered regardless of key presses
       await page.keyboard.down('w');
       await new Promise((r) => setTimeout(r, 200));
       expect(await getAxesStates(page)).toAllBeCloseTo(0, 0.01);
@@ -172,7 +166,6 @@ module.exports = async function ({
       await page.keyboard.down('Space');
       await waitForButton(page, 0, true);
 
-      // Wait a full second (key repeat events may fire)
       await new Promise((r) => setTimeout(r, 1000));
       expect((await getButtonStates(page))[0]).toBeTrue();
 
@@ -203,9 +196,11 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: {
-          leftStickUp: ['KeyW', 'KeyI'],
-          leftStickDown: ['KeyS', 'KeyK'],
+        keyboardConfig: {
+          KeyW: 'leftStickUp',
+          KeyI: 'leftStickUp',
+          KeyS: 'leftStickDown',
+          KeyK: 'leftStickDown',
         },
       };
       await sendConfigToPage(page, {
@@ -215,13 +210,11 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // First alternate
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
       await page.keyboard.up('w');
       await waitForAxesCentered(page);
 
-      // Second alternate
       await page.keyboard.down('i');
       await waitForAxis(page, 1, 'lt', -0.5);
       await page.keyboard.up('i');
@@ -232,19 +225,14 @@ module.exports = async function ({
   await assert(
     'releasing one axis alternate releases the axis (no per-key tracking)',
     async () => {
-      // Unlike buttons, axis alternates may not track per-key state.
-      // Pressing both alternates and releasing one may release the axis.
-      // This tests the observable behavior.
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
       await page.keyboard.down('i');
       await new Promise((r) => setTimeout(r, 100));
 
-      // Release one
       await page.keyboard.up('w');
       await new Promise((r) => setTimeout(r, 100));
 
-      // Release the other
       await page.keyboard.up('i');
       await waitForAxesCentered(page);
     }
@@ -262,7 +250,6 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Press A button + left stick up + right stick left + D-pad down
       await page.keyboard.down('Space'); // A
       await page.keyboard.down('w'); // left stick up
       await page.keyboard.down('k'); // right stick left
@@ -279,7 +266,6 @@ module.exports = async function ({
       const axes = await getAxesStates(page);
       expect(axes[1]).toBeCloseTo(-1, 0.05);
       expect(axes[2]).toBeCloseTo(-1, 0.05);
-      // Unaffected axes should be 0
       expect(axes[0]).toBeCloseTo(0, 0.05);
       expect(axes[3]).toBeCloseTo(0, 0.05);
 

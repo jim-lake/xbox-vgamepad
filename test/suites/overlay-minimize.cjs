@@ -21,7 +21,7 @@ module.exports = async function ({
 
   const mouseConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: { a: 'Space' },
+    keyboardConfig: { Space: 'a' },
   };
 
   console.log('  [Overlay Minimize Persistence]');

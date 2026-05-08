@@ -56,14 +56,14 @@ function handleMessage(msg: ExtensionMessage): void {
 let toggleCodes: Set<string> = new Set(['F9']);
 
 function updateToggleCodes(config: GamepadConfig): void {
-  const val = config.keyConfig.toggleGamepad;
-  if (val === undefined) {
-    toggleCodes = new Set();
-  } else if (typeof val === 'string') {
-    toggleCodes = new Set([val]);
-  } else {
-    toggleCodes = new Set(val);
+  const codes = new Set<string>();
+  for (const [code, value] of Object.entries(config.keyboardConfig)) {
+    const names = Array.isArray(value) ? value : [value];
+    if (names.includes('toggleGamepad')) {
+      codes.add(code);
+    }
   }
+  toggleCodes = codes;
 }
 
 document.addEventListener(

@@ -23,7 +23,6 @@ module.exports = async function ({
 
   await assert('storage contains isEnabled field', async () => {
     const data = await getStorageSync(browser, ['ENABLED']);
-    // The extension stores isEnabled under the key 'ENABLED'
     if (data.ENABLED === undefined)
       throw new Error('ENABLED key not found in storage');
   });
@@ -37,9 +36,6 @@ module.exports = async function ({
   await assert(
     'default config is available even without explicit storage entry',
     async () => {
-      // The extension hardcodes the default config and merges it at runtime,
-      // so GP_CONF:default may not exist in storage. Verify the extension
-      // still serves the default config by activating it.
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'default',
@@ -60,7 +56,7 @@ module.exports = async function ({
     async () => {
       const customConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 15 },
-        keyConfig: { a: 'KeyP', b: 'KeyB', start: 'KeyJ' },
+        keyboardConfig: { KeyP: 'a', KeyB: 'b', KeyJ: 'start' },
       };
       await setStorageSync(browser, {
         'GP_CONF:roundtrip': customConfig,
@@ -72,8 +68,8 @@ module.exports = async function ({
       const data = await getStorageSync(browser, ['GP_CONF:roundtrip']);
       const stored = data['GP_CONF:roundtrip'];
       if (!stored) throw new Error('Custom config not found after write');
-      if (stored.keyConfig.a !== 'KeyP')
-        throw new Error('keyConfig.a mismatch');
+      if (stored.keyboardConfig.KeyP !== 'a')
+        throw new Error('keyboardConfig.KeyP mismatch');
       if (stored.mouseConfig.sensitivity !== 15)
         throw new Error('sensitivity mismatch');
 
@@ -97,32 +93,33 @@ module.exports = async function ({
     async () => {
       const fullConfig = {
         mouseConfig: { mouseControls: 0, sensitivity: 500 },
-        keyConfig: {
-          a: 'Digit1',
-          b: ['Digit2', 'Digit3'],
-          x: 'Digit4',
-          y: 'Digit5',
-          leftShoulder: 'Digit6',
-          rightShoulder: 'Digit7',
-          leftTrigger: 'Digit8',
-          rightTrigger: 'Digit9',
-          select: 'Digit0',
-          start: 'KeyP',
-          leftStickPressed: 'KeyB',
-          rightStickPressed: 'KeyI',
-          dpadUp: 'KeyW',
-          dpadDown: 'KeyS',
-          dpadLeft: 'KeyA',
-          dpadRight: 'KeyD',
-          home: 'KeyH',
-          leftStickUp: 'KeyT',
-          leftStickDown: 'KeyG',
-          leftStickLeft: 'KeyF',
-          leftStickRight: 'KeyJ',
-          rightStickUp: 'KeyY',
-          rightStickDown: 'KeyN',
-          rightStickLeft: 'KeyM',
-          rightStickRight: 'KeyU',
+        keyboardConfig: {
+          Digit1: 'a',
+          Digit2: 'b',
+          Digit3: 'b',
+          Digit4: 'x',
+          Digit5: 'y',
+          Digit6: 'leftShoulder',
+          Digit7: 'rightShoulder',
+          Digit8: 'leftTrigger',
+          Digit9: 'rightTrigger',
+          Digit0: 'select',
+          KeyP: 'start',
+          KeyB: 'leftStickPressed',
+          KeyI: 'rightStickPressed',
+          KeyW: 'dpadUp',
+          KeyS: 'dpadDown',
+          KeyA: 'dpadLeft',
+          KeyD: 'dpadRight',
+          KeyH: 'home',
+          KeyT: 'leftStickUp',
+          KeyG: 'leftStickDown',
+          KeyF: 'leftStickLeft',
+          KeyJ: 'leftStickRight',
+          KeyY: 'rightStickUp',
+          KeyN: 'rightStickDown',
+          KeyM: 'rightStickLeft',
+          KeyU: 'rightStickRight',
         },
       };
       await setStorageSync(browser, { 'GP_CONF:full': fullConfig });
@@ -132,13 +129,10 @@ module.exports = async function ({
         throw new Error('mouseControls mismatch');
       if (stored.mouseConfig.sensitivity !== 500)
         throw new Error('sensitivity mismatch');
-      if (stored.keyConfig.home !== 'KeyH')
+      if (stored.keyboardConfig.KeyH !== 'home')
         throw new Error('home binding mismatch');
-      if (
-        !Array.isArray(stored.keyConfig.b) ||
-        stored.keyConfig.b[1] !== 'Digit3'
-      )
-        throw new Error('array binding mismatch');
+      if (stored.keyboardConfig.Digit2 !== 'b')
+        throw new Error('b binding mismatch');
     }
   );
 
@@ -147,15 +141,15 @@ module.exports = async function ({
   await assert('multiple presets can coexist in storage', async () => {
     const preset1 = {
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
-      keyConfig: { a: 'KeyP' },
+      keyboardConfig: { KeyP: 'a' },
     };
     const preset2 = {
       mouseConfig: { mouseControls: 0, sensitivity: 20 },
-      keyConfig: { a: 'KeyB' },
+      keyboardConfig: { KeyB: 'a' },
     };
     const preset3 = {
       mouseConfig: { mouseControls: 1, sensitivity: 30 },
-      keyConfig: { a: 'KeyI' },
+      keyboardConfig: { KeyI: 'a' },
     };
 
     await setStorageSync(browser, {
@@ -181,11 +175,11 @@ module.exports = async function ({
     async () => {
       const presetA = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyI' },
+        keyboardConfig: { KeyI: 'a' },
       };
       const presetB = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyJ' },
+        keyboardConfig: { KeyJ: 'a' },
       };
 
       await setStorageSync(browser, {

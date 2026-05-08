@@ -320,39 +320,39 @@ module.exports = async function ({
     }
   );
 
-  console.log('  [Contract - Full Config with All 25 keyConfig Fields]');
+  console.log('  [Contract - Full Config with All keyboardConfig Fields]');
 
   await assert(
-    'config with every keyConfig field populated works end-to-end',
+    'config with every keyboardConfig field populated works end-to-end',
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: 'Digit1',
-          b: 'Digit2',
-          x: 'Digit3',
-          y: 'Digit4',
-          leftShoulder: 'Digit5',
-          rightShoulder: 'Digit6',
-          leftTrigger: 'Digit7',
-          rightTrigger: 'Digit8',
-          select: 'Digit9',
-          start: 'Digit0',
-          leftStickPressed: 'KeyP',
-          rightStickPressed: 'KeyB',
-          dpadUp: 'KeyU',
-          dpadDown: 'KeyJ',
-          dpadLeft: 'KeyH',
-          dpadRight: 'KeyN',
-          home: 'KeyM',
-          leftStickUp: 'KeyW',
-          leftStickDown: 'KeyS',
-          leftStickLeft: 'KeyA',
-          leftStickRight: 'KeyD',
-          rightStickUp: 'KeyI',
-          rightStickDown: 'KeyK',
-          rightStickLeft: 'KeyO',
-          rightStickRight: 'KeyL',
+        keyboardConfig: {
+          Digit1: 'a',
+          Digit2: 'b',
+          Digit3: 'x',
+          Digit4: 'y',
+          Digit5: 'leftShoulder',
+          Digit6: 'rightShoulder',
+          Digit7: 'leftTrigger',
+          Digit8: 'rightTrigger',
+          Digit9: 'select',
+          Digit0: 'start',
+          KeyP: 'leftStickPressed',
+          KeyB: 'rightStickPressed',
+          KeyU: 'dpadUp',
+          KeyJ: 'dpadDown',
+          KeyH: 'dpadLeft',
+          KeyN: 'dpadRight',
+          KeyM: 'home',
+          KeyW: 'leftStickUp',
+          KeyS: 'leftStickDown',
+          KeyA: 'leftStickLeft',
+          KeyD: 'leftStickRight',
+          KeyI: 'rightStickUp',
+          KeyK: 'rightStickDown',
+          KeyO: 'rightStickLeft',
+          KeyL: 'rightStickRight',
         },
       };
       await sendConfigToPage(page, {

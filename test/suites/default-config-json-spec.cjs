@@ -1,5 +1,5 @@
 // Tests: Default config JSON.md compliance — verify the exact default config
-// structure matches the spec, including every field name, key code, and value
+// structure matches the spec, including every key code and action name
 module.exports = async function ({
   page,
   browser,
@@ -32,134 +32,88 @@ module.exports = async function ({
     expect(DEFAULT_CONFIG.mouseConfig.sensitivity).toBe(10);
   });
 
-  await assert('default config has home = undefined', async () => {
-    expect(DEFAULT_CONFIG.keyConfig.home).toBe(undefined);
+  await assert('default config has no home binding', async () => {
+    // In the new structure, home is simply absent from keyboardConfig
+    const hasBoundHome = Object.values(DEFAULT_CONFIG.keyboardConfig).some(
+      (v) => v === 'home' || (Array.isArray(v) && v.includes('home'))
+    );
+    expect(hasBoundHome).toBeFalse();
   });
 
   // Verify every single binding from the JSON.md default config spec
+  // Format: keyCode → actionName
   const expectedBindings = {
-    a: 'Space',
-    b: ['ControlLeft', 'Backspace'],
-    x: 'KeyR',
-    y: ['KeyV', 'Scroll'],
-    leftShoulder: ['KeyC', 'KeyG'],
-    rightShoulder: 'KeyQ',
-    leftTrigger: 'RightClick',
-    rightTrigger: 'Click',
-    start: 'Enter',
-    select: 'Tab',
-    dpadUp: ['ArrowUp', 'KeyX'],
-    dpadDown: ['ArrowDown', 'KeyZ'],
-    dpadLeft: ['ArrowLeft', 'KeyN'],
-    dpadRight: 'ArrowRight',
-    leftStickUp: 'KeyW',
-    leftStickDown: 'KeyS',
-    leftStickLeft: 'KeyA',
-    leftStickRight: 'KeyD',
-    rightStickUp: 'KeyO',
-    rightStickDown: 'KeyL',
-    rightStickLeft: 'KeyK',
-    rightStickRight: 'Semicolon',
-    leftStickPressed: 'ShiftLeft',
-    rightStickPressed: 'KeyF',
+    Space: 'a',
+    ControlLeft: 'b',
+    Backspace: 'b',
+    KeyR: 'x',
+    KeyV: 'y',
+    Scroll: 'y',
+    KeyC: 'leftShoulder',
+    KeyG: 'leftShoulder',
+    KeyQ: 'rightShoulder',
+    RightClick: 'leftTrigger',
+    Click: 'rightTrigger',
+    Enter: 'start',
+    Tab: 'select',
+    ArrowUp: 'dpadUp',
+    KeyX: 'dpadUp',
+    ArrowDown: 'dpadDown',
+    KeyZ: 'dpadDown',
+    ArrowLeft: 'dpadLeft',
+    KeyN: 'dpadLeft',
+    ArrowRight: 'dpadRight',
+    KeyW: 'leftStickUp',
+    KeyS: 'leftStickDown',
+    KeyA: 'leftStickLeft',
+    KeyD: 'leftStickRight',
+    KeyO: 'rightStickUp',
+    KeyL: 'rightStickDown',
+    KeyK: 'rightStickLeft',
+    Semicolon: 'rightStickRight',
+    ShiftLeft: 'leftStickPressed',
+    KeyF: 'rightStickPressed',
+    F9: 'toggleGamepad',
   };
 
-  for (const [field, expected] of Object.entries(expectedBindings)) {
+  for (const [code, expected] of Object.entries(expectedBindings)) {
     await assert(
-      `default config: ${field} = ${JSON.stringify(expected)}`,
+      `default config: ${code} = ${JSON.stringify(expected)}`,
       async () => {
-        const actual = DEFAULT_CONFIG.keyConfig[field];
-        if (Array.isArray(expected)) {
-          if (!Array.isArray(actual))
-            throw new Error(`Expected array, got ${JSON.stringify(actual)}`);
-          if (actual.length !== expected.length)
-            throw new Error(
-              `Array length mismatch: ${actual.length} vs ${expected.length}`
-            );
-          for (let i = 0; i < expected.length; i++) {
-            if (actual[i] !== expected[i])
-              throw new Error(
-                `Index ${i}: expected ${expected[i]}, got ${actual[i]}`
-              );
-          }
-        } else {
-          if (actual !== expected)
-            throw new Error(
-              `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
-            );
-        }
+        const actual = DEFAULT_CONFIG.keyboardConfig[code];
+        if (actual !== expected)
+          throw new Error(
+            `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+          );
       }
     );
   }
 
-  console.log('  [Default Config - No Extra Fields]');
-
-  await assert(
-    'default config keyConfig has exactly the expected fields',
-    async () => {
-      const expectedFields = Object.keys(expectedBindings).sort();
-      const actualFields = Object.keys(DEFAULT_CONFIG.keyConfig)
-        .filter((k) => DEFAULT_CONFIG.keyConfig[k] !== undefined)
-        .sort();
-      // All expected fields should be present
-      for (const f of expectedFields) {
-        if (
-          DEFAULT_CONFIG.keyConfig[f] === undefined &&
-          expectedBindings[f] !== undefined
-        ) {
-          throw new Error(`Missing field: ${f}`);
-        }
-      }
-    }
-  );
-
   console.log('  [Default Config - Button Index Mapping Compliance]');
 
-  // Verify the button field → gamepadIndex mapping from JSON.md
-  const buttonIndexMap = {
-    a: 0,
-    b: 1,
-    x: 2,
-    y: 3,
-    leftShoulder: 4,
-    rightShoulder: 5,
-    leftTrigger: 6,
-    rightTrigger: 7,
-    select: 8,
-    start: 9,
-    leftStickPressed: 10,
-    rightStickPressed: 11,
-    dpadUp: 12,
-    dpadDown: 13,
-    dpadLeft: 14,
-    dpadRight: 15,
-    home: 16,
+  // Verify the action → gamepadIndex mapping from JSON.md
+  // Map of puppeteer key → expected button index
+  const keyToButtonIndex = {
+    Space: 0, // a
+    Control: 1, // b (ControlLeft)
+    r: 2, // x
+    q: 5, // rightShoulder
+    Tab: 8, // select
+    Enter: 9, // start
+    Shift: 10, // leftStickPressed
+    f: 11, // rightStickPressed
+    ArrowUp: 12, // dpadUp
+    ArrowDown: 13, // dpadDown
+    ArrowLeft: 14, // dpadLeft
+    ArrowRight: 15, // dpadRight
   };
 
-  // Map of field → puppeteer key for the first binding
-  const fieldToKey = {
-    a: 'Space',
-    b: 'Control',
-    x: 'r',
-    rightShoulder: 'q',
-    select: 'Tab',
-    start: 'Enter',
-    leftStickPressed: 'Shift',
-    rightStickPressed: 'f',
-    dpadUp: 'ArrowUp',
-    dpadDown: 'ArrowDown',
-    dpadLeft: 'ArrowLeft',
-    dpadRight: 'ArrowRight',
-  };
-
-  for (const [field, key] of Object.entries(fieldToKey)) {
-    const idx = buttonIndexMap[field];
+  for (const [key, idx] of Object.entries(keyToButtonIndex)) {
     await assert(
-      `${field} maps to gamepadIndex ${idx} per JSON.md spec`,
+      `${key} maps to gamepadIndex ${idx} per JSON.md spec`,
       async () => {
         await page.keyboard.down(key);
         await waitForButton(page, idx, true);
-        // Verify it's the correct index and no other button is affected
         const buttons = await getButtonStates(page);
         expect(buttons[idx]).toBeTrue();
         await page.keyboard.up(key);
@@ -170,32 +124,20 @@ module.exports = async function ({
 
   console.log('  [Default Config - Axis Index Mapping Compliance]');
 
-  const axisIndexMap = {
-    leftStickUp: { axis: 1, value: -1 },
-    leftStickDown: { axis: 1, value: 1 },
-    leftStickLeft: { axis: 0, value: -1 },
-    leftStickRight: { axis: 0, value: 1 },
-    rightStickUp: { axis: 3, value: -1 },
-    rightStickDown: { axis: 3, value: 1 },
-    rightStickLeft: { axis: 2, value: -1 },
-    rightStickRight: { axis: 2, value: 1 },
-  };
+  const axisTests = [
+    { key: 'w', axis: 1, value: -1 }, // leftStickUp
+    { key: 's', axis: 1, value: 1 }, // leftStickDown
+    { key: 'a', axis: 0, value: -1 }, // leftStickLeft
+    { key: 'd', axis: 0, value: 1 }, // leftStickRight
+    { key: 'o', axis: 3, value: -1 }, // rightStickUp
+    { key: 'l', axis: 3, value: 1 }, // rightStickDown
+    { key: 'k', axis: 2, value: -1 }, // rightStickLeft
+    { key: 'Semicolon', axis: 2, value: 1 }, // rightStickRight
+  ];
 
-  const axisFieldToKey = {
-    leftStickUp: 'w',
-    leftStickDown: 's',
-    leftStickLeft: 'a',
-    leftStickRight: 'd',
-    rightStickUp: 'o',
-    rightStickDown: 'l',
-    rightStickLeft: 'k',
-    rightStickRight: 'Semicolon',
-  };
-
-  for (const [field, { axis, value }] of Object.entries(axisIndexMap)) {
-    const key = axisFieldToKey[field];
+  for (const { key, axis, value } of axisTests) {
     await assert(
-      `${field} maps to axes[${axis}] = ${value} per JSON.md spec`,
+      `${key} maps to axes[${axis}] = ${value} per JSON.md spec`,
       async () => {
         await page.keyboard.down(key);
         const cmp = value < 0 ? 'lt' : 'gt';

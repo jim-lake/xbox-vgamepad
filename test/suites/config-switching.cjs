@@ -23,7 +23,7 @@ module.exports = async function ({
 
   const customConfig = {
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
-    keyConfig: { a: 'KeyP', b: 'KeyB' },
+    keyboardConfig: { KeyP: 'a', KeyB: 'b' },
   };
 
   await assert(
@@ -81,7 +81,7 @@ module.exports = async function ({
   // New: switch between 3 presets
   const preset2 = {
     mouseConfig: { mouseControls: 0, sensitivity: 5 },
-    keyConfig: { a: 'KeyI', start: 'KeyJ' },
+    keyboardConfig: { KeyI: 'a', KeyJ: 'start' },
   };
 
   await assert(

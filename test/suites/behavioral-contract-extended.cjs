@@ -31,9 +31,7 @@ module.exports = async function ({
   await assert(
     'key press produces button state change within one animation frame cycle',
     async () => {
-      // Press and immediately check — the extension should respond within the polling cycle
       await page.keyboard.down('Space');
-      // waitForButton uses waitForFunction which polls at rAF rate
       await waitForButton(page, 0, true, 1000);
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false, 1000);
@@ -65,13 +63,12 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Hold a key, then switch config
       await page.keyboard.down('Space');
       await waitForButton(page, 0, true);
 
       const newConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -83,7 +80,6 @@ module.exports = async function ({
       await page.keyboard.up('Space');
       await new Promise((r) => setTimeout(r, 100));
 
-      // Verify new config works
       await page.keyboard.down('p');
       await waitForButton(page, 0, true);
       await page.keyboard.up('p');
@@ -102,21 +98,17 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Verify axis deflects with default config
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
-      // Release the key before switching
       await page.keyboard.up('w');
       await waitForAxesCentered(page);
 
-      // Now hold the key again
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
 
-      // Switch to config where W is NOT bound to any axis
       const newConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { leftStickUp: 'KeyP' },
+        keyboardConfig: { KeyP: 'leftStickUp' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -125,11 +117,9 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Release W (which is no longer bound)
       await page.keyboard.up('w');
       await new Promise((r) => setTimeout(r, 200));
 
-      // New config's key should work for the axis
       await page.keyboard.down('p');
       await waitForAxis(page, 1, 'lt', -0.5);
       await page.keyboard.up('p');
@@ -193,7 +183,6 @@ module.exports = async function ({
   await assert(
     'gamepadconnected event carries correct gamepad id',
     async () => {
-      // The exerciser stores the gamepad id from the event
       const status = await getConnectionStatus(page);
       if (status !== 'connected') {
         await sendConfigToPage(page, {
@@ -222,11 +211,11 @@ module.exports = async function ({
     async () => {
       const configA = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' }, // P → button 0
+        keyboardConfig: { KeyP: 'a' }, // P → button 0
       };
       const configB = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { x: 'KeyP' }, // P → button 2
+        keyboardConfig: { KeyP: 'x' }, // P → button 2
       };
 
       await sendConfigToPage(page, {
@@ -276,7 +265,6 @@ module.exports = async function ({
       await waitForButton(page, 0, true);
       await waitForButton(page, 2, true);
 
-      // Release the physical keys BEFORE disabling
       await page.keyboard.up('Space');
       await page.keyboard.up('r');
       await new Promise((r) => setTimeout(r, 200));
@@ -285,7 +273,6 @@ module.exports = async function ({
       await waitForStatus(page, 'disconnected');
       await new Promise((r) => setTimeout(r, 200));
 
-      // Re-enable — buttons should not be stuck
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'default',
@@ -305,7 +292,7 @@ module.exports = async function ({
   console.log('  [Behavioral Contract - Partial Config Fields]');
 
   await assert(
-    'config with only keyConfig (no mouseConfig fields beyond required) works',
+    'config with only keyboardConfig (no mouseConfig fields beyond required) works',
     async () => {
       await releaseAll(page);
       await sendConfigToPage(page, {
@@ -317,7 +304,7 @@ module.exports = async function ({
 
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'Space' },
+        keyboardConfig: { Space: 'a' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -331,7 +318,6 @@ module.exports = async function ({
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
 
-      // All unbound buttons should be unpressed
       await new Promise((r) => setTimeout(r, 100));
       const buttons = await getButtonStates(page);
       for (let i = 1; i < 17; i++) {
@@ -342,34 +328,22 @@ module.exports = async function ({
   );
 
   await assert(
-    'config with undefined fields in keyConfig treats them as unbound',
+    'config with empty keyboardConfig treats all keys as unbound',
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: 'Space',
-          b: undefined,
-          x: undefined,
-          leftStickUp: undefined,
-        },
+        keyboardConfig: {},
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'undefFields',
+        name: 'emptyKB',
         gamepadConfig: config,
       });
       await new Promise((r) => setTimeout(r, 500));
 
       await page.keyboard.down('Space');
-      await waitForButton(page, 0, true);
-      await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
-
-      // B and X should not be activatable
-      await page.keyboard.down('Control');
-      await new Promise((r) => setTimeout(r, 200));
-      expect((await getButtonStates(page))[1]).toBeFalse();
-      await page.keyboard.up('Control');
+      await page.keyboard.up('Space');
     }
   );
 

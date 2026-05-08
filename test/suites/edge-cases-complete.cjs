@@ -29,7 +29,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: [], b: 'KeyP' },
+        keyboardConfig: { KeyP: 'b' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -38,13 +38,11 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // b should work
       await page.keyboard.down('p');
       await waitForButton(page, 1, true);
       await page.keyboard.up('p');
       await waitForButton(page, 1, false);
 
-      // Space should not activate A since a: [] is unbound
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       expect((await getButtonStates(page))[0]).toBeFalse();
@@ -59,7 +57,7 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { rightTrigger: 'Click', leftTrigger: 'RightClick' },
+        keyboardConfig: { Click: 'rightTrigger', RightClick: 'leftTrigger' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -68,20 +66,17 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Left click → RT (index 7)
       await page.mouse.move(200, 200);
       await page.mouse.down();
       await waitForButton(page, 7, true);
       await page.mouse.up();
       await waitForButton(page, 7, false);
 
-      // Right click → LT (index 6)
       await page.mouse.down({ button: 'right' });
       await waitForButton(page, 6, true);
       await page.mouse.up({ button: 'right' });
       await waitForButton(page, 6, false);
 
-      // No keyboard keys should do anything
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       expect(await getButtonStates(page)).toAllBeFalse();
@@ -96,11 +91,11 @@ module.exports = async function ({
     async () => {
       const configA = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP' },
+        keyboardConfig: { KeyP: 'a' },
       };
       const configB = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyB' },
+        keyboardConfig: { KeyB: 'a' },
       };
 
       for (let i = 0; i < 20; i++) {
@@ -121,7 +116,6 @@ module.exports = async function ({
       await page.keyboard.up('b');
       await waitForButton(page, 0, false);
 
-      // configA's key should not work
       await page.keyboard.down('p');
       await new Promise((r) => setTimeout(r, 200));
       expect((await getButtonStates(page))[0]).toBeFalse();
@@ -134,31 +128,30 @@ module.exports = async function ({
   await assert(
     'all 17 buttons + all 4 axes active at the same time',
     async () => {
-      // Need a config where all 17 buttons + 8 axis directions use unique keys
       const config = {
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-        keyConfig: {
-          a: 'Digit1',
-          b: 'Digit2',
-          x: 'Digit3',
-          y: 'Digit4',
-          leftShoulder: 'Digit5',
-          rightShoulder: 'Digit6',
-          leftTrigger: 'Digit7',
-          rightTrigger: 'Digit8',
-          select: 'Digit9',
-          start: 'Digit0',
-          leftStickPressed: 'KeyP',
-          rightStickPressed: 'KeyB',
-          dpadUp: 'KeyU',
-          dpadDown: 'KeyJ',
-          dpadLeft: 'KeyH',
-          dpadRight: 'KeyN',
-          home: 'KeyM',
-          leftStickRight: 'KeyD',
-          leftStickDown: 'KeyS',
-          rightStickRight: 'KeyL',
-          rightStickDown: 'KeyK',
+        keyboardConfig: {
+          Digit1: 'a',
+          Digit2: 'b',
+          Digit3: 'x',
+          Digit4: 'y',
+          Digit5: 'leftShoulder',
+          Digit6: 'rightShoulder',
+          Digit7: 'leftTrigger',
+          Digit8: 'rightTrigger',
+          Digit9: 'select',
+          Digit0: 'start',
+          KeyP: 'leftStickPressed',
+          KeyB: 'rightStickPressed',
+          KeyU: 'dpadUp',
+          KeyJ: 'dpadDown',
+          KeyH: 'dpadLeft',
+          KeyN: 'dpadRight',
+          KeyM: 'home',
+          KeyD: 'leftStickRight',
+          KeyS: 'leftStickDown',
+          KeyL: 'rightStickRight',
+          KeyK: 'rightStickDown',
         },
       };
       await sendConfigToPage(page, {
@@ -168,7 +161,6 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Press all 17 button keys
       const buttonKeys = [
         '1',
         '2',
@@ -190,7 +182,6 @@ module.exports = async function ({
       ];
       for (const k of buttonKeys) await page.keyboard.down(k);
 
-      // Press axis keys (right and down for each stick)
       await page.keyboard.down('d'); // left X = +1
       await page.keyboard.down('s'); // left Y = +1
       await page.keyboard.down('l'); // right X = +1
@@ -198,21 +189,18 @@ module.exports = async function ({
 
       await new Promise((r) => setTimeout(r, 300));
 
-      // Verify all 17 buttons pressed
       const buttons = await getButtonStates(page);
       for (let i = 0; i < 17; i++) {
         if (!buttons[i])
           throw new Error(`Button ${i} not pressed in all-at-once test`);
       }
 
-      // Verify axes
       const axes = await getAxesStates(page);
-      expect(axes[0]).toBe(1); // left X right
-      expect(axes[1]).toBe(1); // left Y down
-      expect(axes[2]).toBe(1); // right X right
-      expect(axes[3]).toBe(1); // right Y down
+      expect(axes[0]).toBe(1);
+      expect(axes[1]).toBe(1);
+      expect(axes[2]).toBe(1);
+      expect(axes[3]).toBe(1);
 
-      // Release everything
       for (const k of buttonKeys) await page.keyboard.up(k);
       await page.keyboard.up('d');
       await page.keyboard.up('s');
@@ -220,7 +208,6 @@ module.exports = async function ({
       await page.keyboard.up('k');
       await new Promise((r) => setTimeout(r, 300));
 
-      // Verify clean state
       const afterButtons = await getButtonStates(page);
       for (let i = 0; i < 17; i++) {
         if (afterButtons[i]) throw new Error(`Button ${i} stuck after release`);
@@ -236,13 +223,16 @@ module.exports = async function ({
     async () => {
       const config = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: {
-          a: 'Space',
-          b: ['KeyP', 'KeyB'],
-          x: 'KeyI',
-          dpadUp: ['ArrowUp', 'KeyW'],
-          leftStickUp: 'KeyT',
-          leftStickDown: ['KeyG', 'KeyY'],
+        keyboardConfig: {
+          Space: 'a',
+          KeyP: 'b',
+          KeyB: 'b',
+          KeyI: 'x',
+          ArrowUp: 'dpadUp',
+          KeyW: 'dpadUp',
+          KeyT: 'leftStickUp',
+          KeyG: 'leftStickDown',
+          KeyY: 'leftStickDown',
         },
       };
       await sendConfigToPage(page, {
@@ -252,25 +242,21 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Single string binding
       await page.keyboard.down('Space');
       await waitForButton(page, 0, true);
       await page.keyboard.up('Space');
       await waitForButton(page, 0, false);
 
-      // Array binding - first key
       await page.keyboard.down('p');
       await waitForButton(page, 1, true);
       await page.keyboard.up('p');
       await waitForButton(page, 1, false);
 
-      // Array binding - second key
       await page.keyboard.down('b');
       await waitForButton(page, 1, true);
       await page.keyboard.up('b');
       await waitForButton(page, 1, false);
 
-      // Array axis binding
       await page.keyboard.down('g');
       await waitForAxis(page, 1, 'gt', 0.5);
       await page.keyboard.up('g');
@@ -295,22 +281,19 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Hold Space (A button) and W (left stick up)
       await page.keyboard.down('Space');
       await page.keyboard.down('w');
       await waitForButton(page, 0, true);
       await waitForAxis(page, 1, 'lt', -0.5);
 
-      // Release keys first
       await page.keyboard.up('Space');
       await page.keyboard.up('w');
       await waitForButton(page, 0, false);
       await waitForAxesCentered(page);
 
-      // Switch to config where Space and W are unbound
       const newConfig = {
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyConfig: { a: 'KeyP', leftStickUp: 'KeyI' },
+        keyboardConfig: { KeyP: 'a', KeyI: 'leftStickUp' },
       };
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -319,13 +302,11 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      // Old keys should not work
       await page.keyboard.down('Space');
       await new Promise((r) => setTimeout(r, 200));
       expect((await getButtonStates(page))[0]).toBeFalse();
       await page.keyboard.up('Space');
 
-      // New config should work
       await page.keyboard.down('p');
       await waitForButton(page, 0, true);
       await page.keyboard.up('p');
@@ -350,7 +331,6 @@ module.exports = async function ({
       await waitForAxis(page, 1, 'lt', -0.5);
       await waitForAxis(page, 0, 'gt', 0.5);
 
-      // Release keys before disabling
       await page.keyboard.up('w');
       await page.keyboard.up('d');
       await new Promise((r) => setTimeout(r, 200));
@@ -358,7 +338,6 @@ module.exports = async function ({
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
       await waitForStatus(page, 'disconnected');
 
-      // Re-enable
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'default',
@@ -367,7 +346,6 @@ module.exports = async function ({
       await waitForStatus(page, 'connected');
       await new Promise((r) => setTimeout(r, 300));
 
-      // Axes should be centered
       const axes = await getAxesStates(page);
       expect(axes).toAllBeCloseTo(0, 0.05);
     }
