@@ -1,7 +1,8 @@
 import type { GamepadConfig, GamepadAction } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
 import { MSG_SOURCE } from '@/types/messages';
-import { gamepadSimulator, AxisDirection } from './gamepad-simulator';
+import { AxisDirection } from './gamepad-simulator';
+import * as gamepadSimulator from './gamepad-simulator';
 
 const MOUSE_THROTTLE_MS = 40;
 const MOUSE_STOP_MS = 50;
@@ -87,498 +88,480 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
   return map;
 }
 
-class InputProcessor {
-  private keyMap = new Map<string, GamepadAction[]>();
-  private mouseStick: number | null = null;
-  private sensitivity = 10;
-  private active = false;
-  private config: GamepadConfig | null = null;
+// Module state
+let g_keyMap = new Map<string, GamepadAction[]>();
+let g_mouseStick: number | null = null;
+let g_sensitivity = 10;
+let g_active = false;
+let g_config: GamepadConfig | null = null;
 
-  // Listeners (stored for removal)
-  private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
-  private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
-  private onMouseDown: ((e: MouseEvent) => void) | null = null;
-  private onMouseUp: ((e: MouseEvent) => void) | null = null;
-  private onWheel: ((e: WheelEvent) => void) | null = null;
-  private onMouseMove: ((e: MouseEvent) => void) | null = null;
-  private onPointerLockChange: (() => void) | null = null;
+// Listeners (stored for removal)
+let g_onKeyDown: ((e: KeyboardEvent) => void) | null = null;
+let g_onKeyUp: ((e: KeyboardEvent) => void) | null = null;
+let g_onMouseDown: ((e: MouseEvent) => void) | null = null;
+let g_onMouseUp: ((e: MouseEvent) => void) | null = null;
+let g_onWheel: ((e: WheelEvent) => void) | null = null;
+let g_onMouseMove: ((e: MouseEvent) => void) | null = null;
+let g_onPointerLockChange: (() => void) | null = null;
 
-  // Mouse movement state
-  private accX = 0;
-  private accY = 0;
-  private moveTimer: ReturnType<typeof setTimeout> | null = null;
-  private stopTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastMoveProcess = 0;
+// Mouse movement state
+let g_accX = 0;
+let g_accY = 0;
+let g_moveTimer: ReturnType<typeof setTimeout> | null = null;
+let g_stopTimer: ReturnType<typeof setTimeout> | null = null;
+let g_lastMoveProcess = 0;
 
-  // Scroll state
-  private scrollTimer: ReturnType<typeof setTimeout> | null = null;
-  private scrollActions: GamepadAction[] | null = null;
+// Scroll state
+let g_scrollTimer: ReturnType<typeof setTimeout> | null = null;
+let g_scrollActions: GamepadAction[] | null = null;
 
-  // Overlay element
-  private overlay: HTMLDivElement | null = null;
-  private minimizedBtn: HTMLDivElement | null = null;
-  private _minimizedDismissed = false;
-  private overlayMinimized = false;
+// Overlay state
+let g_overlay: HTMLDivElement | null = null;
+let g_minimizedBtn: HTMLDivElement | null = null;
+let g_minimizedDismissed = false;
+let g_overlayMinimized = false;
 
-  activate(
-    config: GamepadConfig,
-    opts?: { overlayMinimized?: boolean; resetDismissed?: boolean }
-  ): void {
-    this.config = config;
-    if (opts?.overlayMinimized !== undefined) {
-      this.overlayMinimized = opts.overlayMinimized;
+function getGameContainer(): Element | null {
+  return document.getElementById('game-stream') ?? document.body;
+}
+
+function executePress(action: GamepadAction): void {
+  if (action.type === 'button') {
+    gamepadSimulator.pressButton(action.index);
+  } else {
+    gamepadSimulator.pressDirection(
+      action.stick,
+      directionToAxis[action.direction]
+    );
+  }
+}
+
+function executeUnpress(action: GamepadAction): void {
+  if (action.type === 'button') {
+    gamepadSimulator.unpressButton(action.index);
+  } else {
+    gamepadSimulator.unpressDirection(
+      action.stick,
+      directionToAxis[action.direction]
+    );
+  }
+}
+
+function processMouseMovement(): void {
+  g_lastMoveProcess = performance.now();
+  if (g_stopTimer !== null) {
+    clearTimeout(g_stopTimer);
+  }
+  g_stopTimer = setTimeout(() => {
+    if (g_mouseStick !== null) {
+      gamepadSimulator.moveStick(g_mouseStick, 0, 0);
     }
-    if (opts?.resetDismissed) {
-      this._minimizedDismissed = false;
-    }
-    if (this.active) {
-      // Hot-swap: just update bindings without disconnect/reconnect
-      const hadMouse = this.mouseStick !== null;
-      this.removeListeners();
-      if (this.scrollTimer !== null) {
-        clearTimeout(this.scrollTimer);
-        this.scrollTimer = null;
-      }
-      if (this.moveTimer !== null) {
-        clearTimeout(this.moveTimer);
-        this.moveTimer = null;
-      }
-      if (this.stopTimer !== null) {
-        clearTimeout(this.stopTimer);
-        this.stopTimer = null;
-      }
-      gamepadSimulator.resetState();
-      this.keyMap = buildKeyMap(config);
-      this.sensitivity = config.mouseConfig.sensitivity || 10;
-      this.mouseStick = config.mouseConfig.mouseControls ?? null;
-      this.attachKeyboard();
-      this.attachMouseButtons();
-      if (this.mouseStick !== null) {
-        this.attachMouseMovement();
-      } else if (hadMouse) {
-        // Switching from mouse-enabled to mouse-disabled: clean up overlay/pointer lock
-        this.exitPointerLock();
-        this.removeOverlay();
-        this.removeMinimized();
-      }
-      return;
-    }
-    this.keyMap = buildKeyMap(config);
-    this.sensitivity = config.mouseConfig.sensitivity || 10;
-    this.mouseStick = config.mouseConfig.mouseControls ?? null;
-    this.active = true;
+    g_stopTimer = null;
+  }, MOUSE_STOP_MS);
 
-    this.attachKeyboard();
-    this.attachMouseButtons();
-    if (this.mouseStick !== null) {
-      this.attachMouseMovement();
+  const x = Math.max(-1, Math.min(1, g_accX / g_sensitivity));
+  const y = Math.max(-1, Math.min(1, g_accY / g_sensitivity));
+  g_accX = 0;
+  g_accY = 0;
+  if (g_mouseStick !== null) {
+    gamepadSimulator.moveStick(g_mouseStick, x, y);
+  }
+}
+
+function startMouseListening(): void {
+  g_onMouseMove = (e: MouseEvent) => {
+    g_accX += e.movementX;
+    g_accY += e.movementY;
+    const now = performance.now();
+    if (now - g_lastMoveProcess >= MOUSE_THROTTLE_MS) {
+      processMouseMovement();
+    } else if (g_moveTimer === null) {
+      g_moveTimer = setTimeout(
+        () => {
+          g_moveTimer = null;
+          processMouseMovement();
+        },
+        MOUSE_THROTTLE_MS - (now - g_lastMoveProcess)
+      );
     }
-    gamepadSimulator.enable();
+  };
+  document.addEventListener('mousemove', g_onMouseMove);
+}
+
+function stopMouseListening(): void {
+  if (g_onMouseMove) {
+    document.removeEventListener('mousemove', g_onMouseMove);
+    g_onMouseMove = null;
+  }
+}
+
+function removeOverlay(): void {
+  if (g_overlay) {
+    g_overlay.remove();
+    g_overlay = null;
+  }
+}
+
+function removeMinimized(): void {
+  if (g_minimizedBtn) {
+    g_minimizedBtn.remove();
+    g_minimizedBtn = null;
+  }
+}
+
+function showMinimizedBtn(container: Element): void {
+  if (g_minimizedBtn || g_minimizedDismissed) {
+    return;
+  }
+  g_minimizedBtn = document.createElement('div');
+  g_minimizedBtn.id = 'xvg-pointer-minimized';
+  g_minimizedBtn.style.cssText =
+    'position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;cursor:pointer;z-index:99999;';
+
+  const label = document.createElement('span');
+  label.textContent = '🖱️';
+  label.title = 'Click to enable mouse control';
+  label.addEventListener('click', () => {
+    removeMinimized();
+    const c = getGameContainer();
+    if (c) {
+      void (c as HTMLElement).requestPointerLock();
+      const stream = document.getElementById('game-stream');
+      if (stream) {
+        stream.focus();
+      }
+    }
+  });
+  g_minimizedBtn.appendChild(label);
+
+  const closeBtn = document.createElement('span');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'cursor:pointer;margin-left:4px;';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    g_minimizedDismissed = true;
+    removeMinimized();
+  });
+  g_minimizedBtn.appendChild(closeBtn);
+
+  container.appendChild(g_minimizedBtn);
+}
+
+function minimizeOverlay(container: Element): void {
+  g_overlayMinimized = true;
+  window.postMessage(
+    { source: MSG_SOURCE, type: 'SET_OVERLAY_MINIMIZED', minimized: true },
+    '*'
+  );
+  removeOverlay();
+  showMinimizedBtn(container);
+}
+
+function showOverlay(container: Element): void {
+  if (g_overlay) {
+    return;
+  }
+  if (g_minimizedDismissed) {
+    return;
+  }
+  if (g_overlayMinimized) {
+    showMinimizedBtn(container);
+    return;
   }
 
-  deactivate(): void {
-    if (!this.active) {
-      return;
+  g_overlay = document.createElement('div');
+  g_overlay.id = 'xvg-pointer-overlay';
+  g_overlay.style.cssText =
+    'position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);color:#fff;font-size:18px;cursor:pointer;z-index:99999;';
+
+  const text = document.createElement('span');
+  text.textContent = 'Click to enable mouse control';
+  g_overlay.appendChild(text);
+
+  const minimizeBtn = document.createElement('span');
+  minimizeBtn.textContent = '—';
+  minimizeBtn.style.cssText =
+    'position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:4px;font-size:14px;cursor:pointer;';
+  minimizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    minimizeOverlay(container);
+  });
+  g_overlay.appendChild(minimizeBtn);
+
+  g_overlay.addEventListener('click', () => {
+    const c = getGameContainer();
+    if (c) {
+      void (c as HTMLElement).requestPointerLock();
+      const stream = document.getElementById('game-stream');
+      if (stream) {
+        stream.focus();
+      }
     }
-    this.removeListeners();
-    this.exitPointerLock();
-    this.removeOverlay();
-    this.removeMinimized();
-    gamepadSimulator.disable();
-    this.active = false;
-    this.keyMap.clear();
-    if (this.scrollTimer !== null) {
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = null;
+  });
+  container.appendChild(g_overlay);
+}
+
+function exitPointerLock(): void {
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+}
+
+function attachMouseMovement(): void {
+  const container = getGameContainer();
+  if (!container) {
+    return;
+  }
+  showOverlay(container);
+
+  g_onPointerLockChange = () => {
+    if (document.pointerLockElement === getGameContainer()) {
+      removeOverlay();
+      removeMinimized();
+      startMouseListening();
+    } else {
+      stopMouseListening();
+      const c = getGameContainer();
+      if (c) {
+        showOverlay(c);
+      }
     }
-    if (this.moveTimer !== null) {
-      clearTimeout(this.moveTimer);
-      this.moveTimer = null;
-    }
-    if (this.stopTimer !== null) {
-      clearTimeout(this.stopTimer);
-      this.stopTimer = null;
-    }
+  };
+  document.addEventListener('pointerlockchange', g_onPointerLockChange);
+}
+
+function attachMouseButtons(): void {
+  const hasClick = g_keyMap.has('Click');
+  const hasRightClick = g_keyMap.has('RightClick');
+  const hasScroll = g_keyMap.has('Scroll');
+
+  const container = getGameContainer();
+  if (!container) {
+    return;
   }
 
-  isActive(): boolean {
-    return this.active;
-  }
-
-  toggle(): void {
-    if (this.active) {
-      this.deactivate();
-    } else if (this.config) {
-      this.activate(this.config);
-    }
-  }
-
-  private attachKeyboard(): void {
-    this.onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) {
+  if (hasClick || hasRightClick) {
+    g_onMouseDown = (e: MouseEvent) => {
+      const code =
+        e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
+      if (!code) {
         return;
       }
-      const actions = this.keyMap.get(e.code);
-      if (!actions) {
+      const actions = g_keyMap.get(code);
+      if (actions) {
+        for (const action of actions) {
+          executePress(action);
+        }
+      }
+    };
+    g_onMouseUp = (e: MouseEvent) => {
+      const code =
+        e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
+      if (!code) {
         return;
       }
-      for (const action of actions) {
-        this.executePress(action);
+      const actions = g_keyMap.get(code);
+      if (actions) {
+        for (const action of actions) {
+          executeUnpress(action);
+        }
       }
+    };
+    container.addEventListener(
+      'mousedown',
+      g_onMouseDown as EventListener,
+      true
+    );
+    container.addEventListener('mouseup', g_onMouseUp as EventListener, true);
+  }
+
+  if (hasScroll) {
+    g_scrollActions = g_keyMap.get('Scroll') ?? null;
+    g_onWheel = (e: WheelEvent) => {
+      if (!g_scrollActions) {
+        return;
+      }
+      for (const action of g_scrollActions) {
+        executePress(action);
+      }
+      if (g_scrollTimer !== null) {
+        clearTimeout(g_scrollTimer);
+      }
+      g_scrollTimer = setTimeout(() => {
+        if (g_scrollActions) {
+          for (const action of g_scrollActions) {
+            executeUnpress(action);
+          }
+        }
+        g_scrollTimer = null;
+      }, SCROLL_UNPRESS_MS);
       if (e.cancelable) {
         e.preventDefault();
       }
     };
-    this.onKeyUp = (e: KeyboardEvent) => {
-      const actions = this.keyMap.get(e.code);
-      if (!actions) {
-        return;
-      }
-      for (const action of actions) {
-        this.executeUnpress(action);
-      }
-    };
-    document.addEventListener('keydown', this.onKeyDown, true);
-    document.addEventListener('keyup', this.onKeyUp, true);
-  }
-
-  private attachMouseButtons(): void {
-    const hasClick = this.keyMap.has('Click');
-    const hasRightClick = this.keyMap.has('RightClick');
-    const hasScroll = this.keyMap.has('Scroll');
-
-    const container = this.getGameContainer();
-    if (!container) {
-      return;
-    }
-
-    if (hasClick || hasRightClick) {
-      this.onMouseDown = (e: MouseEvent) => {
-        const code =
-          e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
-        if (!code) {
-          return;
-        }
-        const actions = this.keyMap.get(code);
-        if (actions) {
-          for (const action of actions) {
-            this.executePress(action);
-          }
-        }
-      };
-      this.onMouseUp = (e: MouseEvent) => {
-        const code =
-          e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
-        if (!code) {
-          return;
-        }
-        const actions = this.keyMap.get(code);
-        if (actions) {
-          for (const action of actions) {
-            this.executeUnpress(action);
-          }
-        }
-      };
-      container.addEventListener(
-        'mousedown',
-        this.onMouseDown as EventListener,
-        true
-      );
-      container.addEventListener(
-        'mouseup',
-        this.onMouseUp as EventListener,
-        true
-      );
-    }
-
-    if (hasScroll) {
-      this.scrollActions = this.keyMap.get('Scroll') ?? null;
-      this.onWheel = (e: WheelEvent) => {
-        if (!this.scrollActions) {
-          return;
-        }
-        for (const action of this.scrollActions) {
-          this.executePress(action);
-        }
-        if (this.scrollTimer !== null) {
-          clearTimeout(this.scrollTimer);
-        }
-        this.scrollTimer = setTimeout(() => {
-          if (this.scrollActions) {
-            for (const action of this.scrollActions) {
-              this.executeUnpress(action);
-            }
-          }
-          this.scrollTimer = null;
-        }, SCROLL_UNPRESS_MS);
-        if (e.cancelable) {
-          e.preventDefault();
-        }
-      };
-      container.addEventListener('wheel', this.onWheel as EventListener, {
-        capture: true,
-        passive: false,
-      });
-    }
-  }
-
-  private attachMouseMovement(): void {
-    const container = this.getGameContainer();
-    if (!container) {
-      return;
-    }
-    this.showOverlay(container);
-
-    this.onPointerLockChange = () => {
-      if (document.pointerLockElement === this.getGameContainer()) {
-        this.removeOverlay();
-        this.removeMinimized();
-        this.startMouseListening();
-      } else {
-        this.stopMouseListening();
-        const c = this.getGameContainer();
-        if (c) {
-          this.showOverlay(c);
-        }
-      }
-    };
-    document.addEventListener('pointerlockchange', this.onPointerLockChange);
-  }
-
-  private startMouseListening(): void {
-    this.onMouseMove = (e: MouseEvent) => {
-      this.accX += e.movementX;
-      this.accY += e.movementY;
-      const now = performance.now();
-      if (now - this.lastMoveProcess >= MOUSE_THROTTLE_MS) {
-        this.processMouseMovement();
-      } else if (this.moveTimer === null) {
-        this.moveTimer = setTimeout(
-          () => {
-            this.moveTimer = null;
-            this.processMouseMovement();
-          },
-          MOUSE_THROTTLE_MS - (now - this.lastMoveProcess)
-        );
-      }
-    };
-    document.addEventListener('mousemove', this.onMouseMove);
-  }
-
-  private stopMouseListening(): void {
-    if (this.onMouseMove) {
-      document.removeEventListener('mousemove', this.onMouseMove);
-      this.onMouseMove = null;
-    }
-  }
-
-  private processMouseMovement(): void {
-    this.lastMoveProcess = performance.now();
-    if (this.stopTimer !== null) {
-      clearTimeout(this.stopTimer);
-    }
-    this.stopTimer = setTimeout(() => {
-      if (this.mouseStick !== null) {
-        gamepadSimulator.moveStick(this.mouseStick, 0, 0);
-      }
-      this.stopTimer = null;
-    }, MOUSE_STOP_MS);
-
-    const x = Math.max(-1, Math.min(1, this.accX / this.sensitivity));
-    const y = Math.max(-1, Math.min(1, this.accY / this.sensitivity));
-    this.accX = 0;
-    this.accY = 0;
-    if (this.mouseStick !== null) {
-      gamepadSimulator.moveStick(this.mouseStick, x, y);
-    }
-  }
-
-  private showOverlay(container: Element): void {
-    if (this.overlay) {
-      return;
-    }
-    // If user dismissed for this session, show nothing
-    if (this._minimizedDismissed) {
-      return;
-    }
-    // If user previously minimized, go straight to minimized button
-    if (this.overlayMinimized) {
-      this.showMinimizedBtn(container);
-      return;
-    }
-
-    this.overlay = document.createElement('div');
-    this.overlay.id = 'xvg-pointer-overlay';
-    this.overlay.style.cssText =
-      'position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);color:#fff;font-size:18px;cursor:pointer;z-index:99999;';
-
-    const text = document.createElement('span');
-    text.textContent = 'Click to enable mouse control';
-    this.overlay.appendChild(text);
-
-    // Minimize button (upper right)
-    const minimizeBtn = document.createElement('span');
-    minimizeBtn.textContent = '—';
-    minimizeBtn.style.cssText =
-      'position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:4px;font-size:14px;cursor:pointer;';
-    minimizeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.minimizeOverlay(container);
+    container.addEventListener('wheel', g_onWheel as EventListener, {
+      capture: true,
+      passive: false,
     });
-    this.overlay.appendChild(minimizeBtn);
-
-    this.overlay.addEventListener('click', () => {
-      const c = this.getGameContainer();
-      if (c) {
-        void (c as HTMLElement).requestPointerLock();
-        const stream = document.getElementById('game-stream');
-        if (stream) {
-          stream.focus();
-        }
-      }
-    });
-    container.appendChild(this.overlay);
-  }
-
-  private minimizeOverlay(container: Element): void {
-    this.overlayMinimized = true;
-    window.postMessage(
-      { source: MSG_SOURCE, type: 'SET_OVERLAY_MINIMIZED', minimized: true },
-      '*'
-    );
-    this.removeOverlay();
-    this.showMinimizedBtn(container);
-  }
-
-  private showMinimizedBtn(container: Element): void {
-    if (this.minimizedBtn || this._minimizedDismissed) {
-      return;
-    }
-    this.minimizedBtn = document.createElement('div');
-    this.minimizedBtn.id = 'xvg-pointer-minimized';
-    this.minimizedBtn.style.cssText =
-      'position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;cursor:pointer;z-index:99999;';
-
-    const label = document.createElement('span');
-    label.textContent = '🖱️';
-    label.title = 'Click to enable mouse control';
-    label.addEventListener('click', () => {
-      this.removeMinimized();
-      const c = this.getGameContainer();
-      if (c) {
-        void (c as HTMLElement).requestPointerLock();
-        const stream = document.getElementById('game-stream');
-        if (stream) {
-          stream.focus();
-        }
-      }
-    });
-    this.minimizedBtn.appendChild(label);
-
-    const closeBtn = document.createElement('span');
-    closeBtn.textContent = '✕';
-    closeBtn.style.cssText = 'cursor:pointer;margin-left:4px;';
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._minimizedDismissed = true;
-      this.removeMinimized();
-    });
-    this.minimizedBtn.appendChild(closeBtn);
-
-    container.appendChild(this.minimizedBtn);
-  }
-
-  private removeMinimized(): void {
-    if (this.minimizedBtn) {
-      this.minimizedBtn.remove();
-      this.minimizedBtn = null;
-    }
-  }
-
-  private removeOverlay(): void {
-    if (this.overlay) {
-      this.overlay.remove();
-      this.overlay = null;
-    }
-  }
-
-  private exitPointerLock(): void {
-    if (document.pointerLockElement) {
-      document.exitPointerLock();
-    }
-  }
-
-  private removeListeners(): void {
-    if (this.onKeyDown) {
-      document.removeEventListener('keydown', this.onKeyDown, true);
-      this.onKeyDown = null;
-    }
-    if (this.onKeyUp) {
-      document.removeEventListener('keyup', this.onKeyUp, true);
-      this.onKeyUp = null;
-    }
-    const container = this.getGameContainer();
-    if (container) {
-      if (this.onMouseDown) {
-        container.removeEventListener(
-          'mousedown',
-          this.onMouseDown as EventListener,
-          true
-        );
-      }
-      if (this.onMouseUp) {
-        container.removeEventListener(
-          'mouseup',
-          this.onMouseUp as EventListener,
-          true
-        );
-      }
-      if (this.onWheel) {
-        container.removeEventListener(
-          'wheel',
-          this.onWheel as EventListener,
-          true
-        );
-      }
-    }
-    this.onMouseDown = null;
-    this.onMouseUp = null;
-    this.onWheel = null;
-    if (this.onPointerLockChange) {
-      document.removeEventListener(
-        'pointerlockchange',
-        this.onPointerLockChange
-      );
-      this.onPointerLockChange = null;
-    }
-    this.stopMouseListening();
-  }
-
-  private executePress(action: GamepadAction): void {
-    if (action.type === 'button') {
-      gamepadSimulator.pressButton(action.index);
-    } else {
-      gamepadSimulator.pressDirection(
-        action.stick,
-        directionToAxis[action.direction]
-      );
-    }
-  }
-
-  private executeUnpress(action: GamepadAction): void {
-    if (action.type === 'button') {
-      gamepadSimulator.unpressButton(action.index);
-    } else {
-      gamepadSimulator.unpressDirection(
-        action.stick,
-        directionToAxis[action.direction]
-      );
-    }
-  }
-
-  private getGameContainer(): Element | null {
-    return document.getElementById('game-stream') ?? document.body;
   }
 }
 
-export const inputProcessor = new InputProcessor();
+function attachKeyboard(): void {
+  g_onKeyDown = (e: KeyboardEvent) => {
+    if (e.repeat) {
+      return;
+    }
+    const actions = g_keyMap.get(e.code);
+    if (!actions) {
+      return;
+    }
+    for (const action of actions) {
+      executePress(action);
+    }
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+  };
+  g_onKeyUp = (e: KeyboardEvent) => {
+    const actions = g_keyMap.get(e.code);
+    if (!actions) {
+      return;
+    }
+    for (const action of actions) {
+      executeUnpress(action);
+    }
+  };
+  document.addEventListener('keydown', g_onKeyDown, true);
+  document.addEventListener('keyup', g_onKeyUp, true);
+}
+
+function removeListeners(): void {
+  if (g_onKeyDown) {
+    document.removeEventListener('keydown', g_onKeyDown, true);
+    g_onKeyDown = null;
+  }
+  if (g_onKeyUp) {
+    document.removeEventListener('keyup', g_onKeyUp, true);
+    g_onKeyUp = null;
+  }
+  const container = getGameContainer();
+  if (container) {
+    if (g_onMouseDown) {
+      container.removeEventListener(
+        'mousedown',
+        g_onMouseDown as EventListener,
+        true
+      );
+    }
+    if (g_onMouseUp) {
+      container.removeEventListener(
+        'mouseup',
+        g_onMouseUp as EventListener,
+        true
+      );
+    }
+    if (g_onWheel) {
+      container.removeEventListener('wheel', g_onWheel as EventListener, true);
+    }
+  }
+  g_onMouseDown = null;
+  g_onMouseUp = null;
+  g_onWheel = null;
+  if (g_onPointerLockChange) {
+    document.removeEventListener('pointerlockchange', g_onPointerLockChange);
+    g_onPointerLockChange = null;
+  }
+  stopMouseListening();
+}
+
+export function activate(
+  config: GamepadConfig,
+  opts?: { overlayMinimized?: boolean; resetDismissed?: boolean }
+): void {
+  g_config = config;
+  if (opts?.overlayMinimized !== undefined) {
+    g_overlayMinimized = opts.overlayMinimized;
+  }
+  if (opts?.resetDismissed) {
+    g_minimizedDismissed = false;
+  }
+  if (g_active) {
+    // Hot-swap: just update bindings without disconnect/reconnect
+    const hadMouse = g_mouseStick !== null;
+    removeListeners();
+    if (g_scrollTimer !== null) {
+      clearTimeout(g_scrollTimer);
+      g_scrollTimer = null;
+    }
+    if (g_moveTimer !== null) {
+      clearTimeout(g_moveTimer);
+      g_moveTimer = null;
+    }
+    if (g_stopTimer !== null) {
+      clearTimeout(g_stopTimer);
+      g_stopTimer = null;
+    }
+    gamepadSimulator.resetState();
+    g_keyMap = buildKeyMap(config);
+    g_sensitivity = config.mouseConfig.sensitivity || 10;
+    g_mouseStick = config.mouseConfig.mouseControls ?? null;
+    attachKeyboard();
+    attachMouseButtons();
+    if (g_mouseStick !== null) {
+      attachMouseMovement();
+    } else if (hadMouse) {
+      exitPointerLock();
+      removeOverlay();
+      removeMinimized();
+    }
+    return;
+  }
+  g_keyMap = buildKeyMap(config);
+  g_sensitivity = config.mouseConfig.sensitivity || 10;
+  g_mouseStick = config.mouseConfig.mouseControls ?? null;
+  g_active = true;
+
+  attachKeyboard();
+  attachMouseButtons();
+  if (g_mouseStick !== null) {
+    attachMouseMovement();
+  }
+  gamepadSimulator.enable();
+}
+
+export function deactivate(): void {
+  if (!g_active) {
+    return;
+  }
+  removeListeners();
+  exitPointerLock();
+  removeOverlay();
+  removeMinimized();
+  gamepadSimulator.disable();
+  g_active = false;
+  g_keyMap.clear();
+  if (g_scrollTimer !== null) {
+    clearTimeout(g_scrollTimer);
+    g_scrollTimer = null;
+  }
+  if (g_moveTimer !== null) {
+    clearTimeout(g_moveTimer);
+    g_moveTimer = null;
+  }
+  if (g_stopTimer !== null) {
+    clearTimeout(g_stopTimer);
+    g_stopTimer = null;
+  }
+}
+
+export function isActive(): boolean {
+  return g_active;
+}
+
+export function toggle(): void {
+  if (g_active) {
+    deactivate();
+  } else if (g_config) {
+    activate(g_config);
+  }
+}

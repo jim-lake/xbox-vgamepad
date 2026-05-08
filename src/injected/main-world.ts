@@ -2,7 +2,7 @@ import { MSG_SOURCE } from '@/types/messages';
 import type { ExtensionMessage } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
-import { inputProcessor } from './input-processor';
+import * as inputProcessor from './input-processor';
 import { showToast } from './toast';
 
 // Patch getGamepads immediately (module side-effect via import)
