@@ -41,22 +41,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: '0.3rem',
     paddingBottom: '0.3rem',
-    borderBottomWidth: 1,
-    borderBottomColor: '#0f3460',
   },
   label: { width: '6rem', color: '#94a3b8', fontSize: '1.4rem' },
-  bindings: { flex: 1, flexDirection: 'row', gap: '0.4rem', flexWrap: 'wrap' },
+  bindings: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: '0.4rem',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
   badge: {
     backgroundColor: '#0f3460',
-    paddingLeft: '0.6rem',
+    paddingLeft: '1rem',
+    paddingRight: '1rem',
     paddingTop: '0.2rem',
     paddingBottom: '0.2rem',
-    borderRadius: '0.3rem',
+    borderRadius: '1rem',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: '0.4rem',
   },
   badgeText: { color: '#e2e8f0', fontSize: '1.3rem' },
+  deleteBtn: { marginLeft: '0.9rem' },
   addBtn: { marginLeft: '0.4rem' },
   modal: {
     position: 'fixed',
@@ -72,7 +77,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#1a1a2e',
     padding: '2rem',
-    borderRadius: '0.8rem',
+    borderRadius: '1rem',
     alignItems: 'center',
   },
   modalText: { color: '#e2e8f0', fontSize: '1.4rem', marginBottom: '1rem' },
@@ -209,6 +214,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
                 <View key={code} style={styles.badge}>
                   <Text style={styles.badgeText}>{formatCode(code)}</Text>
                   <IconButton
+                    style={styles.deleteBtn}
                     source={closeIcon}
                     type='danger'
                     onPress={() => {

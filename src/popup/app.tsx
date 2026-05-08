@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
   TouchableWithoutFeedback,
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
@@ -30,6 +29,18 @@ const MAX_PRESETS = 25;
 
 const styles = StyleSheet.create({
   app: { width: 380, flexDirection: 'column', backgroundColor: '#1a1a2e' },
+  topBar: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: 'column',
+    backgroundColor: '#16213e',
+    paddingBottom: '1rem',
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f3460',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -95,7 +106,9 @@ const styles = StyleSheet.create({
   },
   toolBtn: { backgroundColor: '#0f3460' },
   toolBtnDanger: { backgroundColor: '#d13438' },
-  body: { maxHeight: 400, flexDirection: 'column' },
+  body: { flexDirection: 'column' },
+  topGutter: { height: '14rem' },
+  bottomGutter: { height: '4rem' },
   section: { padding: '0.8rem', flexDirection: 'column' },
   sectionTitle: {
     color: '#94a3b8',
@@ -105,6 +118,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   statusBar: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     padding: '0.5rem 0.8rem',
@@ -394,108 +412,116 @@ export default function App() {
 
   return (
     <View style={styles.app}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.gameName}>{gameName ?? 'No game detected'}</Text>
+      {/* Floating top bar */}
+      <View style={styles.topBar}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.gameName}>
+              {gameName ?? 'No game detected'}
+            </Text>
+          </View>
+          <TouchableWithoutFeedback onPress={() => void handleToggle()}>
+            <View
+              style={[
+                styles.toggle,
+                isEnabled ? styles.toggleOn : styles.toggleOff,
+              ]}
+            >
+              <View style={styles.toggleKnob} />
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-        <TouchableWithoutFeedback onPress={() => void handleToggle()}>
-          <View
+
+        {/* Profile navigation */}
+        <View style={styles.presetNav}>
+          <TextButton
             style={[
-              styles.toggle,
-              isEnabled ? styles.toggleOn : styles.toggleOff,
+              styles.navArrow,
+              renaming ? styles.navArrowDisabled : undefined,
             ]}
-          >
-            <View style={styles.toggleKnob} />
-          </View>
-        </TouchableWithoutFeedback>
+            text='◀'
+            disabled={renaming}
+            onPress={() => void cyclePreset(-1)}
+          />
+          {renaming ? (
+            <View style={styles.renameRow}>
+              <input
+                style={{
+                  flex: 1,
+                  backgroundColor: '#0f3460',
+                  color: '#e2e8f0',
+                  fontSize: '1.4rem',
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: '1rem',
+                  border: 'none',
+                }}
+                value={renameValue}
+                onChange={(e) => {
+                  setRenameValue(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    void handleSaveRename();
+                  }
+                }}
+                autoFocus
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Save'
+                onPress={() => void handleSaveRename()}
+              />
+            </View>
+          ) : (
+            <Text style={styles.navLabel}>{activeConfigName}</Text>
+          )}
+          <TextButton
+            style={[
+              styles.navArrow,
+              renaming ? styles.navArrowDisabled : undefined,
+            ]}
+            text='▶'
+            disabled={renaming}
+            onPress={() => void cyclePreset(1)}
+          />
+        </View>
+
+        {/* Toolbar */}
+        <View style={styles.toolbar}>
+          <TextButton
+            style={styles.toolBtn}
+            text='New'
+            onPress={() => void handleNew()}
+          />
+          <TextButton
+            style={styles.toolBtn}
+            text='Copy'
+            onPress={() => void handleCopy()}
+          />
+          <TextButton
+            style={styles.toolBtn}
+            text='Import'
+            onPress={handleImport}
+          />
+          <TextButton
+            style={styles.toolBtn}
+            text='Export'
+            onPress={handleExport}
+          />
+          <TextButton
+            style={styles.toolBtn}
+            text='Rename'
+            onPress={handleEditName}
+          />
+        </View>
       </View>
 
-      {/* Profile navigation */}
-      <View style={styles.presetNav}>
-        <TextButton
-          style={[
-            styles.navArrow,
-            renaming ? styles.navArrowDisabled : undefined,
-          ]}
-          text='◀'
-          disabled={renaming}
-          onPress={() => void cyclePreset(-1)}
-        />
-        {renaming ? (
-          <View style={styles.renameRow}>
-            <input
-              style={{
-                flex: 1,
-                backgroundColor: '#0f3460',
-                color: '#e2e8f0',
-                fontSize: '1.4rem',
-                padding: '0.3rem 0.6rem',
-                borderRadius: '0.4rem',
-                border: 'none',
-              }}
-              value={renameValue}
-              onChange={(e) => {
-                setRenameValue(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  void handleSaveRename();
-                }
-              }}
-              autoFocus
-            />
-            <TextButton
-              style={styles.toolBtn}
-              text='Save'
-              onPress={() => void handleSaveRename()}
-            />
-          </View>
-        ) : (
-          <Text style={styles.navLabel}>{activeConfigName}</Text>
-        )}
-        <TextButton
-          style={[
-            styles.navArrow,
-            renaming ? styles.navArrowDisabled : undefined,
-          ]}
-          text='▶'
-          disabled={renaming}
-          onPress={() => void cyclePreset(1)}
-        />
-      </View>
+      {/* Top gutter for fixed header */}
+      <View style={styles.topGutter} />
 
-      {/* Toolbar */}
-      <View style={styles.toolbar}>
-        <TextButton
-          style={styles.toolBtn}
-          text='New'
-          onPress={() => void handleNew()}
-        />
-        <TextButton
-          style={styles.toolBtn}
-          text='Copy'
-          onPress={() => void handleCopy()}
-        />
-        <TextButton
-          style={styles.toolBtn}
-          text='Import'
-          onPress={handleImport}
-        />
-        <TextButton
-          style={styles.toolBtn}
-          text='Export'
-          onPress={handleExport}
-        />
-        <TextButton
-          style={styles.toolBtn}
-          text='Rename'
-          onPress={handleEditName}
-        />
-      </View>
-
-      {/* Config editor - always visible */}
-      <ScrollView style={styles.body}>
+      {/* Config editor */}
+      <View style={styles.body}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mouse</Text>
           <MouseSettings
@@ -517,8 +543,12 @@ export default function App() {
             onChange={updateKeyConfig}
           />
         </View>
-      </ScrollView>
+      </View>
 
+      {/* Bottom gutter for fixed status bar */}
+      {dirty && <View style={styles.bottomGutter} />}
+
+      {/* Floating status bar */}
       {dirty && (
         <View style={styles.statusBar}>
           <TextButton style={styles.undoBtn} text='Undo' onPress={handleUndo} />

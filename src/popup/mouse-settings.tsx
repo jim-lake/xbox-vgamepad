@@ -11,7 +11,7 @@ const styles = StyleSheet.create({
     paddingRight: '0.6rem',
     paddingTop: '0.3rem',
     paddingBottom: '0.3rem',
-    borderRadius: '0.3rem',
+    borderRadius: '1rem',
     backgroundColor: '#0f3460',
   },
   optionActive: { backgroundColor: '#107c10' },
