@@ -133,6 +133,22 @@ function formatCode(code: string): string {
   if (code === 'MetaRight') {
     return isMac ? 'Right Command' : 'Right Win';
   }
+  const punctuation: Record<string, string> = {
+    BracketLeft: '[',
+    BracketRight: ']',
+    Backslash: '\\',
+    Semicolon: ';',
+    Quote: "'",
+    Comma: ',',
+    Period: '.',
+    Slash: '/',
+    Backquote: '`',
+    Minus: '-',
+    Equal: '=',
+  };
+  if (code in punctuation) {
+    return punctuation[code] ?? code;
+  }
   return code;
 }
 
