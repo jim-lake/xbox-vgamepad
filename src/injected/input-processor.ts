@@ -4,9 +4,15 @@ import type {
   GamepadActionName,
 } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
-import { MSG_SOURCE } from '@/types/messages';
 import { AxisDirection } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
+import {
+  showOverlay,
+  removeOverlay,
+  removeMinimized,
+  setOverlayMinimized,
+  setMinimizedDismissed,
+} from './overlay';
 
 const MOUSE_THROTTLE_MS = 40;
 const MOUSE_STOP_MS = 50;
@@ -101,11 +107,20 @@ let g_lastMoveProcess = 0;
 let g_scrollTimer: ReturnType<typeof setTimeout> | null = null;
 let g_scrollActions: GamepadAction[] | null = null;
 
-// Overlay state
-let g_overlay: HTMLDivElement | null = null;
-let g_minimizedBtn: HTMLDivElement | null = null;
-let g_minimizedDismissed = false;
-let g_overlayMinimized = false;
+function clearTimers(): void {
+  if (g_scrollTimer !== null) {
+    clearTimeout(g_scrollTimer);
+    g_scrollTimer = null;
+  }
+  if (g_moveTimer !== null) {
+    clearTimeout(g_moveTimer);
+    g_moveTimer = null;
+  }
+  if (g_stopTimer !== null) {
+    clearTimeout(g_stopTimer);
+    g_stopTimer = null;
+  }
+}
 
 function getGameContainer(): Element | null {
   return document.getElementById('game-stream') ?? document.body;
@@ -179,112 +194,6 @@ function stopMouseListening(): void {
     document.removeEventListener('mousemove', g_onMouseMove);
     g_onMouseMove = null;
   }
-}
-
-function removeOverlay(): void {
-  if (g_overlay) {
-    g_overlay.remove();
-    g_overlay = null;
-  }
-}
-
-function removeMinimized(): void {
-  if (g_minimizedBtn) {
-    g_minimizedBtn.remove();
-    g_minimizedBtn = null;
-  }
-}
-
-function showMinimizedBtn(container: Element): void {
-  if (g_minimizedBtn || g_minimizedDismissed) {
-    return;
-  }
-  g_minimizedBtn = document.createElement('div');
-  g_minimizedBtn.id = 'xvg-pointer-minimized';
-  g_minimizedBtn.style.cssText =
-    'position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;cursor:pointer;z-index:99999;';
-
-  const label = document.createElement('span');
-  label.textContent = '🖱️';
-  label.title = 'Click to enable mouse control';
-  label.addEventListener('click', () => {
-    removeMinimized();
-    const c = getGameContainer();
-    if (c) {
-      void (c as HTMLElement).requestPointerLock();
-      const stream = document.getElementById('game-stream');
-      if (stream) {
-        stream.focus();
-      }
-    }
-  });
-  g_minimizedBtn.appendChild(label);
-
-  const closeBtn = document.createElement('span');
-  closeBtn.textContent = '✕';
-  closeBtn.style.cssText = 'cursor:pointer;margin-left:4px;';
-  closeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    g_minimizedDismissed = true;
-    removeMinimized();
-  });
-  g_minimizedBtn.appendChild(closeBtn);
-
-  container.appendChild(g_minimizedBtn);
-}
-
-function minimizeOverlay(container: Element): void {
-  g_overlayMinimized = true;
-  window.postMessage(
-    { source: MSG_SOURCE, type: 'SET_OVERLAY_MINIMIZED', minimized: true },
-    '*'
-  );
-  removeOverlay();
-  showMinimizedBtn(container);
-}
-
-function showOverlay(container: Element): void {
-  if (g_overlay) {
-    return;
-  }
-  if (g_minimizedDismissed) {
-    return;
-  }
-  if (g_overlayMinimized) {
-    showMinimizedBtn(container);
-    return;
-  }
-
-  g_overlay = document.createElement('div');
-  g_overlay.id = 'xvg-pointer-overlay';
-  g_overlay.style.cssText =
-    'position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);color:#fff;font-size:18px;cursor:pointer;z-index:99999;';
-
-  const text = document.createElement('span');
-  text.textContent = 'Click to enable mouse control';
-  g_overlay.appendChild(text);
-
-  const minimizeBtn = document.createElement('span');
-  minimizeBtn.textContent = '—';
-  minimizeBtn.style.cssText =
-    'position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:4px;font-size:14px;cursor:pointer;';
-  minimizeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    minimizeOverlay(container);
-  });
-  g_overlay.appendChild(minimizeBtn);
-
-  g_overlay.addEventListener('click', () => {
-    const c = getGameContainer();
-    if (c) {
-      void (c as HTMLElement).requestPointerLock();
-      const stream = document.getElementById('game-stream');
-      if (stream) {
-        stream.focus();
-      }
-    }
-  });
-  container.appendChild(g_overlay);
 }
 
 function exitPointerLock(): void {
@@ -466,27 +375,16 @@ export function activate(
 ): void {
   g_config = config;
   if (opts?.overlayMinimized !== undefined) {
-    g_overlayMinimized = opts.overlayMinimized;
+    setOverlayMinimized(opts.overlayMinimized);
   }
   if (opts?.resetDismissed) {
-    g_minimizedDismissed = false;
+    setMinimizedDismissed(false);
   }
   if (g_active) {
     // Hot-swap: just update bindings without disconnect/reconnect
     const hadMouse = g_mouseStick !== null;
     removeListeners();
-    if (g_scrollTimer !== null) {
-      clearTimeout(g_scrollTimer);
-      g_scrollTimer = null;
-    }
-    if (g_moveTimer !== null) {
-      clearTimeout(g_moveTimer);
-      g_moveTimer = null;
-    }
-    if (g_stopTimer !== null) {
-      clearTimeout(g_stopTimer);
-      g_stopTimer = null;
-    }
+    clearTimers();
     gamepadSimulator.resetState();
     g_keyMap = buildKeyMap(config);
     g_sensitivity = config.mouseConfig.sensitivity || 10;
@@ -526,18 +424,7 @@ export function deactivate(): void {
   gamepadSimulator.disable();
   g_active = false;
   g_keyMap.clear();
-  if (g_scrollTimer !== null) {
-    clearTimeout(g_scrollTimer);
-    g_scrollTimer = null;
-  }
-  if (g_moveTimer !== null) {
-    clearTimeout(g_moveTimer);
-    g_moveTimer = null;
-  }
-  if (g_stopTimer !== null) {
-    clearTimeout(g_stopTimer);
-    g_stopTimer = null;
-  }
+  clearTimers();
 }
 
 export function isActive(): boolean {

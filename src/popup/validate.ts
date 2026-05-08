@@ -1,4 +1,4 @@
-import type { GamepadConfig, GamepadKeyboardConfig } from '@/types/gamepad';
+import type { GamepadConfig } from '@/types/gamepad';
 
 export function validateConfig(config: unknown): config is GamepadConfig {
   if (
@@ -55,10 +55,4 @@ export function validateConfig(config: unknown): config is GamepadConfig {
   }
 
   return true;
-}
-
-export function getAllBoundCodes(
-  keyboardConfig: GamepadKeyboardConfig
-): Set<string> {
-  return new Set(Object.keys(keyboardConfig));
 }

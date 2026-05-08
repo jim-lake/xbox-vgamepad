@@ -4,10 +4,9 @@ import type {
   ActivateGamepadConfigMessage,
   DisableGamepadMessage,
 } from '@/types/messages';
-import { DEFAULT_CONFIG } from '@/types/gamepad';
+import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
+import type { GamepadConfig } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
-
-const CONFIG_PREFIX = 'GP_CONF:';
 
 const ICONS_ENABLED = {
   16: 'src/assets/img/icon16.png',
@@ -25,6 +24,18 @@ function updateIcon(enabled: boolean): void {
   void chrome.action.setIcon({
     path: enabled ? ICONS_ENABLED : ICONS_DISABLED,
   });
+}
+
+function getActiveConfig(data: Record<string, unknown>): {
+  name: string;
+  config: GamepadConfig | undefined;
+} {
+  const name = (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
+  const raw = data[`${CONFIG_PREFIX}${name}`];
+  const config =
+    (validateConfig(raw) ? raw : undefined) ??
+    (name === 'default' ? DEFAULT_CONFIG : undefined);
+  return { name, config };
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -61,18 +72,13 @@ chrome.runtime.onMessage.addListener(
       void chrome.storage.local.set({ gameName: message.gameName });
       chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
         const isEnabled = (data['ENABLED'] as boolean | undefined) ?? true;
-        const activeConfig =
-          (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
-        const rawConfig = data[`${CONFIG_PREFIX}${activeConfig}`];
-        const config =
-          (validateConfig(rawConfig) ? rawConfig : undefined) ??
-          (activeConfig === 'default' ? DEFAULT_CONFIG : undefined);
+        const { name, config } = getActiveConfig(data);
 
         if (isEnabled && config) {
           const response: ActivateGamepadConfigMessage = {
             source: MSG_SOURCE,
             type: 'ACTIVATE_GAMEPAD_CONFIG',
-            name: activeConfig,
+            name,
             gamepadConfig: config,
             overlayMinimized:
               (data['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
@@ -99,17 +105,12 @@ chrome.runtime.onMessage.addListener(
       void chrome.storage.sync.set({ ENABLED: message.enabled });
       if (message.enabled) {
         chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
-          const activeConfig =
-            (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
-          const rawConfig = data[`${CONFIG_PREFIX}${activeConfig}`];
-          const config =
-            (validateConfig(rawConfig) ? rawConfig : undefined) ??
-            (activeConfig === 'default' ? DEFAULT_CONFIG : undefined);
+          const { name, config } = getActiveConfig(data);
           if (config && tabId !== undefined) {
             const msg: ActivateGamepadConfigMessage = {
               source: MSG_SOURCE,
               type: 'ACTIVATE_GAMEPAD_CONFIG',
-              name: activeConfig,
+              name,
               gamepadConfig: config,
             };
             void chrome.tabs.sendMessage(tabId, msg);

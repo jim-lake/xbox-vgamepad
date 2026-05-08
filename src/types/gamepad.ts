@@ -88,6 +88,8 @@ export interface ButtonAction {
 
 export type GamepadAction = AxisAction | ButtonAction;
 
+export const CONFIG_PREFIX = 'GP_CONF:';
+
 export const DEFAULT_SENSITIVITY = 10;
 
 export const DEFAULT_CONFIG: GamepadConfig = {

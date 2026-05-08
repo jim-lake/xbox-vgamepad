@@ -1,0 +1,167 @@
+import { cssToString } from './css-to-string';
+import { MSG_SOURCE } from '@/types/messages';
+
+let g_overlay: HTMLDivElement | null = null;
+let g_minimizedBtn: HTMLDivElement | null = null;
+let g_minimizedDismissed = false;
+let g_overlayMinimized = false;
+
+function getGameContainer(): Element | null {
+  return document.getElementById('game-stream') ?? document.body;
+}
+
+function requestPointerLock(): void {
+  const c = getGameContainer();
+  if (c) {
+    void (c as HTMLElement).requestPointerLock();
+    const stream = document.getElementById('game-stream');
+    if (stream) {
+      stream.focus();
+    }
+  }
+}
+
+export function removeOverlay(): void {
+  if (g_overlay) {
+    g_overlay.remove();
+    g_overlay = null;
+  }
+}
+
+export function removeMinimized(): void {
+  if (g_minimizedBtn) {
+    g_minimizedBtn.remove();
+    g_minimizedBtn = null;
+  }
+}
+
+export function isOverlayMinimized(): boolean {
+  return g_overlayMinimized;
+}
+
+export function setOverlayMinimized(val: boolean): void {
+  g_overlayMinimized = val;
+}
+
+export function setMinimizedDismissed(val: boolean): void {
+  g_minimizedDismissed = val;
+}
+
+function showMinimizedBtn(container: Element): void {
+  if (g_minimizedBtn || g_minimizedDismissed) {
+    return;
+  }
+  g_minimizedBtn = document.createElement('div');
+  g_minimizedBtn.id = 'xvg-pointer-minimized';
+  g_minimizedBtn.style.cssText = cssToString({
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    background: 'rgba(0,0,0,0.7)',
+    color: '#fff',
+    fontSize: '12px',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    zIndex: '99999',
+  });
+
+  const label = document.createElement('span');
+  label.textContent = '🖱️';
+  label.title = 'Click to enable mouse control';
+  label.addEventListener('click', () => {
+    removeMinimized();
+    requestPointerLock();
+  });
+  g_minimizedBtn.appendChild(label);
+
+  const closeBtn = document.createElement('span');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = cssToString({
+    cursor: 'pointer',
+    marginLeft: '4px',
+  });
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    g_minimizedDismissed = true;
+    removeMinimized();
+  });
+  g_minimizedBtn.appendChild(closeBtn);
+
+  container.appendChild(g_minimizedBtn);
+}
+
+function minimizeOverlay(container: Element): void {
+  g_overlayMinimized = true;
+  window.postMessage(
+    { source: MSG_SOURCE, type: 'SET_OVERLAY_MINIMIZED', minimized: true },
+    '*'
+  );
+  removeOverlay();
+  showMinimizedBtn(container);
+}
+
+export function showOverlay(container: Element): void {
+  if (g_overlay) {
+    return;
+  }
+  if (g_minimizedDismissed) {
+    return;
+  }
+  if (g_overlayMinimized) {
+    showMinimizedBtn(container);
+    return;
+  }
+
+  g_overlay = document.createElement('div');
+  g_overlay.id = 'xvg-pointer-overlay';
+  g_overlay.style.cssText = cssToString({
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(0,0,0,0.5)',
+    color: '#fff',
+    fontSize: '18px',
+    cursor: 'pointer',
+    zIndex: '99999',
+  });
+
+  const text = document.createElement('span');
+  text.textContent = 'Click to enable mouse control';
+  g_overlay.appendChild(text);
+
+  const minimizeBtn = document.createElement('span');
+  minimizeBtn.textContent = '—';
+  minimizeBtn.style.cssText = cssToString({
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    width: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.2)',
+    borderRadius: '4px',
+    fontSize: '14px',
+    cursor: 'pointer',
+  });
+  minimizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    minimizeOverlay(container);
+  });
+  g_overlay.appendChild(minimizeBtn);
+
+  g_overlay.addEventListener('click', () => {
+    requestPointerLock();
+  });
+  container.appendChild(g_overlay);
+}

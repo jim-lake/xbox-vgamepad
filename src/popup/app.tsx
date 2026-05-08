@@ -1,13 +1,11 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  TouchableWithoutFeedback,
-} from '@/components/base_components';
+import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GamepadConfig, ActionMap } from '@/types/gamepad';
+import type {
+  GamepadConfig,
+  ActionMap,
+  GamepadMouseConfig,
+} from '@/types/gamepad';
 import { DEFAULT_CONFIG } from '@/types/gamepad';
 import {
   loadStorage,
@@ -26,6 +24,9 @@ import {
 import { validateConfig } from './validate';
 import KeyBindingEditor from './key-binding-editor';
 import MouseSettings from './mouse-settings';
+import AppHeader from '@/components/popup/app-header';
+import PresetNav from '@/components/popup/preset-nav';
+import Toolbar from '@/components/popup/toolbar';
 
 const MAX_PRESETS = 25;
 
@@ -49,88 +50,11 @@ const styles = StyleSheet.create({
     borderBottomColor: 'var(--surface-border)',
   },
   topGutter: { height: '15rem' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: '1rem',
-    backgroundColor: 'var(--surface-bg)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--surface-border)',
-  },
-  headerLeft: { flex: 1, flexDirection: 'column' },
-  gameName: { color: 'var(--text-muted)', fontSize: '1.4rem' },
   presetName: {
     color: 'var(--text-primary)',
     fontSize: '1.6rem',
     fontWeight: '600',
   },
-  toggle: {
-    width: '4rem',
-    height: '2.2rem',
-    borderRadius: '1.1rem',
-    justifyContent: 'center',
-    cursor: 'pointer',
-  },
-  toggleOn: { backgroundColor: 'var(--toggle-on-bg)', alignItems: 'flex-end' },
-  toggleOff: {
-    backgroundColor: 'var(--toggle-off-bg)',
-    alignItems: 'flex-start',
-  },
-  toggleKnob: {
-    width: '1.8rem',
-    height: '1.8rem',
-    borderRadius: '0.9rem',
-    backgroundColor: 'var(--toggle-knob)',
-    marginLeft: '0.2rem',
-    marginRight: '0.2rem',
-  },
-  presetNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '1rem',
-    backgroundColor: 'var(--surface-bg)',
-  },
-  navArrow: {
-    color: 'var(--text-primary)',
-    fontSize: '1.6rem',
-    cursor: 'pointer',
-    paddingLeft: '1rem',
-    paddingRight: '1rem',
-  },
-  navArrowDisabled: { opacity: 0.3, cursor: 'default' },
-  navLabel: {
-    color: 'var(--text-primary)',
-    fontSize: '1.6rem',
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
-  renameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: '0.4rem',
-  },
-  renameInput: {
-    flex: 1,
-    backgroundColor: 'var(--input-bg)',
-    color: 'var(--text-primary)',
-    fontSize: '1.4rem',
-    padding: '0.6rem 0.8rem',
-    borderRadius: '1rem',
-    borderWidth: 1,
-    borderColor: 'var(--surface-border)',
-  },
-  toolbar: {
-    flexDirection: 'row',
-    padding: '0.5rem',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  toolBtn: {},
-  toolBtnDanger: { backgroundColor: 'var(--button-danger-bg)' },
   body: { flexDirection: 'column', alignSelf: 'stretch' },
   bottomGutter: { height: '4rem' },
   section: { padding: '0.8rem', flexDirection: 'column' },
@@ -155,7 +79,6 @@ const styles = StyleSheet.create({
     borderTopColor: 'var(--surface-border)',
   },
   undoBtn: {},
-  undoBtnDisabled: { opacity: 0.4, cursor: 'default' },
   statusText: {
     flex: 1,
     textAlign: 'right',
@@ -228,51 +151,40 @@ export default function App() {
     [activeIndex, presetNames, isEnabled, configs]
   );
 
-  const handleNew = React.useCallback(async () => {
-    if (presetNames.length >= MAX_PRESETS) {
-      return;
-    }
-    let name = 'New Profile';
-    let i = 1;
-    while (presetNames.includes(name)) {
-      i++;
-      name = `New Profile ${String(i)}`;
-    }
-    const config = structuredClone(DEFAULT_CONFIG);
-    const newConfigs = { ...configs, [name]: config };
-    setConfigs(newConfigs);
-    setActiveConfigName(name);
-    setSavedConfig(structuredClone(config));
-    setDirty(false);
-    await saveConfig(name, config);
-    await setActiveConfig(name);
-    if (isEnabled) {
-      await sendConfigChanged(name, config);
-    }
-  }, [configs, presetNames, isEnabled]);
+  const createPreset = React.useCallback(
+    async (name: string, config: GamepadConfig) => {
+      if (presetNames.length >= MAX_PRESETS) {
+        return;
+      }
+      let uniqueName = name;
+      let i = 1;
+      while (presetNames.includes(uniqueName)) {
+        i++;
+        uniqueName = `${name} ${String(i)}`;
+      }
+      const cloned = structuredClone(config);
+      setConfigs((prev) => ({ ...prev, [uniqueName]: cloned }));
+      setActiveConfigName(uniqueName);
+      setSavedConfig(structuredClone(cloned));
+      setDirty(false);
+      await saveConfig(uniqueName, cloned);
+      await setActiveConfig(uniqueName);
+      if (isEnabled) {
+        await sendConfigChanged(uniqueName, cloned);
+      }
+    },
+    [presetNames, isEnabled]
+  );
 
-  const handleCopy = React.useCallback(async () => {
-    if (presetNames.length >= MAX_PRESETS) {
-      return;
-    }
-    let name = `${activeConfigName} Copy`;
-    let i = 1;
-    while (presetNames.includes(name)) {
-      i++;
-      name = `${activeConfigName} Copy ${String(i)}`;
-    }
-    const config = structuredClone(activeConfig);
-    const newConfigs = { ...configs, [name]: config };
-    setConfigs(newConfigs);
-    setActiveConfigName(name);
-    setSavedConfig(structuredClone(config));
-    setDirty(false);
-    await saveConfig(name, config);
-    await setActiveConfig(name);
-    if (isEnabled) {
-      await sendConfigChanged(name, config);
-    }
-  }, [configs, presetNames, activeConfigName, activeConfig, isEnabled]);
+  const handleNew = React.useCallback(
+    () => createPreset('New Profile', DEFAULT_CONFIG),
+    [createPreset]
+  );
+
+  const handleCopy = React.useCallback(
+    () => createPreset(activeConfigName, activeConfig),
+    [createPreset, activeConfigName, activeConfig]
+  );
 
   const handleEditName = React.useCallback(() => {
     setRenameValue(activeConfigName);
@@ -399,29 +311,13 @@ export default function App() {
     [activeConfigName, persist]
   );
 
-  const updateMouseControls = React.useCallback(
-    (val: 0 | 1 | undefined) => {
+  const updateMouseConfig = React.useCallback(
+    (patch: Partial<GamepadMouseConfig>) => {
       setConfigs((prev) => {
         const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
         const next = {
           ...current,
-          mouseConfig: { ...current.mouseConfig, mouseControls: val ?? null },
-        };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setDirty(true);
-    },
-    [activeConfigName, persist]
-  );
-
-  const updateSensitivity = React.useCallback(
-    (val: number) => {
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const next = {
-          ...current,
-          mouseConfig: { ...current.mouseConfig, sensitivity: val },
+          mouseConfig: { ...current.mouseConfig, ...patch },
         };
         void persist(next);
         return { ...prev, [activeConfigName]: next };
@@ -443,119 +339,47 @@ export default function App() {
     <View style={styles.app}>
       {/* Floating top bar */}
       <View style={styles.topBar}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.gameName}>
-              {gameName ?? 'No game detected'}
-            </Text>
-          </View>
-          <TouchableWithoutFeedback onPress={() => void handleToggle()}>
-            <View
-              style={[
-                styles.toggle,
-                isEnabled ? styles.toggleOn : styles.toggleOff,
-              ]}
-            >
-              <View style={styles.toggleKnob} />
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-
-        {/* Profile navigation */}
-        <View style={styles.presetNav}>
-          <TextButton
-            style={[
-              styles.navArrow,
-              renaming ? styles.navArrowDisabled : undefined,
-            ]}
-            text='◀'
-            disabled={renaming}
-            onPress={() => void cyclePreset(-1)}
+        <AppHeader
+          gameName={gameName}
+          isEnabled={isEnabled}
+          onToggle={() => void handleToggle()}
+        />
+        <PresetNav
+          activeConfigName={activeConfigName}
+          renaming={renaming}
+          renameValue={renameValue}
+          onRenameChange={setRenameValue}
+          onRenameSubmit={() => void handleSaveRename()}
+          onPrev={() => void cyclePreset(-1)}
+          onNext={() => void cyclePreset(1)}
+        />
+        {renaming ? (
+          <Toolbar
+            renaming={true}
+            onSaveRename={() => void handleSaveRename()}
+            onCancelRename={() => {
+              setRenaming(false);
+            }}
           />
-          {renaming ? (
-            <View style={styles.renameRow}>
-              <TextInput
-                style={styles.renameInput}
-                value={renameValue}
-                onChangeText={setRenameValue}
-                onSubmitEditing={() => void handleSaveRename()}
-                autoFocus
-              />
-            </View>
-          ) : (
-            <Text style={styles.navLabel}>{activeConfigName}</Text>
-          )}
-          <TextButton
-            style={[
-              styles.navArrow,
-              renaming ? styles.navArrowDisabled : undefined,
-            ]}
-            text='▶'
-            disabled={renaming}
-            onPress={() => void cyclePreset(1)}
-          />
-        </View>
-
-        {/* Toolbar */}
-        <View style={styles.toolbar}>
-          {renaming ? (
-            <>
-              <TextButton
-                style={styles.toolBtn}
-                type='green'
-                text='Save'
-                onPress={() => void handleSaveRename()}
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Cancel'
-                onPress={() => {
-                  setRenaming(false);
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <TextButton
-                style={styles.toolBtn}
-                text='New'
-                onPress={() => void handleNew()}
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Copy'
-                onPress={() => void handleCopy()}
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Import'
-                onPress={handleImport}
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Export'
-                onPress={handleExport}
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Rename'
-                onPress={handleEditName}
-              />
-              {import.meta.env.DEV && (
-                <TextButton
-                  type='danger'
-                  text='Wipe'
-                  onPress={() => {
+        ) : (
+          <Toolbar
+            renaming={false}
+            onNew={() => void handleNew()}
+            onCopy={() => void handleCopy()}
+            onImport={handleImport}
+            onExport={handleExport}
+            onRename={handleEditName}
+            {...(import.meta.env.DEV
+              ? {
+                  onWipe: () => {
                     void clearStorage().then(() => {
                       window.close();
                     });
-                  }}
-                />
-              )}
-            </>
-          )}
-        </View>
+                  },
+                }
+              : {})}
+          />
+        )}
       </View>
 
       {/* Top gutter for fixed header */}
@@ -572,8 +396,12 @@ export default function App() {
                 : activeConfig.mouseConfig.mouseControls
             }
             sensitivity={activeConfig.mouseConfig.sensitivity}
-            onChangeStick={updateMouseControls}
-            onChangeSensitivity={updateSensitivity}
+            onChangeStick={(val) => {
+              updateMouseConfig({ mouseControls: val ?? null });
+            }}
+            onChangeSensitivity={(val) => {
+              updateMouseConfig({ sensitivity: val });
+            }}
           />
         </View>
 
