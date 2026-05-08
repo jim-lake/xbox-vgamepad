@@ -209,7 +209,7 @@ export default function App() {
       await setActiveConfig(name);
       if (isEnabled) {
         const config = configs[name] ?? DEFAULT_CONFIG;
-        await sendActivateConfig(name, config);
+        await sendConfigChanged(name, config);
       }
     },
     [activeIndex, presetNames, isEnabled, configs]
@@ -234,7 +234,7 @@ export default function App() {
     await saveConfig(name, config);
     await setActiveConfig(name);
     if (isEnabled) {
-      await sendActivateConfig(name, config);
+      await sendConfigChanged(name, config);
     }
   }, [configs, presetNames, isEnabled]);
 
@@ -257,7 +257,7 @@ export default function App() {
     await saveConfig(name, config);
     await setActiveConfig(name);
     if (isEnabled) {
-      await sendActivateConfig(name, config);
+      await sendConfigChanged(name, config);
     }
   }, [configs, presetNames, activeConfigName, activeConfig, isEnabled]);
 
