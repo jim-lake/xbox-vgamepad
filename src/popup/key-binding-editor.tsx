@@ -100,6 +100,8 @@ function getBindings(keyMap: KeyMap): string[] {
   return [...keyMap];
 }
 
+const isMac = navigator.userAgent.includes('Mac');
+
 function formatCode(code: string): string {
   if (code.startsWith('Key')) {
     return code.slice(3);
@@ -107,14 +109,29 @@ function formatCode(code: string): string {
   if (code.startsWith('Digit')) {
     return code.slice(5);
   }
-  if (code === 'ControlLeft' || code === 'ControlRight') {
-    return 'Ctrl';
+  if (code === 'ControlLeft') {
+    return 'Left Control';
   }
-  if (code === 'ShiftLeft' || code === 'ShiftRight') {
-    return 'Shift';
+  if (code === 'ControlRight') {
+    return 'Right Control';
   }
-  if (code === 'AltLeft' || code === 'AltRight') {
-    return 'Alt';
+  if (code === 'ShiftLeft') {
+    return 'Left Shift';
+  }
+  if (code === 'ShiftRight') {
+    return 'Right Shift';
+  }
+  if (code === 'AltLeft') {
+    return isMac ? 'Left Option' : 'Left Alt';
+  }
+  if (code === 'AltRight') {
+    return isMac ? 'Right Option' : 'Right Alt';
+  }
+  if (code === 'MetaLeft') {
+    return isMac ? 'Left Command' : 'Left Win';
+  }
+  if (code === 'MetaRight') {
+    return isMac ? 'Right Command' : 'Right Win';
   }
   return code;
 }
