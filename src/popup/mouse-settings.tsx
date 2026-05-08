@@ -4,17 +4,23 @@ import TextButton from '@/components/buttons/text_button';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: '0.8rem' },
-  label: { color: 'var(--text-muted)', fontSize: '1.4rem', width: '7rem' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: '1rem',
+    paddingTop: '1rem',
+    gap: '1rem',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+  },
+  label: { color: 'var(--text-muted)', fontSize: '1.4rem', width: '10rem' },
   option: {
     paddingLeft: '0.6rem',
     paddingRight: '0.6rem',
-    paddingTop: '0.3rem',
-    paddingBottom: '0.3rem',
     borderRadius: '1rem',
-    backgroundColor: 'var(--chip-bg)',
   },
   optionActive: { backgroundColor: 'var(--chip-active-bg)' },
+  optionActiveText: { color: 'var(--text-on-color)' },
   sensitivityValue: {
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
@@ -65,6 +71,9 @@ export default function MouseSettings({
               styles.option,
               mouseControls === value ? styles.optionActive : undefined,
             ]}
+            textStyle={
+              mouseControls === value ? styles.optionActiveText : undefined
+            }
             text={label}
             onPress={() => {
               onChangeStick(value);
@@ -80,7 +89,15 @@ export default function MouseSettings({
           max={1000}
           value={displaySensitivity}
           onChange={handleSensitivityChange}
-          style={{ flex: 1 }}
+          style={{
+            flex: 1,
+            accentColor: 'var(--chip-active-bg)',
+            height: '0.6rem',
+            borderRadius: '0.3rem',
+            border: '1px solid var(--surface-border)',
+            background: 'var(--chip-bg)',
+            margin: '0.6rem 0',
+          }}
         />
         <Text style={styles.sensitivityValue}>{displaySensitivity}</Text>
       </View>

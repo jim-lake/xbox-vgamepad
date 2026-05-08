@@ -11,6 +11,9 @@
   --text-disabled: #666;
   --text-dark: #333;
 
+  /* ── Input ── */
+  --input-bg: #0f3460;
+
   /* ── Toggle ── */
   --toggle-on-bg: #107c10;
   --toggle-off-bg: #555;
@@ -21,6 +24,10 @@
   /* ── Key binding badges / option chips ── */
   --chip-bg: #0f3460;
   --chip-active-bg: #107c10;
+
+  /* ── Toolbar buttons ── */
+  --toolbar-btn-bg: #0f3460;
+  --toolbar-btn-text: #fff;
 
   /* ── Modal ── */
   --modal-overlay: rgba(0, 0, 0, 0.8);
@@ -64,12 +71,89 @@
   --button-blue-bg: #0078d4;
   --button-blue-border: #005a9e;
   --button-blue-text: #fff;
+
+  --button-green-bg: #107c10;
+  --button-green-border: #0b5e0b;
+  --button-green-text: #fff;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --app-bg: #ffffff;
-    --surface-bg: #f3f4f6;
+    /* ── App shell ── */
+    --app-bg: #f5f5f5;
+    --surface-bg: #eaecef;
+    --surface-border: #d1d5db;
+
+    /* ── Typography ── */
     --text-primary: #111827;
+    --text-muted: #6b7280;
+    --text-on-color: #fff;
+    --text-disabled: #9ca3af;
+    --text-dark: #333;
+
+    /* ── Input ── */
+    --input-bg: #ffffff;
+
+    /* ── Toggle ── */
+    --toggle-on-bg: #107c10;
+    --toggle-off-bg: #d1d5db;
+    --toggle-knob: #fff;
+
+    --row-border: #e5e7eb;
+
+    /* ── Key binding badges / option chips ── */
+    --chip-bg: #e5e7eb;
+    --chip-active-bg: #107c10;
+
+    /* ── Toolbar buttons ── */
+    --toolbar-btn-bg: #d1d5db;
+    --toolbar-btn-text: #111827;
+
+    /* ── Modal ── */
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+
+    /* ── Toast ── */
+    --toast-bg: rgba(0, 0, 0, 0.8);
+    --toast-text: #fff;
+
+    /* ── Buttons ── */
+    --button-bg: #107c10;
+    --button-text: #fff;
+
+    --button-default-bg: #d1d5db;
+    --button-default-border: #b0b7bf;
+    --button-default-text: #111827;
+
+    --button-disabled-bg: #e5e7eb;
+    --button-disabled-border: #d1d5db;
+    --button-disabled-text: #9ca3af;
+
+    --button-danger-bg: #d13438;
+    --button-danger-border: #a4262c;
+    --button-danger-text: #fff;
+
+    --button-ghost-inverted-border: #111827;
+    --button-ghost-inverted-bg: transparent;
+    --button-ghost-inverted-text: #111827;
+
+    --button-ghost-border: #107c10;
+    --button-ghost-bg: transparent;
+    --button-ghost-text: #107c10;
+
+    --button-inverted-bg: #111827;
+    --button-inverted-border: #1f2937;
+    --button-inverted-text: #fff;
+
+    --button-empty-bg: transparent;
+    --button-empty-border: transparent;
+    --button-empty-text: #111827;
+
+    --button-blue-bg: #0078d4;
+    --button-blue-border: #005a9e;
+    --button-blue-text: #fff;
+
+    --button-green-bg: #107c10;
+    --button-green-border: #0b5e0b;
+    --button-green-text: #fff;
   }
 }

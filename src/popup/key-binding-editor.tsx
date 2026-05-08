@@ -17,13 +17,12 @@ const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
   { key: 'rightTrigger', label: 'RT' },
   { key: 'select', label: 'Select' },
   { key: 'start', label: 'Start' },
-  { key: 'leftStickPressed', label: 'L3' },
-  { key: 'rightStickPressed', label: 'R3' },
   { key: 'dpadUp', label: 'D-Up' },
   { key: 'dpadDown', label: 'D-Down' },
   { key: 'dpadLeft', label: 'D-Left' },
   { key: 'dpadRight', label: 'D-Right' },
-  { key: 'home', label: 'Home' },
+  { key: 'leftStickPressed', label: 'LS Press' },
+  { key: 'rightStickPressed', label: 'RS Press' },
   { key: 'leftStickUp', label: 'LS Up' },
   { key: 'leftStickDown', label: 'LS Down' },
   { key: 'leftStickLeft', label: 'LS Left' },
@@ -32,7 +31,8 @@ const INPUT_LABELS: { key: keyof GamepadKeyConfig; label: string }[] = [
   { key: 'rightStickDown', label: 'RS Down' },
   { key: 'rightStickLeft', label: 'RS Left' },
   { key: 'rightStickRight', label: 'RS Right' },
-  { key: 'toggleGamepad', label: 'Toggle' },
+  { key: 'home', label: 'Home' },
+  { key: 'toggleGamepad', label: 'Toggle Gamepad' },
 ];
 
 const styles = StyleSheet.create({
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'var(--row-border)',
   },
-  label: { width: '6rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
+  label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
   bindings: {
     flex: 1,
     flexDirection: 'row',
@@ -232,6 +232,7 @@ export default function KeyBindingEditor({ keyConfig, onChange }: Props) {
               <IconButton
                 style={styles.addBtn}
                 source={plusIcon}
+                type='green'
                 onPress={() => {
                   setListening(key);
                 }}

@@ -4,7 +4,7 @@ import '../../css/colors.css';
 
 export const styles = StyleSheet.create({
   textButton: {
-    height: '2.8rem',
+    height: '3rem',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
     borderRadius: '1rem',
     overflow: 'hidden',
   },
-  text: { color: 'var(--button-text)', fontSize: '1.4rem', fontWeight: '600' },
+  text: { color: 'var(--button-text)', fontSize: '1.4rem', fontWeight: '500' },
   defaultButton: {
     backgroundColor: 'var(--button-default-bg)',
     borderColor: 'var(--button-default-border)',
@@ -70,6 +70,11 @@ export const styles = StyleSheet.create({
     borderColor: 'var(--button-blue-border)',
   },
   blueText: { color: 'var(--button-blue-text)' },
+  greenButton: {
+    backgroundColor: 'var(--button-green-bg)',
+    borderColor: 'var(--button-green-border)',
+  },
+  greenText: { color: 'var(--button-green-text)' },
 });
 
 export interface StyleProps {
@@ -81,6 +86,7 @@ export interface StyleProps {
     | 'inverted'
     | 'danger'
     | 'blue'
+    | 'green'
     | 'default';
 }
 export function getButtonStyles(props: StyleProps) {
@@ -108,6 +114,9 @@ export function getButtonStyles(props: StyleProps) {
   } else if (type === 'blue') {
     button_extra = styles.blueButton;
     text_extra = styles.blueText;
+  } else if (type === 'green') {
+    button_extra = styles.greenButton;
+    text_extra = styles.greenText;
   }
   return { button_extra, text_extra };
 }

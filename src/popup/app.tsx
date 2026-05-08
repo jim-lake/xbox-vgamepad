@@ -2,6 +2,7 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
+  TextInput,
   View,
   TouchableWithoutFeedback,
 } from '@/components/base_components';
@@ -29,7 +30,8 @@ const MAX_PRESETS = 25;
 
 const styles = StyleSheet.create({
   app: {
-    width: 380,
+    flex: 1,
+    alignSelf: 'stretch',
     flexDirection: 'column',
     backgroundColor: 'var(--app-bg)',
   },
@@ -45,6 +47,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'var(--surface-border)',
   },
+  topGutter: { height: '15rem' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -84,7 +87,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0.6rem',
+    padding: '1rem',
     backgroundColor: 'var(--surface-bg)',
   },
   navArrow: {
@@ -108,6 +111,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: '0.4rem',
   },
+  renameInput: {
+    flex: 1,
+    backgroundColor: 'var(--input-bg)',
+    color: 'var(--text-primary)',
+    fontSize: '1.4rem',
+    padding: '0.6rem 0.8rem',
+    borderRadius: '1rem',
+    borderWidth: 1,
+    borderColor: 'var(--surface-border)',
+  },
   toolbar: {
     flexDirection: 'row',
     padding: '0.5rem',
@@ -115,10 +128,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  toolBtn: { backgroundColor: 'var(--chip-bg)' },
+  toolBtn: {},
   toolBtnDanger: { backgroundColor: 'var(--button-danger-bg)' },
-  body: { flexDirection: 'column' },
-  topGutter: { height: '14rem' },
+  body: { flexDirection: 'column', alignSelf: 'stretch' },
   bottomGutter: { height: '4rem' },
   section: { padding: '0.8rem', flexDirection: 'column' },
   sectionTitle: {
@@ -141,7 +153,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'var(--surface-border)',
   },
-  undoBtn: { backgroundColor: 'var(--chip-bg)' },
+  undoBtn: {},
   undoBtnDisabled: { opacity: 0.4, cursor: 'default' },
   statusText: {
     flex: 1,
@@ -457,31 +469,12 @@ export default function App() {
           />
           {renaming ? (
             <View style={styles.renameRow}>
-              <input
-                style={{
-                  flex: 1,
-                  backgroundColor: 'var(--chip-bg)',
-                  color: 'var(--text-primary)',
-                  fontSize: '1.4rem',
-                  padding: '0.3rem 0.6rem',
-                  borderRadius: '1rem',
-                  border: 'none',
-                }}
+              <TextInput
+                style={styles.renameInput}
                 value={renameValue}
-                onChange={(e) => {
-                  setRenameValue(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    void handleSaveRename();
-                  }
-                }}
+                onChangeText={setRenameValue}
+                onSubmitEditing={() => void handleSaveRename()}
                 autoFocus
-              />
-              <TextButton
-                style={styles.toolBtn}
-                text='Save'
-                onPress={() => void handleSaveRename()}
               />
             </View>
           ) : (
@@ -500,31 +493,51 @@ export default function App() {
 
         {/* Toolbar */}
         <View style={styles.toolbar}>
-          <TextButton
-            style={styles.toolBtn}
-            text='New'
-            onPress={() => void handleNew()}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Copy'
-            onPress={() => void handleCopy()}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Import'
-            onPress={handleImport}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Export'
-            onPress={handleExport}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Rename'
-            onPress={handleEditName}
-          />
+          {renaming ? (
+            <>
+              <TextButton
+                style={styles.toolBtn}
+                type='green'
+                text='Save'
+                onPress={() => void handleSaveRename()}
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Cancel'
+                onPress={() => {
+                  setRenaming(false);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <TextButton
+                style={styles.toolBtn}
+                text='New'
+                onPress={() => void handleNew()}
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Copy'
+                onPress={() => void handleCopy()}
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Import'
+                onPress={handleImport}
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Export'
+                onPress={handleExport}
+              />
+              <TextButton
+                style={styles.toolBtn}
+                text='Rename'
+                onPress={handleEditName}
+              />
+            </>
+          )}
         </View>
       </View>
 
