@@ -109,47 +109,48 @@ function formatCode(code: string): string {
   if (code.startsWith('Digit')) {
     return code.slice(5);
   }
-  if (code === 'ControlLeft') {
-    return 'Left Control';
+  switch (code) {
+    case 'ControlLeft':
+      return 'Left Control';
+    case 'ControlRight':
+      return 'Right Control';
+    case 'ShiftLeft':
+      return 'Left Shift';
+    case 'ShiftRight':
+      return 'Right Shift';
+    case 'AltLeft':
+      return isMac ? 'Left Option' : 'Left Alt';
+    case 'AltRight':
+      return isMac ? 'Right Option' : 'Right Alt';
+    case 'MetaLeft':
+      return isMac ? 'Left Command' : 'Left Win';
+    case 'MetaRight':
+      return isMac ? 'Right Command' : 'Right Win';
+    case 'BracketLeft':
+      return '[';
+    case 'BracketRight':
+      return ']';
+    case 'Backslash':
+      return '\\';
+    case 'Semicolon':
+      return ';';
+    case 'Quote':
+      return "'";
+    case 'Comma':
+      return ',';
+    case 'Period':
+      return '.';
+    case 'Slash':
+      return '/';
+    case 'Backquote':
+      return '`';
+    case 'Minus':
+      return '-';
+    case 'Equal':
+      return '=';
+    default:
+      return code;
   }
-  if (code === 'ControlRight') {
-    return 'Right Control';
-  }
-  if (code === 'ShiftLeft') {
-    return 'Left Shift';
-  }
-  if (code === 'ShiftRight') {
-    return 'Right Shift';
-  }
-  if (code === 'AltLeft') {
-    return isMac ? 'Left Option' : 'Left Alt';
-  }
-  if (code === 'AltRight') {
-    return isMac ? 'Right Option' : 'Right Alt';
-  }
-  if (code === 'MetaLeft') {
-    return isMac ? 'Left Command' : 'Left Win';
-  }
-  if (code === 'MetaRight') {
-    return isMac ? 'Right Command' : 'Right Win';
-  }
-  const punctuation: Record<string, string> = {
-    BracketLeft: '[',
-    BracketRight: ']',
-    Backslash: '\\',
-    Semicolon: ';',
-    Quote: "'",
-    Comma: ',',
-    Period: '.',
-    Slash: '/',
-    Backquote: '`',
-    Minus: '-',
-    Equal: '=',
-  };
-  if (code in punctuation) {
-    return punctuation[code] ?? code;
-  }
-  return code;
 }
 
 function toKeyMap(bindings: string[]): KeyMap {
