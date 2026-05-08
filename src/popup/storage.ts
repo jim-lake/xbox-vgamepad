@@ -1,5 +1,6 @@
 import type { GamepadConfig, StorageData } from '@/types/gamepad';
 import { DEFAULT_CONFIG } from '@/types/gamepad';
+import { validateConfig } from './validate';
 
 const CONFIG_PREFIX = 'GP_CONF:';
 
@@ -12,7 +13,8 @@ export function parseStorageData(data: Record<string, unknown>): StorageData {
   for (const key of Object.keys(data)) {
     if (key.startsWith(CONFIG_PREFIX)) {
       const name = key.slice(CONFIG_PREFIX.length);
-      configs[name] = data[key] as GamepadConfig;
+      const raw = data[key];
+      configs[name] = validateConfig(raw) ? raw : DEFAULT_CONFIG;
     }
   }
 

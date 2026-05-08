@@ -4,8 +4,8 @@ import type {
   ActivateGamepadConfigMessage,
   DisableGamepadMessage,
 } from '@/types/messages';
-import type { GamepadConfig } from '@/types/gamepad';
 import { DEFAULT_CONFIG } from '@/types/gamepad';
+import { validateConfig } from '@/popup/validate';
 
 const CONFIG_PREFIX = 'GP_CONF:';
 
@@ -63,10 +63,9 @@ chrome.runtime.onMessage.addListener(
         const isEnabled = (data['ENABLED'] as boolean | undefined) ?? true;
         const activeConfig =
           (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
+        const rawConfig = data[`${CONFIG_PREFIX}${activeConfig}`];
         const config =
-          (data[`${CONFIG_PREFIX}${activeConfig}`] as
-            | GamepadConfig
-            | undefined) ??
+          (validateConfig(rawConfig) ? rawConfig : undefined) ??
           (activeConfig === 'default' ? DEFAULT_CONFIG : undefined);
 
         if (isEnabled && config) {
@@ -102,10 +101,9 @@ chrome.runtime.onMessage.addListener(
         chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
           const activeConfig =
             (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
+          const rawConfig = data[`${CONFIG_PREFIX}${activeConfig}`];
           const config =
-            (data[`${CONFIG_PREFIX}${activeConfig}`] as
-              | GamepadConfig
-              | undefined) ??
+            (validateConfig(rawConfig) ? rawConfig : undefined) ??
             (activeConfig === 'default' ? DEFAULT_CONFIG : undefined);
           if (config && tabId !== undefined) {
             const msg: ActivateGamepadConfigMessage = {
