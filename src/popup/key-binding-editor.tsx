@@ -126,6 +126,58 @@ function formatCode(code: string): string {
       return isMac ? 'Left Command' : 'Left Win';
     case 'MetaRight':
       return isMac ? 'Right Command' : 'Right Win';
+    case 'ArrowUp':
+      return '↑';
+    case 'ArrowDown':
+      return '↓';
+    case 'ArrowLeft':
+      return '←';
+    case 'ArrowRight':
+      return '→';
+    case 'CapsLock':
+      return 'Caps Lock';
+    case 'PageUp':
+      return 'Page Up';
+    case 'PageDown':
+      return 'Page Down';
+    case 'NumLock':
+      return 'Num Lock';
+    case 'ScrollLock':
+      return 'Scroll Lock';
+    case 'PrintScreen':
+      return 'Print Screen';
+    case 'NumpadEnter':
+      return 'Numpad Enter';
+    case 'NumpadAdd':
+      return 'Numpad +';
+    case 'NumpadSubtract':
+      return 'Numpad -';
+    case 'NumpadMultiply':
+      return 'Numpad *';
+    case 'NumpadDivide':
+      return 'Numpad /';
+    case 'NumpadDecimal':
+      return 'Numpad .';
+    case 'Numpad0':
+      return 'Numpad 0';
+    case 'Numpad1':
+      return 'Numpad 1';
+    case 'Numpad2':
+      return 'Numpad 2';
+    case 'Numpad3':
+      return 'Numpad 3';
+    case 'Numpad4':
+      return 'Numpad 4';
+    case 'Numpad5':
+      return 'Numpad 5';
+    case 'Numpad6':
+      return 'Numpad 6';
+    case 'Numpad7':
+      return 'Numpad 7';
+    case 'Numpad8':
+      return 'Numpad 8';
+    case 'Numpad9':
+      return 'Numpad 9';
     case 'BracketLeft':
       return '[';
     case 'BracketRight':
