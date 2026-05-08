@@ -39,8 +39,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: '0.3rem',
-    paddingBottom: '0.3rem',
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
   },
   label: { width: '6rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
   bindings: {

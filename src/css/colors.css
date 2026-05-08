@@ -16,6 +16,8 @@
   --toggle-off-bg: #555;
   --toggle-knob: #fff;
 
+  --row-border: #3a4a5a;
+
   /* ── Key binding badges / option chips ── */
   --chip-bg: #0f3460;
   --chip-active-bg: #107c10;
