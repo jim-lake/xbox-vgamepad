@@ -49,3 +49,10 @@ export async function getGameName(): Promise<string | null> {
   const data = await chrome.storage.local.get('gameName');
   return (data['gameName'] as string | null | undefined) ?? null;
 }
+
+export async function clearStorage(): Promise<void> {
+  await Promise.all([
+    chrome.storage.sync.clear(),
+    chrome.storage.local.clear(),
+  ]);
+}

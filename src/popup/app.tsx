@@ -16,6 +16,7 @@ import {
   setActiveConfig,
   setEnabled,
   getGameName,
+  clearStorage,
 } from './storage';
 import {
   sendActivateConfig,
@@ -541,6 +542,17 @@ export default function App() {
                 text='Rename'
                 onPress={handleEditName}
               />
+              {import.meta.env.DEV && (
+                <TextButton
+                  type='danger'
+                  text='Wipe'
+                  onPress={() => {
+                    void clearStorage().then(() => {
+                      window.close();
+                    });
+                  }}
+                />
+              )}
             </>
           )}
         </View>
