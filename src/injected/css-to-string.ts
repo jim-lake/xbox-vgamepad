@@ -1,7 +1,32 @@
-export function cssToString(styles: Record<string, string | number>): string {
+type CssPropertyName =
+  | 'align-items'
+  | 'background'
+  | 'border-radius'
+  | 'bottom'
+  | 'color'
+  | 'cursor'
+  | 'display'
+  | 'font-size'
+  | 'font-weight'
+  | 'height'
+  | 'justify-content'
+  | 'left'
+  | 'opacity'
+  | 'padding'
+  | 'pointer-events'
+  | 'position'
+  | 'right'
+  | 'top'
+  | 'transform'
+  | 'transition'
+  | 'user-select'
+  | 'width'
+  | 'z-index';
+
+export type CssStyles = Partial<Record<CssPropertyName, string | number>>;
+
+export function cssToString(styles: CssStyles): string {
   return Object.entries(styles)
-    .map(
-      ([k, v]) => `${k.replace(/([A-Z])/g, '-$1').toLowerCase()}:${String(v)}`
-    )
+    .map(([k, v]) => `${k}:${String(v)}`)
     .join(';');
 }

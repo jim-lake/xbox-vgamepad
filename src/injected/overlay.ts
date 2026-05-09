@@ -58,15 +58,15 @@ function showMinimizedBtn(container: Element): void {
     top: '8px',
     right: '8px',
     display: 'flex',
-    alignItems: 'center',
+    'align-items': 'center',
     background: 'rgba(0,0,0,0.7)',
     color: '#fff',
-    fontSize: '12px',
-    fontWeight: '500',
-    borderRadius: '8px',
+    'font-size': '12px',
+    'font-weight': '500',
+    'border-radius': '8px',
     cursor: 'pointer',
     'user-select': 'none',
-    zIndex: '99999',
+    'z-index': '99999',
   });
 
   const label = document.createElement('span');
@@ -129,13 +129,13 @@ export function showOverlay(container: Element): void {
     right: '0',
     bottom: '0',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    'align-items': 'center',
+    'justify-content': 'center',
     background: 'rgba(0,0,0,0.5)',
     color: '#fff',
-    fontSize: '18px',
+    'font-size': '18px',
     cursor: 'pointer',
-    zIndex: '99999',
+    'z-index': '99999',
   });
 
   const text = document.createElement('span');
@@ -151,11 +151,11 @@ export function showOverlay(container: Element): void {
     width: '24px',
     height: '24px',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    'align-items': 'center',
+    'justify-content': 'center',
     background: 'rgba(255,255,255,0.2)',
-    borderRadius: '4px',
-    fontSize: '14px',
+    'border-radius': '4px',
+    'font-size': '14px',
     cursor: 'pointer',
   });
   minimizeBtn.addEventListener('click', (e) => {

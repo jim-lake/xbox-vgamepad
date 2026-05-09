@@ -15,12 +15,12 @@ export function showToast(message: string): void {
       background: 'rgba(0,0,0,0.85)',
       color: '#fff',
       padding: '12px 24px',
-      borderRadius: '8px',
-      fontSize: '14px',
-      zIndex: '999999',
+      'border-radius': '8px',
+      'font-size': '14px',
+      'z-index': '999999',
       opacity: '0',
       transition: 'opacity 0.5s',
-      pointerEvents: 'none',
+      'pointer-events': 'none',
     });
     document.body.appendChild(toastEl);
   }
