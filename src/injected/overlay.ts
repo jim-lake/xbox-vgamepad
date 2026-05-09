@@ -59,19 +59,23 @@ function showMinimizedBtn(container: Element): void {
     right: '8px',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
     background: 'rgba(0,0,0,0.7)',
     color: '#fff',
     fontSize: '12px',
-    padding: '4px 8px',
-    borderRadius: '4px',
+    fontWeight: '500',
+    borderRadius: '8px',
     cursor: 'pointer',
+    'user-select': 'none',
     zIndex: '99999',
   });
 
   const label = document.createElement('span');
-  label.textContent = '🖱️';
+  label.textContent = 'Enable Mouse';
   label.title = 'Click to enable mouse control';
+  label.style.cssText = cssToString({
+    cursor: 'pointer',
+    padding: '8px 2px 8px 8px',
+  });
   label.addEventListener('click', () => {
     removeMinimized();
     requestPointerLock();
@@ -82,7 +86,7 @@ function showMinimizedBtn(container: Element): void {
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = cssToString({
     cursor: 'pointer',
-    marginLeft: '4px',
+    padding: '8px 8px 8px 8px',
   });
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
