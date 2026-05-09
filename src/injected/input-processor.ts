@@ -65,6 +65,9 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
     if (code === 'Escape') {
       continue;
     }
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      continue; // GameScript — not yet implemented
+    }
     const names: GamepadActionName[] = Array.isArray(value) ? value : [value];
     const actions: GamepadAction[] = [];
     for (const name of names) {

@@ -58,7 +58,7 @@ Controls how mouse movement maps to an analog stick.
 
 ## GamepadKeyboardConfig
 
-Maps keyboard key codes and virtual mouse codes to gamepad buttons, analog stick directions, and extension actions. It is a plain object where each key is a key code string and each value is a **GamepadActionName** or array of **GamepadActionName**.
+Maps keyboard key codes and virtual mouse codes to gamepad buttons, analog stick directions, extension actions, and scripted sequences. It is a plain object where each key is a key code string and each value is a **GamepadActionName**, an array of **GamepadActionName**, or a **GameScript** object.
 
 ```json
 {
@@ -66,7 +66,11 @@ Maps keyboard key codes and virtual mouse codes to gamepad buttons, analog stick
   "KeyW": "leftStickUp",
   "KeyD": "leftStickRight",
   "Click": "rightTrigger",
-  "F9": "toggleGamepad"
+  "F9": "toggleGamepad",
+  "KeyT": {
+    "activationType": "down",
+    "actions": [{ "press": ["a"], "durationMs": 100 }]
+  }
 }
 ```
 
@@ -137,6 +141,41 @@ The `Gamepad.axes[]` array has 4 entries: `[leftX, leftY, rightX, rightY]`.
 | `"toggleGamepad"` | Toggles the virtual gamepad connection on/off. When toggled off, the gamepad disconnects (`gamepaddisconnected` fires). When toggled on, it reconnects with the current config. Default binding: `"F9"`. |
 
 The toggle keybinding works regardless of whether the gamepad is currently connected — it is always listening.
+
+### GameScript
+
+A key code may instead be bound to a **GameScript** — an object that defines a scripted sequence of timed button presses triggered by a key event.
+
+```json
+{
+  "KeyT": {
+    "activationType": "down",
+    "actions": [
+      { "press": ["a"], "durationMs": 100 },
+      { "delayMs": 50 },
+      { "press": ["b"], "durationMs": 100 }
+    ]
+  }
+}
+```
+
+#### GameScript Fields
+
+| Field            | Type             | Required | Description                                                                                                                                                                              |
+| ---------------- | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activationType` | `string`         | Yes      | When the script runs: `"down"` = trigger once on key down; `"toggle"` = key down starts the script, key down again cancels it; `"pressed"` = trigger once on key down, cancel on key up. |
+| `actions`        | `ScriptAction[]` | Yes      | Ordered list of steps to execute.                                                                                                                                                        |
+
+#### ScriptAction
+
+Each step in `actions` is one of the following:
+
+| Shape                                        | Description                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `{ "press": ["a", "b"], "durationMs": 100 }` | Press the listed buttons simultaneously for `durationMs` milliseconds, then release them.  |
+| `{ "delayMs": 50 }`                          | Wait `delayMs` milliseconds before executing the next step.                                |
+| `{ "loopCount": 3 }`                         | Repeat the preceding sequence of steps `loopCount` times total (including the first pass). |
+| `{ "action": { ...ScriptAction } }`          | Nest a single sub-action (allows recursive composition).                                   |
 
 ### Shared Key Codes
 

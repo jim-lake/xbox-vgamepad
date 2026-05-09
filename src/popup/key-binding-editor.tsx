@@ -229,7 +229,12 @@ function addActionToCode(
   if (existing === undefined) {
     return action;
   }
-  const names = Array.isArray(existing) ? existing : [existing];
+  if (!Array.isArray(existing) && typeof existing === 'object') {
+    return existing; // GameScript — leave unchanged
+  }
+  const names: GamepadActionName[] = Array.isArray(existing)
+    ? existing
+    : [existing];
   if (names.includes(action)) {
     return existing;
   }
@@ -244,7 +249,12 @@ function removeActionFromCode(
   existing: ActionMap,
   action: GamepadActionName
 ): ActionMap | undefined {
-  const names = Array.isArray(existing) ? existing : [existing];
+  if (!Array.isArray(existing) && typeof existing === 'object') {
+    return existing; // GameScript — leave unchanged
+  }
+  const names: GamepadActionName[] = Array.isArray(existing)
+    ? existing
+    : [existing];
   const next = names.filter((n) => n !== action);
   if (next.length === 0) {
     return undefined;

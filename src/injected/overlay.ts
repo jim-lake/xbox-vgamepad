@@ -47,14 +47,14 @@ export function setMinimizedDismissed(val: boolean): void {
   g_minimizedDismissed = val;
 }
 
-function showMinimizedBtn(container: Element): void {
+function showMinimizedBtn(_container: Element): void {
   if (g_minimizedBtn || g_minimizedDismissed) {
     return;
   }
   g_minimizedBtn = document.createElement('div');
   g_minimizedBtn.id = 'xvg-pointer-minimized';
   g_minimizedBtn.style.cssText = cssToString({
-    position: 'absolute',
+    position: 'fixed',
     top: '8px',
     right: '8px',
     display: 'flex',
@@ -66,7 +66,7 @@ function showMinimizedBtn(container: Element): void {
     'border-radius': '8px',
     cursor: 'pointer',
     'user-select': 'none',
-    'z-index': '99999',
+    'z-index': '2147483647',
   });
 
   const label = document.createElement('span');
@@ -95,7 +95,7 @@ function showMinimizedBtn(container: Element): void {
   });
   g_minimizedBtn.appendChild(closeBtn);
 
-  container.appendChild(g_minimizedBtn);
+  document.body.appendChild(g_minimizedBtn);
 }
 
 function minimizeOverlay(container: Element): void {
@@ -123,7 +123,7 @@ export function showOverlay(container: Element): void {
   g_overlay = document.createElement('div');
   g_overlay.id = 'xvg-pointer-overlay';
   g_overlay.style.cssText = cssToString({
-    position: 'absolute',
+    position: 'fixed',
     top: '0',
     left: '0',
     right: '0',
@@ -135,7 +135,7 @@ export function showOverlay(container: Element): void {
     color: '#fff',
     'font-size': '18px',
     cursor: 'pointer',
-    'z-index': '99999',
+    'z-index': '2147483647',
   });
 
   const text = document.createElement('span');
@@ -167,5 +167,5 @@ export function showOverlay(container: Element): void {
   g_overlay.addEventListener('click', () => {
     requestPointerLock();
   });
-  container.appendChild(g_overlay);
+  document.body.appendChild(g_overlay);
 }
