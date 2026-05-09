@@ -33,7 +33,7 @@ export type ScriptAction =
   | { action: ScriptAction };
 
 export type GameScript = {
-  activationType: 'single' | 'toggle' | 'pressed';
+  activationType: 'down' | 'toggle' | 'pressed';
   actions: ScriptAction[];
 };
 
