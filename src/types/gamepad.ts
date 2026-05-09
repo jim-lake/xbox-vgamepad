@@ -26,7 +26,18 @@ export type GamepadActionName =
   | 'rightStickRight'
   | 'toggleGamepad';
 
-export type ActionMap = GamepadActionName | GamepadActionName[];
+export type ScriptAction =
+  | { press: GamepadActionName[]; durationMs: number }
+  | { delayMs: number }
+  | { loopCount: number }
+  | { action: ScriptAction };
+
+export type GameScript = {
+  activationType: 'single' | 'toggle' | 'pressed';
+  actions: ScriptAction[];
+};
+
+export type ActionMap = GamepadActionName | GamepadActionName[] | GameScript;
 
 export type GamepadKeyboardConfig = Record<string, ActionMap>;
 
