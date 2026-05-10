@@ -24,6 +24,7 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Behavioral Contract - Immediate Input Response]');
@@ -66,10 +67,10 @@ module.exports = async function ({
       await page.keyboard.down('Space');
       await waitForButton(page, 0, true);
 
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'clearTest',
@@ -106,10 +107,10 @@ module.exports = async function ({
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
 
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'leftStickUp' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'clearAxes',
@@ -209,14 +210,14 @@ module.exports = async function ({
   await assert(
     'switching from config A to config B where same key maps to different button',
     async () => {
-      const configA = {
+      const configA = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' }, // P → button 0
-      };
-      const configB = {
+      });
+      const configB = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'x' }, // P → button 2
-      };
+      });
 
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -302,10 +303,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { Space: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'partial',
@@ -330,10 +331,10 @@ module.exports = async function ({
   await assert(
     'config with empty keyboardConfig treats all keys as unbound',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: {},
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'emptyKB',

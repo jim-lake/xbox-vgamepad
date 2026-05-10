@@ -26,6 +26,7 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Contract #1 - Gamepad Appears on Activation]');
@@ -240,13 +241,16 @@ module.exports = async function ({
     async () => {
       // Find the first action that has multiple keys bound to it in the default config
       const actionKeys = {};
-      for (const [code, action] of Object.entries(
+      for (const [code, entries] of Object.entries(
         DEFAULT_CONFIG.keyboardConfig
       )) {
-        const act = Array.isArray(action) ? action[0] : action;
-        if (ACTION_BUTTON_INDEX[act] === undefined) continue;
-        if (!CODE_TO_PUPPETEER_KEY[code]) continue;
-        (actionKeys[act] = actionKeys[act] || []).push(code);
+        for (const entry of entries) {
+          if (entry.type !== 'action') continue;
+          const act = entry.action;
+          if (ACTION_BUTTON_INDEX[act] === undefined) continue;
+          if (!CODE_TO_PUPPETEER_KEY[code]) continue;
+          (actionKeys[act] = actionKeys[act] || []).push(code);
+        }
       }
       const [act, codes] = Object.entries(actionKeys).find(
         ([, c]) => c.length > 1
@@ -265,13 +269,16 @@ module.exports = async function ({
   await assert('alternate trigger bindings work independently', async () => {
     // Find an action bound to both a keyboard code and a shift key
     const actionKeys = {};
-    for (const [code, action] of Object.entries(
+    for (const [code, entries] of Object.entries(
       DEFAULT_CONFIG.keyboardConfig
     )) {
-      const act = Array.isArray(action) ? action[0] : action;
-      if (ACTION_BUTTON_INDEX[act] === undefined) continue;
-      if (!CODE_TO_PUPPETEER_KEY[code]) continue;
-      (actionKeys[act] = actionKeys[act] || []).push(code);
+      for (const entry of entries) {
+        if (entry.type !== 'action') continue;
+        const act = entry.action;
+        if (ACTION_BUTTON_INDEX[act] === undefined) continue;
+        if (!CODE_TO_PUPPETEER_KEY[code]) continue;
+        (actionKeys[act] = actionKeys[act] || []).push(code);
+      }
     }
     const entry = Object.entries(actionKeys).find(([, c]) => c.length > 1);
     if (!entry) return; // no multi-key bindings, skip
@@ -350,7 +357,7 @@ module.exports = async function ({
   await assert(
     'config with every keyboardConfig field populated works end-to-end',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: {
           Digit1: 'a',
@@ -379,7 +386,7 @@ module.exports = async function ({
           KeyO: 'rightStickLeft',
           KeyL: 'rightStickRight',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'full25',

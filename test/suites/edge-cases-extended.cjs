@@ -19,6 +19,7 @@ module.exports = async function ({
     waitForAxis,
     waitForAxesCentered,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Edge Case - Full Axis Config (Both Sticks)]');
@@ -26,7 +27,7 @@ module.exports = async function ({
   await assert(
     'config with all 8 axis directions bound works correctly',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           KeyW: 'leftStickUp',
@@ -38,7 +39,7 @@ module.exports = async function ({
           KeyJ: 'rightStickLeft',
           KeyL: 'rightStickRight',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'fullAxes',
@@ -127,10 +128,12 @@ module.exports = async function ({
         'KeyU',
       ];
 
-      const configs = keyCodes.map((code) => ({
-        mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyboardConfig: { [code]: 'a' },
-      }));
+      const configs = keyCodes.map((code) =>
+        makeConfig({
+          mouseConfig: { mouseControls: 1, sensitivity: 10 },
+          keyboardConfig: { [code]: 'a' },
+        })
+      );
 
       for (let i = 0; i < 10; i++) {
         await sendConfigToPage(page, {
@@ -168,10 +171,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { RightClick: 'leftTrigger', Click: 'rightTrigger' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'triggersOnly',
@@ -201,22 +204,22 @@ module.exports = async function ({
     async () => {
       await releaseAll(page);
       const configs = [
-        {
+        makeConfig({
           mouseConfig: { mouseControls: 1, sensitivity: 10 },
           keyboardConfig: { Space: 'a' },
-        },
-        {
+        }),
+        makeConfig({
           mouseConfig: { mouseControls: 1, sensitivity: 10 },
           keyboardConfig: { Space: 'b' },
-        },
-        {
+        }),
+        makeConfig({
           mouseConfig: { mouseControls: 1, sensitivity: 10 },
           keyboardConfig: { Space: 'x' },
-        },
-        {
+        }),
+        makeConfig({
           mouseConfig: { mouseControls: 1, sensitivity: 10 },
           keyboardConfig: { Space: 'start' },
-        },
+        }),
       ];
       const expectedIndices = [0, 1, 2, 9];
 
@@ -274,10 +277,10 @@ module.exports = async function ({
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
       await helpers.waitForStatus(page, 'disconnected');
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {},
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'allUndef',

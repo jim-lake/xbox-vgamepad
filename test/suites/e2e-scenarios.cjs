@@ -23,6 +23,7 @@ module.exports = async function ({
     waitForStatus,
     setStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   // Ensure we start clean with default config
@@ -182,7 +183,7 @@ module.exports = async function ({
       await waitForButton(page, 0, false);
 
       // Switch to a completely different config
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 0, sensitivity: 20 },
         keyboardConfig: {
           KeyJ: 'a',
@@ -190,7 +191,7 @@ module.exports = async function ({
           KeyI: 'leftStickUp',
           KeyM: 'leftStickDown',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'hotswap',
@@ -225,7 +226,7 @@ module.exports = async function ({
       await releaseAll(page);
       await new Promise((r) => setTimeout(r, 200));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           KeyQ: 'leftShoulder',
@@ -233,7 +234,7 @@ module.exports = async function ({
           KeyZ: 'leftTrigger',
           KeyC: 'rightTrigger',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'shoulders',
@@ -399,14 +400,14 @@ module.exports = async function ({
       await releaseAll(page);
       await new Promise((r) => setTimeout(r, 200));
 
-      const preset1 = {
+      const preset1 = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyU: 'a', KeyI: 'b', KeyW: 'leftStickUp' },
-      };
-      const preset2 = {
+      });
+      const preset2 = makeConfig({
         mouseConfig: { mouseControls: 0, sensitivity: 5 },
         keyboardConfig: { KeyJ: 'a', KeyK: 'x', KeyA: 'leftStickLeft' },
-      };
+      });
 
       await setStorageSync(browser, {
         'GP_CONF:e2e1': preset1,

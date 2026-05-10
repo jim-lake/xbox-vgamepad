@@ -18,12 +18,13 @@ module.exports = async function ({
     waitForAxis,
     waitForAxesCentered,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Edge Case - All 17 Buttons Pressed Simultaneously]');
 
   await assert('all 17 buttons can be pressed at the same time', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: undefined, sensitivity: 10 },
       keyboardConfig: {
         Digit1: 'a',
@@ -44,7 +45,7 @@ module.exports = async function ({
         KeyL: 'dpadRight',
         KeyH: 'home',
       },
-    };
+    });
     const keys = [
       '1',
       '2',
@@ -95,7 +96,7 @@ module.exports = async function ({
   await assert(
     'config with only axis bindings works (no button bindings)',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           KeyW: 'leftStickUp',
@@ -103,7 +104,7 @@ module.exports = async function ({
           KeyA: 'leftStickLeft',
           KeyD: 'leftStickRight',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'axesOnly',
@@ -128,10 +129,10 @@ module.exports = async function ({
   await assert(
     'config with only button bindings works (no axis bindings)',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: { Space: 'a', KeyB: 'b', KeyX: 'x' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'buttonsOnly',
@@ -194,7 +195,7 @@ module.exports = async function ({
   await assert(
     'axis with two alternate bindings works for both keys',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           KeyW: 'leftStickUp',
@@ -202,7 +203,7 @@ module.exports = async function ({
           KeyS: 'leftStickDown',
           KeyK: 'leftStickDown',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'axisAlts',

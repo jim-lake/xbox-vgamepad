@@ -9,8 +9,13 @@ module.exports = async function ({
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { getButtonStates, getAxesStates, waitForButton, sendConfigToPage } =
-    helpers;
+  const {
+    getButtonStates,
+    getAxesStates,
+    waitForButton,
+    sendConfigToPage,
+    makeConfig,
+  } = helpers;
 
   console.log('  [Validation - Shared Key Codes]');
 
@@ -18,10 +23,10 @@ module.exports = async function ({
     'shared key code across two button fields activates both',
     async () => {
       // Bind "Space" to both a and b — this is valid (shared bindings)
-      const sharedConfig = {
+      const sharedConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { Space: ['a', 'b'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'shared',
@@ -43,10 +48,10 @@ module.exports = async function ({
   await assert(
     'shared key in array binding across fields activates both',
     async () => {
-      const sharedConfig = {
+      const sharedConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a', KeyQ: ['a', 'x'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'shared2',
@@ -67,10 +72,10 @@ module.exports = async function ({
   console.log('  [Validation - Escape Key Forbidden]');
 
   await assert('Escape key binding is rejected', async () => {
-    const escConfig = {
+    const escConfig = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: { Escape: 'a' },
-    };
+    });
     // Restore default first
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -94,10 +99,10 @@ module.exports = async function ({
   });
 
   await assert('Escape in array binding is rejected', async () => {
-    const escConfig = {
+    const escConfig = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: { Space: 'a', Escape: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'esc2',
@@ -114,10 +119,10 @@ module.exports = async function ({
   console.log('  [Validation - Sensitivity Range]');
 
   await assert('sensitivity=1 (minimum) is accepted', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 1 },
       keyboardConfig: { Space: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'sens1',
@@ -131,10 +136,10 @@ module.exports = async function ({
   });
 
   await assert('sensitivity=1000 (maximum) is accepted', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 1000 },
       keyboardConfig: { Space: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'sens1000',
@@ -150,10 +155,10 @@ module.exports = async function ({
   console.log('  [Validation - mouseControls Values]');
 
   await assert('mouseControls=0 is accepted', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 0, sensitivity: 10 },
       keyboardConfig: { Space: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'mc0',
@@ -167,10 +172,10 @@ module.exports = async function ({
   });
 
   await assert('mouseControls=1 is accepted', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: { Space: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'mc1',
@@ -186,10 +191,10 @@ module.exports = async function ({
   await assert(
     'mouseControls=undefined disables mouse stick control',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: { Space: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mcUndef',

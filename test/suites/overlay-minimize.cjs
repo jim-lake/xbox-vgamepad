@@ -8,7 +8,8 @@ module.exports = async function ({
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { sendConfigToPage, setStorageSync, getStorageSync } = helpers;
+  const { sendConfigToPage, setStorageSync, getStorageSync, makeConfig } =
+    helpers;
 
   async function hasOverlay(pg) {
     return pg.evaluate(() => !!document.getElementById('xvg-pointer-overlay'));
@@ -19,10 +20,10 @@ module.exports = async function ({
     );
   }
 
-  const mouseConfig = {
+  const mouseConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: { Space: 'a' },
-  };
+  });
 
   console.log('  [Overlay Minimize Persistence]');
 

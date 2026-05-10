@@ -15,14 +15,15 @@ module.exports = async function ({
     setStorageSync,
     getStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Popup Auto-Save Behavior]');
 
-  const baseConfig = {
+  const baseConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: { KeyP: 'a' },
-  };
+  });
   await setStorageSync(browser, {
     'GP_CONF:popuptest': baseConfig,
     ACTIVE_GP_CONF: 'popuptest',
@@ -38,14 +39,16 @@ module.exports = async function ({
   await assert(
     'storage update alone does not change active page bindings',
     async () => {
-      const editedConfig = {
+      const editedConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyJ: 'a' },
-      };
+      });
       await setStorageSync(browser, { 'GP_CONF:popuptest': editedConfig });
 
       const stored = await getStorageSync(browser, ['GP_CONF:popuptest']);
-      expect(stored['GP_CONF:popuptest'].keyboardConfig.KeyJ).toBe('a');
+      expect(stored['GP_CONF:popuptest'].keyboardConfig.KeyJ?.[0]?.action).toBe(
+        'a'
+      );
 
       // Page still uses the OLD binding (KeyP)
       await page.keyboard.down('p');
@@ -68,10 +71,10 @@ module.exports = async function ({
   await assert(
     'sending config to page activates new bindings (simulates popup close)',
     async () => {
-      const editedConfig = {
+      const editedConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyJ: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'popuptest',
@@ -101,7 +104,9 @@ module.exports = async function ({
       await setStorageSync(browser, { 'GP_CONF:popuptest': baseConfig });
 
       const stored = await getStorageSync(browser, ['GP_CONF:popuptest']);
-      expect(stored['GP_CONF:popuptest'].keyboardConfig.KeyP).toBe('a');
+      expect(stored['GP_CONF:popuptest'].keyboardConfig.KeyP?.[0]?.action).toBe(
+        'a'
+      );
 
       // Page still has the last-activated config (KeyJ)
       await page.keyboard.down('j');

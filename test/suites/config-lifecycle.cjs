@@ -21,6 +21,7 @@ module.exports = async function ({
     setStorageSync,
     getStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Config Lifecycle - Storage → Activation → Input]');
@@ -28,7 +29,7 @@ module.exports = async function ({
   await assert(
     'config written to storage can be activated and produces correct input',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: {
           KeyP: 'a',
@@ -37,7 +38,7 @@ module.exports = async function ({
           KeyW: 'leftStickUp',
           KeyD: 'leftStickRight',
         },
-      };
+      });
       await setStorageSync(browser, {
         'GP_CONF:lifecycle': config,
         ACTIVE_GP_CONF: 'lifecycle',
@@ -46,7 +47,9 @@ module.exports = async function ({
 
       // Verify storage round-trip
       const stored = await getStorageSync(browser, ['GP_CONF:lifecycle']);
-      expect(stored['GP_CONF:lifecycle'].keyboardConfig.KeyP).toBe('a');
+      expect(stored['GP_CONF:lifecycle'].keyboardConfig.KeyP?.[0]?.action).toBe(
+        'a'
+      );
 
       // Activate
       await sendConfigToPage(page, {
@@ -83,10 +86,10 @@ module.exports = async function ({
       await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
       await waitForStatus(page, 'disconnected');
 
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 0, sensitivity: 20 },
         keyboardConfig: { KeyJ: 'a', KeyH: 'start' },
-      };
+      });
       await setStorageSync(browser, {
         'GP_CONF:updated': newConfig,
         ACTIVE_GP_CONF: 'updated',
@@ -124,19 +127,19 @@ module.exports = async function ({
     'switching between 3 stored presets activates correct bindings each time',
     async () => {
       const presets = {
-        'GP_CONF:fps': {
+        'GP_CONF:fps': makeConfig({
           mouseConfig: { mouseControls: 1, sensitivity: 15 },
           keyboardConfig: { Space: 'a', KeyB: 'b', Click: 'rightTrigger' },
-        },
-        'GP_CONF:racing': {
+        }),
+        'GP_CONF:racing': makeConfig({
           mouseConfig: { mouseControls: 0, sensitivity: 5 },
           keyboardConfig: {
             KeyW: 'rightTrigger',
             KeyS: 'leftTrigger',
             KeyP: 'a',
           },
-        },
-        'GP_CONF:fighting': {
+        }),
+        'GP_CONF:fighting': makeConfig({
           mouseConfig: { mouseControls: undefined, sensitivity: 10 },
           keyboardConfig: {
             KeyJ: 'a',
@@ -146,7 +149,7 @@ module.exports = async function ({
             KeyA: 'leftStickLeft',
             KeyD: 'leftStickRight',
           },
-        },
+        }),
       };
       await setStorageSync(browser, presets);
 
@@ -207,10 +210,10 @@ module.exports = async function ({
   await assert(
     'config persists in storage across disable/enable cycles',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyM: 'a' },
-      };
+      });
       await setStorageSync(browser, {
         'GP_CONF:persist': config,
         ACTIVE_GP_CONF: 'persist',

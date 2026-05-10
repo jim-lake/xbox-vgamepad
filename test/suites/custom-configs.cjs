@@ -16,11 +16,12 @@ module.exports = async function ({
     waitForAxis,
     waitForAxesCentered,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Custom Config - Single String Bindings]');
 
-  const singleBindConfig = {
+  const singleBindConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: {
       KeyP: 'a',
@@ -30,7 +31,7 @@ module.exports = async function ({
       KeyW: 'leftStickUp',
       KeyS: 'leftStickDown',
     },
-  };
+  });
 
   await assert('single string bindings work for buttons', async () => {
     await sendConfigToPage(page, {
@@ -61,7 +62,7 @@ module.exports = async function ({
   console.log('  [Custom Config - Array Bindings]');
 
   // Two keys bound to the same action
-  const arrayBindConfig = {
+  const arrayBindConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: {
       KeyP: 'a',
@@ -69,7 +70,7 @@ module.exports = async function ({
       KeyW: 'leftStickUp',
       KeyI: 'leftStickUp',
     },
-  };
+  });
 
   await assert(
     'array bindings: both keys activate the same button',
@@ -107,10 +108,10 @@ module.exports = async function ({
 
   console.log('  [Custom Config - Minimal (Empty Bindings)]');
 
-  const minimalConfig = {
+  const minimalConfig = makeConfig({
     mouseConfig: { mouseControls: undefined, sensitivity: 10 },
     keyboardConfig: {},
-  };
+  });
 
   await assert('minimal config: no keys produce any button press', async () => {
     await sendConfigToPage(page, {
@@ -135,10 +136,10 @@ module.exports = async function ({
 
   console.log('  [Custom Config - Home Button Bound]');
 
-  const homeConfig = {
+  const homeConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: { KeyH: 'home', Space: 'a' },
-  };
+  });
 
   await assert('home button (index 16) works when bound', async () => {
     await sendConfigToPage(page, {
@@ -157,7 +158,7 @@ module.exports = async function ({
 
   console.log('  [Custom Config - All 17 Buttons Bound]');
 
-  const fullConfig = {
+  const fullConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: {
       Digit1: 'a',
@@ -178,7 +179,7 @@ module.exports = async function ({
       KeyL: 'dpadRight',
       KeyH: 'home',
     },
-  };
+  });
 
   const digitKeys = [
     '1',
@@ -218,10 +219,10 @@ module.exports = async function ({
 
   console.log('  [Custom Config - mouseControls=0 (Left Stick)]');
 
-  const mouseLeftStickConfig = {
+  const mouseLeftStickConfig = makeConfig({
     mouseConfig: { mouseControls: 0, sensitivity: 10 },
     keyboardConfig: { Space: 'a' },
-  };
+  });
 
   await assert('mouseControls=0 config activates without error', async () => {
     await sendConfigToPage(page, {

@@ -6,7 +6,7 @@ import type {
   ActionMap,
   GamepadMouseConfig,
 } from '@/types/gamepad';
-import { DEFAULT_CONFIG } from '@/types/gamepad';
+import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import {
   loadStorage,
   saveConfig,
@@ -390,17 +390,29 @@ export default function App() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mouse</Text>
           <MouseSettings
-            mouseControls={
-              activeConfig.mouseConfig.mouseControls === null
-                ? undefined
-                : activeConfig.mouseConfig.mouseControls
-            }
-            sensitivity={activeConfig.mouseConfig.sensitivity}
+            mouseControls={activeConfig.mouseConfig.mouseControls}
             onChangeStick={(val) => {
-              updateMouseConfig({ mouseControls: val ?? null });
+              updateMouseConfig({
+                mouseControls: val
+                  ? [
+                      {
+                        stick: val,
+                        gamepadIndex: 0,
+                        sensitivity:
+                          activeConfig.mouseConfig.mouseControls[0]
+                            ?.sensitivity ?? DEFAULT_SENSITIVITY,
+                      },
+                    ]
+                  : [],
+              });
             }}
             onChangeSensitivity={(val) => {
-              updateMouseConfig({ sensitivity: val });
+              const current = activeConfig.mouseConfig.mouseControls[0];
+              if (current) {
+                updateMouseConfig({
+                  mouseControls: [{ ...current, sensitivity: val }],
+                });
+              }
             }}
           />
         </View>

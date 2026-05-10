@@ -23,11 +23,11 @@ module.exports = async function ({
 
   console.log('  [Toggle Syncs Enabled State]');
 
-  await assert('F9 toggle sets ENABLED to false in storage', async () => {
+  await assert('F8 toggle sets ENABLED to false in storage', async () => {
     await releaseAll(page);
     await waitForStatus(page, 'connected', 5000);
 
-    await page.keyboard.press('F9');
+    await page.keyboard.press('F8');
     await waitForStatus(page, 'disconnected', 5000);
     // Give time for the message to propagate to background
     await new Promise((r) => setTimeout(r, 500));
@@ -37,9 +37,9 @@ module.exports = async function ({
   });
 
   await assert(
-    'F9 toggle sets ENABLED to true in storage on reconnect',
+    'F8 toggle sets ENABLED to true in storage on reconnect',
     async () => {
-      await page.keyboard.press('F9');
+      await page.keyboard.press('F8');
       await waitForStatus(page, 'connected', 5000);
       await new Promise((r) => setTimeout(r, 500));
 
@@ -52,28 +52,28 @@ module.exports = async function ({
     await releaseAll(page);
 
     // Toggle off
-    await page.keyboard.press('F9');
+    await page.keyboard.press('F8');
     await waitForStatus(page, 'disconnected', 5000);
     await new Promise((r) => setTimeout(r, 500));
     let data = await getStorageSync(browser, ['ENABLED']);
     expect(data.ENABLED).toBeFalse();
 
     // Toggle on
-    await page.keyboard.press('F9');
+    await page.keyboard.press('F8');
     await waitForStatus(page, 'connected', 5000);
     await new Promise((r) => setTimeout(r, 500));
     data = await getStorageSync(browser, ['ENABLED']);
     expect(data.ENABLED).toBeTrue();
 
     // Toggle off again
-    await page.keyboard.press('F9');
+    await page.keyboard.press('F8');
     await waitForStatus(page, 'disconnected', 5000);
     await new Promise((r) => setTimeout(r, 500));
     data = await getStorageSync(browser, ['ENABLED']);
     expect(data.ENABLED).toBeFalse();
 
     // Restore
-    await page.keyboard.press('F9');
+    await page.keyboard.press('F8');
     await waitForStatus(page, 'connected', 5000);
     await new Promise((r) => setTimeout(r, 500));
   });

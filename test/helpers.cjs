@@ -285,6 +285,42 @@ async function getServiceWorker(browser) {
   return swTarget;
 }
 
+/**
+ * Converts shorthand config format to the current format.
+ * mouseConfig: { mouseControls: 0|1|null|undefined, sensitivity: number }
+ *   → { mouseControls: [{ stick, gamepadIndex: 0, sensitivity }] }
+ * keyboardConfig values: string | string[]
+ *   → [{ type: 'action', gamepadIndex: 0, action }]
+ */
+function makeConfig({ mouseConfig, keyboardConfig }) {
+  const { mouseControls, sensitivity = 10 } = mouseConfig;
+  const newMouseControls =
+    mouseControls === 0 || mouseControls === 1
+      ? [
+          {
+            stick: mouseControls === 0 ? 'left' : 'right',
+            gamepadIndex: 0,
+            sensitivity,
+          },
+        ]
+      : [];
+
+  const newKeyboardConfig = {};
+  for (const [code, val] of Object.entries(keyboardConfig)) {
+    const actions = Array.isArray(val) ? val : [val];
+    newKeyboardConfig[code] = actions.map((a) => ({
+      type: 'action',
+      gamepadIndex: 0,
+      action: a,
+    }));
+  }
+
+  return {
+    mouseConfig: { mouseControls: newMouseControls },
+    keyboardConfig: newKeyboardConfig,
+  };
+}
+
 module.exports = {
   startServer,
   stopServer,
@@ -307,5 +343,6 @@ module.exports = {
   sendConfigToPage,
   getExtensionId,
   getTabId,
+  makeConfig,
   serverPort: () => serverPort,
 };

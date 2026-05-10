@@ -23,6 +23,7 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Button Touched Property - JSON Spec]');
@@ -159,10 +160,10 @@ module.exports = async function ({
   await assert(
     'disable then re-enable with same config preserves bindings',
     async () => {
-      const custom = {
+      const custom = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a', KeyB: 'b' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'custom',
@@ -200,18 +201,18 @@ module.exports = async function ({
 
   await assert('rapidly switching configs does not corrupt state', async () => {
     const configs = [
-      {
+      makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' },
-      },
-      {
+      }),
+      makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyB: 'a' },
-      },
-      {
+      }),
+      makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyI: 'a' },
-      },
+      }),
     ];
     const keys = ['p', 'b', 'i'];
 
@@ -280,10 +281,10 @@ module.exports = async function ({
       await waitForButton(page, 2, true);
 
       // Switch to a config where those keys are unbound
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'switch',

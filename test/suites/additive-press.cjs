@@ -14,12 +14,13 @@ module.exports = async function ({
     waitForAxis,
     waitForAxesCentered,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   await releaseAll(page);
 
   // Config: two keys → same button, two keys → same axis direction
-  const config = {
+  const config = makeConfig({
     mouseConfig: { mouseControls: null, sensitivity: 10 },
     keyboardConfig: {
       KeyA: 'a',
@@ -28,7 +29,7 @@ module.exports = async function ({
       KeyI: 'leftStickUp',
       F9: 'toggleGamepad',
     },
-  };
+  });
   await sendConfigToPage(page, {
     type: 'ACTIVATE_GAMEPAD_CONFIG',
     name: 'additive-test',

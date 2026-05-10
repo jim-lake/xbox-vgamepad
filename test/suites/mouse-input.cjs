@@ -16,6 +16,7 @@ module.exports = async function ({
     waitForAxis,
     waitForAxesCentered,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   // Helper to get a CDP session (works across Puppeteer versions)
@@ -66,10 +67,10 @@ module.exports = async function ({
   await assert(
     'mouseControls=0 targets left stick for mouse movement',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 0, sensitivity: 10 },
         keyboardConfig: { Space: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mouseLeft',
@@ -106,10 +107,10 @@ module.exports = async function ({
     'higher sensitivity produces larger stick deflection for same mouse movement',
     async () => {
       // Test with low sensitivity
-      const lowSens = {
+      const lowSens = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 1 },
         keyboardConfig: {},
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'lowSens',
@@ -135,10 +136,10 @@ module.exports = async function ({
       await new Promise((r) => setTimeout(r, 300));
 
       // Test with high sensitivity
-      const highSens = {
+      const highSens = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 100 },
         keyboardConfig: {},
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'highSens',

@@ -17,6 +17,7 @@ module.exports = async function ({
     sendConfigToPage,
     setStorageSync,
     getStorageSync,
+    makeConfig,
   } = helpers;
 
   console.log('  [Validation - Array Length > 2 Rejected]');
@@ -31,10 +32,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { Space: ['a', 'b', 'x'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'arr3',
@@ -60,10 +61,10 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 0 },
       keyboardConfig: { KeyP: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'sens0',
@@ -92,10 +93,10 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 1001 },
       keyboardConfig: { KeyP: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'sens1001',
@@ -124,10 +125,10 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: -1 },
       keyboardConfig: { KeyP: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'sensNeg',
@@ -153,10 +154,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 2, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mc2',
@@ -172,10 +173,10 @@ module.exports = async function ({
   );
 
   await assert('mouseControls=-1 is rejected', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: -1, sensitivity: 10 },
       keyboardConfig: { KeyP: 'a' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'mcNeg',
@@ -194,10 +195,10 @@ module.exports = async function ({
   await assert('25 presets can be stored simultaneously', async () => {
     const presets = {};
     for (let i = 0; i < 25; i++) {
-      presets[`GP_CONF:preset${i}`] = {
+      presets[`GP_CONF:preset${i}`] = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { [`Digit${i % 10}`]: 'a' },
-      };
+      });
     }
     await setStorageSync(browser, presets);
 
@@ -223,10 +224,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { Space: ['a', 'a'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'dupeSame',

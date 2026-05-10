@@ -17,6 +17,7 @@ module.exports = async function ({
     setStorageSync,
     getStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Storage Format - Top-Level Object]');
@@ -54,10 +55,10 @@ module.exports = async function ({
   await assert(
     'writing a custom config to storage and activating it works',
     async () => {
-      const customConfig = {
+      const customConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 15 },
         keyboardConfig: { KeyP: 'a', KeyB: 'b', KeyJ: 'start' },
-      };
+      });
       await setStorageSync(browser, {
         'GP_CONF:roundtrip': customConfig,
         ACTIVE_GP_CONF: 'roundtrip',
@@ -68,9 +69,9 @@ module.exports = async function ({
       const data = await getStorageSync(browser, ['GP_CONF:roundtrip']);
       const stored = data['GP_CONF:roundtrip'];
       if (!stored) throw new Error('Custom config not found after write');
-      if (stored.keyboardConfig.KeyP !== 'a')
+      if (stored.keyboardConfig.KeyP?.[0]?.action !== 'a')
         throw new Error('keyboardConfig.KeyP mismatch');
-      if (stored.mouseConfig.sensitivity !== 15)
+      if (stored.mouseConfig.mouseControls?.[0]?.sensitivity !== 15)
         throw new Error('sensitivity mismatch');
 
       // Activate it via message
@@ -91,7 +92,7 @@ module.exports = async function ({
   await assert(
     'config with all GamepadConfig fields round-trips correctly',
     async () => {
-      const fullConfig = {
+      const fullConfig = makeConfig({
         mouseConfig: { mouseControls: 0, sensitivity: 500 },
         keyboardConfig: {
           Digit1: 'a',
@@ -121,17 +122,17 @@ module.exports = async function ({
           KeyM: 'rightStickLeft',
           KeyU: 'rightStickRight',
         },
-      };
+      });
       await setStorageSync(browser, { 'GP_CONF:full': fullConfig });
       const data = await getStorageSync(browser, ['GP_CONF:full']);
       const stored = data['GP_CONF:full'];
-      if (stored.mouseConfig.mouseControls !== 0)
+      if (stored.mouseConfig.mouseControls?.[0]?.stick !== 'left')
         throw new Error('mouseControls mismatch');
-      if (stored.mouseConfig.sensitivity !== 500)
+      if (stored.mouseConfig.mouseControls?.[0]?.sensitivity !== 500)
         throw new Error('sensitivity mismatch');
-      if (stored.keyboardConfig.KeyH !== 'home')
+      if (stored.keyboardConfig.KeyH?.[0]?.action !== 'home')
         throw new Error('home binding mismatch');
-      if (stored.keyboardConfig.Digit2 !== 'b')
+      if (stored.keyboardConfig.Digit2?.[0]?.action !== 'b')
         throw new Error('b binding mismatch');
     }
   );
@@ -139,18 +140,18 @@ module.exports = async function ({
   console.log('  [Storage - Multiple Presets]');
 
   await assert('multiple presets can coexist in storage', async () => {
-    const preset1 = {
+    const preset1 = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: { KeyP: 'a' },
-    };
-    const preset2 = {
+    });
+    const preset2 = makeConfig({
       mouseConfig: { mouseControls: 0, sensitivity: 20 },
       keyboardConfig: { KeyB: 'a' },
-    };
-    const preset3 = {
+    });
+    const preset3 = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 30 },
       keyboardConfig: { KeyI: 'a' },
-    };
+    });
 
     await setStorageSync(browser, {
       'GP_CONF:p1': preset1,
@@ -166,21 +167,21 @@ module.exports = async function ({
     if (!data['GP_CONF:p1']) throw new Error('preset p1 missing');
     if (!data['GP_CONF:p2']) throw new Error('preset p2 missing');
     if (!data['GP_CONF:p3']) throw new Error('preset p3 missing');
-    if (data['GP_CONF:p2'].mouseConfig.sensitivity !== 20)
+    if (data['GP_CONF:p2'].mouseConfig.mouseControls?.[0]?.sensitivity !== 20)
       throw new Error('p2 sensitivity mismatch');
   });
 
   await assert(
     'switching activeConfig in storage selects the right preset',
     async () => {
-      const presetA = {
+      const presetA = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyI: 'a' },
-      };
-      const presetB = {
+      });
+      const presetB = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyJ: 'a' },
-      };
+      });
 
       await setStorageSync(browser, {
         'GP_CONF:presetA': presetA,

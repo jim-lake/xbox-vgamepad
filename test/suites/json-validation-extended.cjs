@@ -9,18 +9,23 @@ module.exports = async function ({
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { getButtonStates, getAxesStates, waitForButton, sendConfigToPage } =
-    helpers;
+  const {
+    getButtonStates,
+    getAxesStates,
+    waitForButton,
+    sendConfigToPage,
+    makeConfig,
+  } = helpers;
 
   console.log('  [Validation - mouseControls=null Disables Mouse]');
 
   await assert(
     'mouseControls=null is treated same as undefined (disabled)',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: null, sensitivity: 10 },
         keyboardConfig: { Space: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mcNull',
@@ -50,10 +55,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyW: ['a', 'leftStickUp'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'sharedBA',
@@ -85,10 +90,10 @@ module.exports = async function ({
     });
     await new Promise((r) => setTimeout(r, 500));
 
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: { Escape: 'leftStickUp' },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'escAxis',

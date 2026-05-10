@@ -100,9 +100,8 @@ function getCodesForAction(
   action: GamepadActionName
 ): string[] {
   const codes: string[] = [];
-  for (const [code, value] of Object.entries(keyboardConfig)) {
-    const names = Array.isArray(value) ? value : [value];
-    if (names.includes(action)) {
+  for (const [code, entries] of Object.entries(keyboardConfig)) {
+    if (entries.some((e) => e.type === 'action' && e.action === action)) {
       codes.push(code);
     }
   }
@@ -225,20 +224,12 @@ function addActionToCode(
   code: string,
   action: GamepadActionName
 ): ActionMap {
-  const existing = keyboardConfig[code];
-  if (existing === undefined) {
-    return action;
-  }
-  if (!Array.isArray(existing) && typeof existing === 'object') {
-    return existing; // GameScript — leave unchanged
-  }
-  const names: GamepadActionName[] = Array.isArray(existing)
-    ? existing
-    : [existing];
-  if (names.includes(action)) {
+  const existing = keyboardConfig[code] ?? [];
+  // Leave GameScript entries untouched, just append if not already present
+  if (existing.some((e) => e.type === 'action' && e.action === action)) {
     return existing;
   }
-  return [...names, action];
+  return [...existing, { type: 'action', gamepadIndex: 0, action }];
 }
 
 /**
@@ -249,20 +240,10 @@ function removeActionFromCode(
   existing: ActionMap,
   action: GamepadActionName
 ): ActionMap | undefined {
-  if (!Array.isArray(existing) && typeof existing === 'object') {
-    return existing; // GameScript — leave unchanged
-  }
-  const names: GamepadActionName[] = Array.isArray(existing)
-    ? existing
-    : [existing];
-  const next = names.filter((n) => n !== action);
-  if (next.length === 0) {
-    return undefined;
-  }
-  if (next.length === 1) {
-    return next[0];
-  }
-  return next;
+  const next = existing.filter(
+    (e) => !(e.type === 'action' && e.action === action)
+  );
+  return next.length === 0 ? undefined : next;
 }
 
 interface Props {

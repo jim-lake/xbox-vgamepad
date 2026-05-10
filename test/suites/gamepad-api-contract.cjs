@@ -21,6 +21,7 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   async function getCDPSession(pg) {
@@ -204,10 +205,10 @@ module.exports = async function ({
   await assert(
     'mouse movement with mouseControls=undefined does not deflect any stick',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: { Space: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'noMouse',

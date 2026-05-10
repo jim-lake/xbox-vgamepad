@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
+import type { MouseControlTarget } from '@/types/gamepad';
+import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
@@ -29,24 +31,26 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  mouseControls: 0 | 1 | undefined;
-  sensitivity: number;
-  onChangeStick: (val: 0 | 1 | undefined) => void;
+  mouseControls: MouseControlTarget[];
+  onChangeStick: (val: 'left' | 'right' | undefined) => void;
   onChangeSensitivity: (val: number) => void;
 }
 
-const STICK_OPTIONS: { label: string; value: 0 | 1 | undefined }[] = [
-  { label: 'None', value: undefined },
-  { label: 'Left', value: 0 },
-  { label: 'Right', value: 1 },
-];
+const STICK_OPTIONS: { label: string; value: 'left' | 'right' | undefined }[] =
+  [
+    { label: 'None', value: undefined },
+    { label: 'Left', value: 'left' },
+    { label: 'Right', value: 'right' },
+  ];
 
 export default function MouseSettings({
   mouseControls,
-  sensitivity,
   onChangeStick,
   onChangeSensitivity,
 }: Props) {
+  const target = mouseControls[0];
+  const currentStick = target?.stick;
+  const sensitivity = target?.sensitivity ?? DEFAULT_SENSITIVITY;
   // Display sensitivity inverted: higher display = more sensitive
   // Stored as divisor: higher stored = less sensitive
   // Display = 1001 - stored
@@ -69,10 +73,10 @@ export default function MouseSettings({
             key={label}
             style={[
               styles.option,
-              mouseControls === value ? styles.optionActive : undefined,
+              currentStick === value ? styles.optionActive : undefined,
             ]}
             textStyle={
-              mouseControls === value ? styles.optionActiveText : undefined
+              currentStick === value ? styles.optionActiveText : undefined
             }
             text={label}
             onPress={() => {

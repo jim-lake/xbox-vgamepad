@@ -57,9 +57,10 @@ let toggleCodes: Set<string> = new Set(['F9']);
 
 function updateToggleCodes(config: GamepadConfig): void {
   const codes = new Set<string>();
-  for (const [code, value] of Object.entries(config.keyboardConfig)) {
-    const names = Array.isArray(value) ? value : [value];
-    if (names.includes('toggleGamepad')) {
+  for (const [code, entries] of Object.entries(config.keyboardConfig)) {
+    if (
+      entries.some((e) => e.type === 'action' && e.action === 'toggleGamepad')
+    ) {
       codes.add(code);
     }
   }

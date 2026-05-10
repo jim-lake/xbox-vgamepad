@@ -25,6 +25,7 @@ module.exports = async function ({
     setStorageSync,
     getStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [JSON Spec - Storage: configs must contain "default"]');
@@ -65,10 +66,10 @@ module.exports = async function ({
   );
 
   await assert('empty keyboardConfig produces no input', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 10 },
       keyboardConfig: {},
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'emptyKB',
@@ -88,7 +89,7 @@ module.exports = async function ({
   await assert(
     'Click and RightClick work as array binding elements',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: {
           Click: 'rightTrigger',
@@ -96,7 +97,7 @@ module.exports = async function ({
           RightClick: 'leftTrigger',
           KeyQ: 'leftTrigger',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mouseArr',
@@ -143,10 +144,10 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a', KeyQ: ['a', 'b'] },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'sharedArr',
@@ -235,16 +236,15 @@ module.exports = async function ({
 
       const keyboardConfig = {};
       for (let i = 0; i < actions.length; i++) {
-        keyboardConfig[keyCodes[i]] = actions[i];
+        keyboardConfig[keyCodes[i]] = [
+          { type: 'action', gamepadIndex: 0, action: actions[i] },
+        ];
       }
 
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'allIndices',
-        gamepadConfig: {
-          mouseConfig: { mouseControls: undefined, sensitivity: 10 },
-          keyboardConfig,
-        },
+        gamepadConfig: { mouseConfig: { mouseControls: [] }, keyboardConfig },
       });
       await new Promise((r) => setTimeout(r, 500));
 
@@ -276,7 +276,7 @@ module.exports = async function ({
       await releaseAll(page);
       await new Promise((r) => setTimeout(r, 200));
 
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           KeyW: 'leftStickUp',
@@ -288,7 +288,7 @@ module.exports = async function ({
           KeyJ: 'rightStickLeft',
           KeyL: 'rightStickRight',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'axisComplete',
@@ -338,10 +338,10 @@ module.exports = async function ({
   await assert(
     'sensitivity=1 (minimum valid) activates config successfully',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 1 },
         keyboardConfig: { KeyP: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'sensMin',
@@ -358,10 +358,10 @@ module.exports = async function ({
   await assert(
     'sensitivity=1000 (maximum valid) activates config successfully',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 1000 },
         keyboardConfig: { KeyP: 'a' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'sensMax',
@@ -387,10 +387,10 @@ module.exports = async function ({
   }
 
   await assert('mouseControls=0 targets left stick (axes 0,1)', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 0, sensitivity: 50 },
       keyboardConfig: {},
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'mouseLeft',
@@ -423,10 +423,10 @@ module.exports = async function ({
   });
 
   await assert('mouseControls=1 targets right stick (axes 2,3)', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: 1, sensitivity: 50 },
       keyboardConfig: {},
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'mouseRight',

@@ -22,14 +22,15 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Trigger Buttons via Keyboard - Custom Config]');
 
-  const triggerConfig = {
+  const triggerConfig = makeConfig({
     mouseConfig: { mouseControls: undefined, sensitivity: 10 },
     keyboardConfig: { KeyQ: 'leftTrigger', KeyE: 'rightTrigger', Space: 'a' },
-  };
+  });
 
   await assert(
     'left trigger (index 6) activates via keyboard binding',
@@ -105,7 +106,7 @@ module.exports = async function ({
   );
 
   await assert('triggers with array bindings work for both keys', async () => {
-    const config = {
+    const config = makeConfig({
       mouseConfig: { mouseControls: undefined, sensitivity: 10 },
       keyboardConfig: {
         KeyQ: 'leftTrigger',
@@ -113,7 +114,7 @@ module.exports = async function ({
         KeyE: 'rightTrigger',
         KeyX: 'rightTrigger',
       },
-    };
+    });
     await sendConfigToPage(page, {
       type: 'ACTIVATE_GAMEPAD_CONFIG',
       name: 'triggerArr',

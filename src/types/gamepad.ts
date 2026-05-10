@@ -26,24 +26,36 @@ export type GamepadActionName =
   | 'rightStickRight'
   | 'toggleGamepad';
 
+export interface GamepadAction {
+  type: 'action';
+  gamepadIndex: 0 | 1 | 2 | 3;
+  action: GamepadActionName;
+}
+
 export type ScriptAction =
-  | { type: 'down'; buttons: GamepadActionName[] }
-  | { type: 'up'; buttons: GamepadActionName[] }
+  | { type: 'down'; buttons: GamepadAction[] }
+  | { type: 'up'; buttons: GamepadAction[] }
   | { type: 'delay'; durationMs: number }
   | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction[] };
 
 export type GameScript = {
+  type: 'script';
   activationType: 'on_down' | 'on_up' | 'toggle' | 'held';
   actions: ScriptAction[];
 };
 
-export type ActionMap = GamepadActionName | GamepadActionName[] | GameScript;
+export type ActionMap = (GamepadAction | GameScript)[];
 
 export type GamepadKeyboardConfig = Record<string, ActionMap>;
 
-export interface GamepadMouseConfig {
-  mouseControls?: 0 | 1 | undefined | null;
+export interface MouseControlTarget {
+  stick: 'left' | 'right';
+  gamepadIndex: 0 | 1 | 2 | 3;
   sensitivity: number;
+}
+
+export interface GamepadMouseConfig {
+  mouseControls: MouseControlTarget[];
 }
 
 export interface GamepadConfig {
@@ -97,43 +109,51 @@ export interface ButtonAction {
   index: number;
 }
 
-export type GamepadAction = AxisAction | ButtonAction;
+export type ResolvedAction = AxisAction | ButtonAction;
 
 export const CONFIG_PREFIX = 'GP_CONF:';
 
 export const DEFAULT_SENSITIVITY = 101;
 
 export const DEFAULT_CONFIG: GamepadConfig = {
-  mouseConfig: { mouseControls: 1, sensitivity: DEFAULT_SENSITIVITY },
+  mouseConfig: {
+    mouseControls: [
+      { stick: 'right', gamepadIndex: 0, sensitivity: DEFAULT_SENSITIVITY },
+    ],
+  },
   keyboardConfig: {
-    Space: 'a',
-    KeyB: 'b',
-    Backspace: 'b',
-    KeyY: 'y',
-    KeyX: 'x',
-    KeyQ: 'leftShoulder',
-    KeyE: 'rightShoulder',
-    RightClick: 'leftTrigger',
-    Click: 'rightTrigger',
-    BracketLeft: 'leftStickPressed',
-    BracketRight: 'rightStickPressed',
-    Enter: 'start',
-    Tab: 'select',
-    ArrowUp: 'dpadUp',
-    ArrowDown: 'dpadDown',
-    ArrowLeft: 'dpadLeft',
-    ArrowRight: 'dpadRight',
-    ShiftRight: 'rightTrigger',
-    ShiftLeft: 'leftTrigger',
-    KeyW: 'leftStickUp',
-    KeyS: 'leftStickDown',
-    KeyA: 'leftStickLeft',
-    KeyD: 'leftStickRight',
-    KeyO: 'rightStickUp',
-    KeyL: 'rightStickDown',
-    KeyK: 'rightStickLeft',
-    Semicolon: 'rightStickRight',
-    Backslash: 'home',
-    F8: 'toggleGamepad',
+    Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+    KeyB: [{ type: 'action', gamepadIndex: 0, action: 'b' }],
+    Backspace: [{ type: 'action', gamepadIndex: 0, action: 'b' }],
+    KeyY: [{ type: 'action', gamepadIndex: 0, action: 'y' }],
+    KeyX: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+    KeyQ: [{ type: 'action', gamepadIndex: 0, action: 'leftShoulder' }],
+    KeyE: [{ type: 'action', gamepadIndex: 0, action: 'rightShoulder' }],
+    RightClick: [{ type: 'action', gamepadIndex: 0, action: 'leftTrigger' }],
+    Click: [{ type: 'action', gamepadIndex: 0, action: 'rightTrigger' }],
+    BracketLeft: [
+      { type: 'action', gamepadIndex: 0, action: 'leftStickPressed' },
+    ],
+    BracketRight: [
+      { type: 'action', gamepadIndex: 0, action: 'rightStickPressed' },
+    ],
+    Enter: [{ type: 'action', gamepadIndex: 0, action: 'start' }],
+    Tab: [{ type: 'action', gamepadIndex: 0, action: 'select' }],
+    ArrowUp: [{ type: 'action', gamepadIndex: 0, action: 'dpadUp' }],
+    ArrowDown: [{ type: 'action', gamepadIndex: 0, action: 'dpadDown' }],
+    ArrowLeft: [{ type: 'action', gamepadIndex: 0, action: 'dpadLeft' }],
+    ArrowRight: [{ type: 'action', gamepadIndex: 0, action: 'dpadRight' }],
+    ShiftRight: [{ type: 'action', gamepadIndex: 0, action: 'rightTrigger' }],
+    ShiftLeft: [{ type: 'action', gamepadIndex: 0, action: 'leftTrigger' }],
+    KeyW: [{ type: 'action', gamepadIndex: 0, action: 'leftStickUp' }],
+    KeyS: [{ type: 'action', gamepadIndex: 0, action: 'leftStickDown' }],
+    KeyA: [{ type: 'action', gamepadIndex: 0, action: 'leftStickLeft' }],
+    KeyD: [{ type: 'action', gamepadIndex: 0, action: 'leftStickRight' }],
+    KeyO: [{ type: 'action', gamepadIndex: 0, action: 'rightStickUp' }],
+    KeyL: [{ type: 'action', gamepadIndex: 0, action: 'rightStickDown' }],
+    KeyK: [{ type: 'action', gamepadIndex: 0, action: 'rightStickLeft' }],
+    Semicolon: [{ type: 'action', gamepadIndex: 0, action: 'rightStickRight' }],
+    Backslash: [{ type: 'action', gamepadIndex: 0, action: 'home' }],
+    F8: [{ type: 'action', gamepadIndex: 0, action: 'toggleGamepad' }],
   },
 };

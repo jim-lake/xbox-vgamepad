@@ -1,6 +1,6 @@
 import type {
   GamepadConfig,
-  GamepadAction,
+  ResolvedAction,
   GamepadActionName,
 } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
@@ -37,9 +37,9 @@ const AXIS_ACTION_MAP: Record<string, { stick: number; direction: Direction }> =
     rightStickRight: { stick: 1, direction: Direction.RIGHT },
   };
 
-function actionNameToGamepadAction(
+function actionNameToResolvedAction(
   name: GamepadActionName
-): GamepadAction | undefined {
+): ResolvedAction | undefined {
   if (name === 'toggleGamepad') {
     return undefined;
   }
@@ -58,22 +58,21 @@ function actionNameToGamepadAction(
   return undefined;
 }
 
-function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
-  const map = new Map<string, GamepadAction[]>();
+function buildKeyMap(config: GamepadConfig): Map<string, ResolvedAction[]> {
+  const map = new Map<string, ResolvedAction[]>();
 
-  for (const [code, value] of Object.entries(config.keyboardConfig)) {
+  for (const [code, entries] of Object.entries(config.keyboardConfig)) {
     if (code === 'Escape') {
       continue;
     }
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      continue; // GameScript — not yet implemented
-    }
-    const names: GamepadActionName[] = Array.isArray(value) ? value : [value];
-    const actions: GamepadAction[] = [];
-    for (const name of names) {
-      const action = actionNameToGamepadAction(name);
-      if (action) {
-        actions.push(action);
+    const actions: ResolvedAction[] = [];
+    for (const entry of entries) {
+      if (entry.type === 'script') {
+        continue; // GameScript — not yet implemented
+      }
+      const resolved = actionNameToResolvedAction(entry.action);
+      if (resolved) {
+        actions.push(resolved);
       }
     }
     if (actions.length > 0) {
@@ -84,7 +83,7 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
 }
 
 // Module state
-let g_keyMap = new Map<string, GamepadAction[]>();
+let g_keyMap = new Map<string, ResolvedAction[]>();
 let g_mouseStick: number | null = null;
 let g_sensitivity = 10;
 let g_active = false;
@@ -108,7 +107,7 @@ let g_lastMoveProcess = 0;
 
 // Scroll state
 let g_scrollTimer: ReturnType<typeof setTimeout> | null = null;
-let g_scrollActions: GamepadAction[] | null = null;
+let g_scrollActions: ResolvedAction[] | null = null;
 
 function clearTimers(): void {
   if (g_scrollTimer !== null) {
@@ -129,7 +128,7 @@ function getGameContainer(): Element | null {
   return document.getElementById('game-stream') ?? document.body;
 }
 
-function executePress(action: GamepadAction): void {
+function executePress(action: ResolvedAction): void {
   if (action.type === 'button') {
     gamepadSimulator.pressButton(action.index);
   } else {
@@ -140,7 +139,7 @@ function executePress(action: GamepadAction): void {
   }
 }
 
-function executeUnpress(action: GamepadAction): void {
+function executeUnpress(action: ResolvedAction): void {
   if (action.type === 'button') {
     gamepadSimulator.unpressButton(action.index);
   } else {
@@ -390,8 +389,9 @@ export function activate(
     clearTimers();
     gamepadSimulator.resetState();
     g_keyMap = buildKeyMap(config);
-    g_sensitivity = config.mouseConfig.sensitivity || 10;
-    g_mouseStick = config.mouseConfig.mouseControls ?? null;
+    const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
+    g_sensitivity = mouseTarget?.sensitivity ?? 10;
+    g_mouseStick = mouseTarget ? (mouseTarget.stick === 'left' ? 0 : 1) : null;
     attachKeyboard();
     attachMouseButtons();
     if (g_mouseStick !== null) {
@@ -404,8 +404,9 @@ export function activate(
     return;
   }
   g_keyMap = buildKeyMap(config);
-  g_sensitivity = config.mouseConfig.sensitivity || 10;
-  g_mouseStick = config.mouseConfig.mouseControls ?? null;
+  const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
+  g_sensitivity = mouseTarget?.sensitivity ?? 10;
+  g_mouseStick = mouseTarget ? (mouseTarget.stick === 'left' ? 0 : 1) : null;
   g_active = true;
 
   attachKeyboard();

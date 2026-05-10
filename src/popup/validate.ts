@@ -15,21 +15,20 @@ export function validateConfig(config: unknown): config is GamepadConfig {
     return false;
   }
   const mouseControls = (mc as Record<string, unknown>)['mouseControls'];
-  if (
-    mouseControls !== undefined &&
-    mouseControls !== null &&
-    mouseControls !== 0 &&
-    mouseControls !== 1
-  ) {
+  if (!Array.isArray(mouseControls)) {
     return false;
   }
-  const sensitivity = (mc as Record<string, unknown>)['sensitivity'];
-  if (
-    typeof sensitivity !== 'number' ||
-    sensitivity < 1 ||
-    sensitivity > 1000
-  ) {
-    return false;
+  for (const target of mouseControls) {
+    if (
+      !target ||
+      typeof target !== 'object' ||
+      ((target as Record<string, unknown>)['stick'] !== 'left' &&
+        (target as Record<string, unknown>)['stick'] !== 'right') ||
+      typeof (target as Record<string, unknown>)['gamepadIndex'] !== 'number' ||
+      typeof (target as Record<string, unknown>)['sensitivity'] !== 'number'
+    ) {
+      return false;
+    }
   }
 
   const kc = (config as Record<string, unknown>)['keyboardConfig'];
@@ -41,16 +40,17 @@ export function validateConfig(config: unknown): config is GamepadConfig {
     if (key === 'Escape') {
       return false;
     }
-    if (typeof val === 'string') {
-      continue;
-    } else if (Array.isArray(val)) {
-      for (const action of val as unknown[]) {
-        if (typeof action !== 'string') {
-          return false;
-        }
-      }
-    } else {
+    if (!Array.isArray(val)) {
       return false;
+    }
+    for (const entry of val as unknown[]) {
+      if (!entry || typeof entry !== 'object') {
+        return false;
+      }
+      const e = entry as Record<string, unknown>;
+      if (e['type'] !== 'action' && e['type'] !== 'script') {
+        return false;
+      }
     }
   }
 

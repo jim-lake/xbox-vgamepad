@@ -17,14 +17,15 @@ module.exports = async function ({
     waitForStatus,
     setStorageSync,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Config Preset Switching]');
 
-  const customConfig = {
+  const customConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: { KeyP: 'a', KeyB: 'b' },
-  };
+  });
 
   await assert(
     'switching to a custom preset changes key bindings',
@@ -79,10 +80,10 @@ module.exports = async function ({
   );
 
   // New: switch between 3 presets
-  const preset2 = {
+  const preset2 = makeConfig({
     mouseConfig: { mouseControls: 0, sensitivity: 5 },
     keyboardConfig: { KeyI: 'a', KeyJ: 'start' },
-  };
+  });
 
   await assert(
     'switching between multiple presets works correctly',

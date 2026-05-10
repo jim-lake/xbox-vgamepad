@@ -20,6 +20,7 @@ module.exports = async function ({
     waitForAxesCentered,
     waitForStatus,
     sendConfigToPage,
+    makeConfig,
   } = helpers;
 
   console.log('  [Edge Case - Empty Array Binding]');
@@ -27,10 +28,10 @@ module.exports = async function ({
   await assert(
     'config with empty array binding [] treats field as unbound',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'b' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'emptyArr',
@@ -55,10 +56,10 @@ module.exports = async function ({
   await assert(
     'config with only Click and RightClick bindings works',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { Click: 'rightTrigger', RightClick: 'leftTrigger' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mouseOnly',
@@ -89,14 +90,14 @@ module.exports = async function ({
   await assert(
     'rapidly alternating between two configs 20 times ends correctly',
     async () => {
-      const configA = {
+      const configA = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a' },
-      };
-      const configB = {
+      });
+      const configB = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyB: 'a' },
-      };
+      });
 
       for (let i = 0; i < 20; i++) {
         const cfg = i % 2 === 0 ? configA : configB;
@@ -128,7 +129,7 @@ module.exports = async function ({
   await assert(
     'all 17 buttons + all 4 axes active at the same time',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: undefined, sensitivity: 10 },
         keyboardConfig: {
           Digit1: 'a',
@@ -153,7 +154,7 @@ module.exports = async function ({
           KeyL: 'rightStickRight',
           KeyK: 'rightStickDown',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'allAtOnce',
@@ -221,7 +222,7 @@ module.exports = async function ({
   await assert(
     'config mixing single strings and arrays works correctly',
     async () => {
-      const config = {
+      const config = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: {
           Space: 'a',
@@ -234,7 +235,7 @@ module.exports = async function ({
           KeyG: 'leftStickDown',
           KeyY: 'leftStickDown',
         },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'mixed',
@@ -291,10 +292,10 @@ module.exports = async function ({
       await waitForButton(page, 0, false);
       await waitForAxesCentered(page);
 
-      const newConfig = {
+      const newConfig = makeConfig({
         mouseConfig: { mouseControls: 1, sensitivity: 10 },
         keyboardConfig: { KeyP: 'a', KeyI: 'leftStickUp' },
-      };
+      });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'switchClean',

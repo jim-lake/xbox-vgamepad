@@ -7,7 +7,7 @@ module.exports = async function ({
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { sendConfigToPage, waitForReady } = helpers;
+  const { sendConfigToPage, waitForReady, makeConfig } = helpers;
 
   async function hasOverlay(pg) {
     return pg.evaluate(() => !!document.getElementById('xvg-pointer-overlay'));
@@ -18,18 +18,18 @@ module.exports = async function ({
     );
   }
 
-  const noMouseConfig = {
+  const noMouseConfig = makeConfig({
     mouseConfig: { mouseControls: null, sensitivity: 10 },
     keyboardConfig: { Space: 'a' },
-  };
-  const leftStickConfig = {
+  });
+  const leftStickConfig = makeConfig({
     mouseConfig: { mouseControls: 0, sensitivity: 10 },
     keyboardConfig: { Space: 'a' },
-  };
-  const rightStickConfig = {
+  });
+  const rightStickConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
     keyboardConfig: { Space: 'a' },
-  };
+  });
 
   console.log('  [Mouse Axis Switching: no-axis → left → no-axis]');
 
