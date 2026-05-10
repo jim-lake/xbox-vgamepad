@@ -17,7 +17,7 @@ export function showToast(message: string): void {
       padding: '12px 24px',
       'border-radius': '8px',
       'font-size': '14px',
-      'z-index': '999999',
+      'z-index': '2147483647',
       opacity: '0',
       transition: 'opacity 0.5s',
       'pointer-events': 'none',

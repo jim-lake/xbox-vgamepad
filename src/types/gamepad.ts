@@ -101,7 +101,7 @@ export type GamepadAction = AxisAction | ButtonAction;
 
 export const CONFIG_PREFIX = 'GP_CONF:';
 
-export const DEFAULT_SENSITIVITY = 10;
+export const DEFAULT_SENSITIVITY = 101;
 
 export const DEFAULT_CONFIG: GamepadConfig = {
   mouseConfig: { mouseControls: 1, sensitivity: DEFAULT_SENSITIVITY },

@@ -66,7 +66,7 @@ function showMinimizedBtn(_container: Element): void {
     'border-radius': '8px',
     cursor: 'pointer',
     'user-select': 'none',
-    'z-index': '2147483647',
+    'z-index': '2147483646',
   });
 
   const label = document.createElement('span');
@@ -135,7 +135,7 @@ export function showOverlay(container: Element): void {
     color: '#fff',
     'font-size': '18px',
     cursor: 'pointer',
-    'z-index': '2147483647',
+    'z-index': '2147483646',
   });
 
   const text = document.createElement('span');
