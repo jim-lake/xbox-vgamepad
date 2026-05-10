@@ -223,7 +223,7 @@ module.exports = async function ({
   );
 
   await assert(
-    'releasing one axis alternate releases the axis (no per-key tracking)',
+    'holding both axis alternates then releasing one keeps axis deflected',
     async () => {
       await page.keyboard.down('w');
       await waitForAxis(page, 1, 'lt', -0.5);
@@ -232,6 +232,9 @@ module.exports = async function ({
 
       await page.keyboard.up('w');
       await new Promise((r) => setTimeout(r, 100));
+      // i is still held — axis should remain deflected
+      const axes = await getAxesStates(page);
+      expect(axes[1]).toBeCloseTo(-1, 0.05);
 
       await page.keyboard.up('i');
       await waitForAxesCentered(page);

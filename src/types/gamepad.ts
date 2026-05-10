@@ -27,10 +27,10 @@ export type GamepadActionName =
   | 'toggleGamepad';
 
 export type ScriptAction =
-  | { type: 'down';  buttons: GamepadActionName[] }
-  | { type: 'up';    buttons: GamepadActionName[] }
+  | { type: 'down'; buttons: GamepadActionName[] }
+  | { type: 'up'; buttons: GamepadActionName[] }
   | { type: 'delay'; durationMs: number }
-  | { type: 'loop';  count: number | 'infinite'; actions: ScriptAction[] };
+  | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction[] };
 
 export type GameScript = {
   activationType: 'on_down' | 'on_up' | 'toggle' | 'held';

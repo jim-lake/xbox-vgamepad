@@ -37,4 +37,5 @@ runSuites([
   path.join(__dirname, 'suites', 'mouse-axis-switching.cjs'),
   path.join(__dirname, 'suites', 'overlay-minimize.cjs'),
   path.join(__dirname, 'suites', 'toggle-syncs-enabled.cjs'),
+  path.join(__dirname, 'suites', 'additive-press.cjs'),
 ]);

@@ -38,11 +38,13 @@ let g_timestamp = performance.now();
 let g_connected = false;
 let g_enabled = false;
 const g_originalGetGamepads = navigator.getGamepads.bind(navigator);
-// Track which directions are pressed per stick: [stick][direction] = boolean
-let g_dirPressed: boolean[][] = [
-  [false, false, false, false],
-  [false, false, false, false],
+// Track which directions are pressed per stick: [stick][direction] = press count
+let g_dirPressed: number[][] = [
+  [0, 0, 0, 0],
+  [0, 0, 0, 0],
 ];
+// Reference counts for button presses
+let g_buttonPressCount: number[] = Array.from<number>({ length: 17 }).fill(0);
 
 function snapshot(): Gamepad {
   return {
@@ -66,9 +68,10 @@ function reset(): void {
   }
   g_axes = [0, 0, 0, 0];
   g_dirPressed = [
-    [false, false, false, false],
-    [false, false, false, false],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
   ];
+  g_buttonPressCount = Array.from<number>({ length: 17 }).fill(0);
 }
 
 // Patch getGamepads immediately on module load
@@ -117,6 +120,7 @@ export function resetState(): void {
 export function pressButton(index: number): void {
   const btn = g_buttons[index];
   if (btn) {
+    g_buttonPressCount[index] = (g_buttonPressCount[index] ?? 0) + 1;
     btn.pressed = true;
     btn.touched = true;
     btn.value = 1;
@@ -127,10 +131,14 @@ export function pressButton(index: number): void {
 export function unpressButton(index: number): void {
   const btn = g_buttons[index];
   if (btn) {
-    btn.pressed = false;
-    btn.touched = false;
-    btn.value = 0;
-    g_timestamp = performance.now();
+    const count = (g_buttonPressCount[index] ?? 1) - 1;
+    g_buttonPressCount[index] = Math.max(0, count);
+    if (g_buttonPressCount[index] === 0) {
+      btn.pressed = false;
+      btn.touched = false;
+      btn.value = 0;
+      g_timestamp = performance.now();
+    }
   }
 }
 
@@ -140,10 +148,11 @@ export function pressDirection(stick: number, direction: AxisDirection): void {
   if (!dirArr) {
     return;
   }
-  dirArr[direction] = true;
+  dirArr[direction] = (dirArr[direction] ?? 0) + 1;
   const oppMeta = directionMeta[meta.opposite];
   const axisIndex = stick * 2 + meta.position;
-  const value = meta.value + (dirArr[meta.opposite] ? oppMeta.value : 0);
+  const value =
+    meta.value + ((dirArr[meta.opposite] ?? 0) > 0 ? oppMeta.value : 0);
   g_axes[axisIndex] = value;
   g_timestamp = performance.now();
 }
@@ -157,9 +166,15 @@ export function unpressDirection(
   if (!dirArr) {
     return;
   }
-  dirArr[direction] = false;
+  dirArr[direction] = Math.max(0, (dirArr[direction] ?? 1) - 1);
   const axisIndex = stick * 2 + meta.position;
-  if (dirArr[meta.opposite]) {
+  const thisHeld = dirArr[direction] > 0;
+  const oppHeld = (dirArr[meta.opposite] ?? 0) > 0;
+  if (thisHeld && oppHeld) {
+    g_axes[axisIndex] = 0;
+  } else if (thisHeld) {
+    g_axes[axisIndex] = meta.value;
+  } else if (oppHeld) {
     g_axes[axisIndex] = directionMeta[meta.opposite].value;
   } else {
     g_axes[axisIndex] = 0;

@@ -68,8 +68,12 @@ Maps keyboard key codes and virtual mouse codes to gamepad buttons, analog stick
   "Click": "rightTrigger",
   "F9": "toggleGamepad",
   "KeyT": {
-    "activationType": "down",
-    "actions": [{ "press": ["a"], "durationMs": 100 }]
+    "activationType": "on_down",
+    "actions": [
+      { "type": "down", "buttons": ["a"] },
+      { "type": "delay", "durationMs": 100 },
+      { "type": "up", "buttons": ["a"] }
+    ]
   }
 }
 ```
@@ -144,16 +148,16 @@ The toggle keybinding works regardless of whether the gamepad is currently conne
 
 ### GameScript
 
-A key code may instead be bound to a **GameScript** — an object that defines a scripted sequence of timed button presses triggered by a key event.
+A key code may instead be bound to a **GameScript** — an object that defines a scripted sequence of button actions triggered by a key event.
 
 ```json
 {
   "KeyT": {
-    "activationType": "down",
+    "activationType": "on_down",
     "actions": [
-      { "press": ["a"], "durationMs": 100 },
-      { "delayMs": 50 },
-      { "press": ["b"], "durationMs": 100 }
+      { "type": "down", "buttons": ["a"] },
+      { "type": "delay", "durationMs": 100 },
+      { "type": "up", "buttons": ["a"] }
     ]
   }
 }
@@ -161,21 +165,43 @@ A key code may instead be bound to a **GameScript** — an object that defines a
 
 #### GameScript Fields
 
-| Field            | Type             | Required | Description                                                                                                                                                                              |
-| ---------------- | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activationType` | `string`         | Yes      | When the script runs: `"down"` = trigger once on key down; `"toggle"` = key down starts the script, key down again cancels it; `"pressed"` = trigger once on key down, cancel on key up. |
-| `actions`        | `ScriptAction[]` | Yes      | Ordered list of steps to execute.                                                                                                                                                        |
+| Field            | Type             | Required | Description                                              |
+| ---------------- | ---------------- | -------- | -------------------------------------------------------- |
+| `activationType` | `string`         | Yes      | When the script runs. See activation type details below. |
+| `actions`        | `ScriptAction[]` | Yes      | Ordered list of steps to execute.                        |
+
+#### Activation Types
+
+| `activationType` | Trigger                                                                                            | Cancel                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `"on_down"`      | Key down. If the script is already running, it is **cancelled first**, then immediately restarted. | Implicitly cancelled and restarted on each key down.                  |
+| `"on_up"`        | Key up. If the script is already running, it is **cancelled first**, then immediately restarted.   | Implicitly cancelled and restarted on each key up.                    |
+| `"toggle"`       | First key down starts the script.                                                                  | Second key down **cancels** the running script (it does not restart). |
+| `"held"`         | Key down starts the script.                                                                        | Key **up cancels** the running script.                                |
+
+"Cancelling" a script means it stops executing immediately. Any buttons that the script pressed and has not yet released remain held by the script's press — but see the additive press model below for how that interacts with other inputs.
 
 #### ScriptAction
 
 Each step in `actions` is one of the following:
 
-| Shape                                        | Description                                                                                |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `{ "press": ["a", "b"], "durationMs": 100 }` | Press the listed buttons simultaneously for `durationMs` milliseconds, then release them.  |
-| `{ "delayMs": 50 }`                          | Wait `delayMs` milliseconds before executing the next step.                                |
-| `{ "loopCount": 3 }`                         | Repeat the preceding sequence of steps `loopCount` times total (including the first pass). |
-| `{ "action": { ...ScriptAction } }`          | Nest a single sub-action (allows recursive composition).                                   |
+| Shape                                                              | Description                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `{ "type": "down", "buttons": ["a", "b"] }`                        | Press the listed buttons (does not release them).                                                                   |
+| `{ "type": "up", "buttons": ["a", "b"] }`                          | Release the listed buttons.                                                                                         |
+| `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step.                                                                |
+| `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled. |
+
+### Additive Button Press Model
+
+Button presses from all sources — direct key bindings, multiple scripts running simultaneously, and physical user input — are **additive**. A button is held down as long as **any** source is pressing it.
+
+- A `{ "type": "down" }` step adds a press from that script.
+- A `{ "type": "up" }` step removes that script's press. If another source (a different script, or the user physically holding the key) is still pressing the same button, the button **remains held**.
+- Cancelling a script removes all presses that script had applied.
+- The same rule applies to user input: if a script is holding a button and the user also presses that key, releasing the user's key does not release the button — the script's press still holds it.
+
+This means `"up"` in a script is not a "force release" — it only removes that script's contribution to the button state.
 
 ### Shared Key Codes
 
