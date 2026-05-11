@@ -27,6 +27,7 @@ import MouseSettings from './mouse-settings';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import Toolbar from '@/components/popup/toolbar';
+import Select from '@/components/select';
 
 const MAX_PRESETS = 25;
 
@@ -327,6 +328,35 @@ export default function App() {
     [activeConfigName, persist]
   );
 
+  const updateGamepadIndex = React.useCallback(
+    (index: 0 | 1 | 2 | 3) => {
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+        const mouseControls = current.mouseConfig.mouseControls.map((t) => ({
+          ...t,
+          gamepadIndex: index,
+        }));
+        const keyboardConfig = Object.fromEntries(
+          Object.entries(current.keyboardConfig).map(([code, entries]) => [
+            code,
+            entries.map((e) =>
+              e.type === 'action' ? { ...e, gamepadIndex: index } : e
+            ),
+          ])
+        );
+        const next = {
+          ...current,
+          mouseConfig: { ...current.mouseConfig, mouseControls },
+          keyboardConfig,
+        };
+        void persist(next);
+        return { ...prev, [activeConfigName]: next };
+      });
+      setDirty(true);
+    },
+    [activeConfigName, persist]
+  );
+
   if (loading) {
     return (
       <View style={styles.app}>
@@ -388,6 +418,22 @@ export default function App() {
       {/* Config editor */}
       <View style={styles.body}>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gamepad Number</Text>
+          <Select
+            value={String(activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ?? 0)}
+            options={[
+              { value: '0', text: 'Gamepad 1' },
+              { value: '1', text: 'Gamepad 2' },
+              { value: '2', text: 'Gamepad 3' },
+              { value: '3', text: 'Gamepad 4' },
+            ]}
+            onChange={(val) => {
+              updateGamepadIndex(Number(val) as 0 | 1 | 2 | 3);
+            }}
+          />
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mouse</Text>
           <MouseSettings
             mouseControls={activeConfig.mouseConfig.mouseControls}
@@ -422,6 +468,15 @@ export default function App() {
           <KeyBindingEditor
             keyboardConfig={activeConfig.keyboardConfig}
             onChange={updateKeyboardConfig}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced</Text>
+          <KeyBindingEditor
+            keyboardConfig={activeConfig.keyboardConfig}
+            onChange={updateKeyboardConfig}
+            actions={['toggleAllGamepads', 'toggleExtension']}
           />
         </View>
       </View>
