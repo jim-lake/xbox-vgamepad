@@ -4,7 +4,12 @@ import Select from '@/components/select';
 import TextButton from '@/components/buttons/text_button';
 import MouseSettings from './mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
-import type { GamepadConfig, GamepadActionName } from '@/types/gamepad';
+import ScriptEditor from './script-editor';
+import type {
+  GamepadConfig,
+  GamepadActionName,
+  GamepadKeyboardConfig,
+} from '@/types/gamepad';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
@@ -55,6 +60,7 @@ interface Props {
     action: GamepadActionName,
     op: 'add' | 'remove'
   ) => void;
+  onChangeScripts: (keyboardConfig: GamepadKeyboardConfig) => void;
   onChangeMouseStick: (val: 'left' | 'right' | undefined) => void;
   onChangeMouseSensitivity: (val: number) => void;
   onRemove: () => void;
@@ -74,6 +80,7 @@ export default function GamepadConfigSection({
   gamepadCount,
   onChangeIndex,
   onChangeKeyboard,
+  onChangeScripts,
   onChangeMouseStick,
   onChangeMouseSensitivity,
   onRemove,
@@ -147,6 +154,15 @@ export default function GamepadConfigSection({
         <KeyBindingEditor
           keyboardConfig={slotKeyboardConfig}
           onChange={onChangeKeyboard}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Scripts</Text>
+        <ScriptEditor
+          keyboardConfig={config.keyboardConfig}
+          gamepadIndex={gamepadIndex}
+          onChange={onChangeScripts}
         />
       </View>
     </>

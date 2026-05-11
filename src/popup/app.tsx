@@ -5,6 +5,7 @@ import type {
   GamepadConfig,
   ActionMap,
   GamepadActionName,
+  GamepadKeyboardConfig,
 } from '@/types/gamepad';
 import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import {
@@ -322,6 +323,19 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [activeConfig, activeConfigName]);
 
+  const handleUpdateScripts = React.useCallback(
+    (keyboardConfig: GamepadKeyboardConfig) => {
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+        const next = { ...current, keyboardConfig };
+        void persist(next);
+        return { ...prev, [activeConfigName]: next };
+      });
+      setDirty(true);
+    },
+    [activeConfigName, persist]
+  );
+
   const makeUpdateKeyboardConfig = React.useCallback(
     (slotIndex: 0 | 1 | 2 | 3) =>
       (code: string, action: GamepadActionName, op: 'add' | 'remove') => {
@@ -591,6 +605,7 @@ export default function App() {
             handleChangeSlotIndex(activeSlotIndex, next);
           }}
           onChangeKeyboard={makeUpdateKeyboardConfig(activeSlotIndex)}
+          onChangeScripts={handleUpdateScripts}
           onChangeMouseStick={makeUpdateMouseStick(activeSlotIndex)}
           onChangeMouseSensitivity={makeUpdateMouseSensitivity(activeSlotIndex)}
           onRemove={() => {

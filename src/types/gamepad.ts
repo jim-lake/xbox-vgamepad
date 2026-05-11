@@ -42,6 +42,7 @@ export type ScriptAction =
 
 export type GameScript = {
   type: 'script';
+  name: string;
   activationType: 'on_down' | 'on_up' | 'toggle' | 'held';
   actions: ScriptAction[];
 };
