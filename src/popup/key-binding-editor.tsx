@@ -1,11 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
-import type {
-  GamepadKeyboardConfig,
-  GamepadActionName,
-  ActionMap,
-} from '@/types/gamepad';
+import type { GamepadKeyboardConfig, GamepadActionName } from '@/types/gamepad';
 
 import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
@@ -215,51 +211,17 @@ function formatCode(code: string): string {
   }
 }
 
-/**
- * Add `action` to the entry for `code` in keyboardConfig.
- * Returns the updated value for that code (or undefined if it should be removed).
- */
-function addActionToCode(
-  keyboardConfig: GamepadKeyboardConfig,
-  code: string,
-  action: GamepadActionName
-): ActionMap {
-  const existing = keyboardConfig[code] ?? [];
-  // Leave GameScript entries untouched, just append if not already present
-  if (existing.some((e) => e.type === 'action' && e.action === action)) {
-    return existing;
-  }
-  return [...existing, { type: 'action', gamepadIndex: 0, action }];
-}
-
-/**
- * Remove `action` from the entry for `code`.
- * Returns undefined if the code should be deleted entirely.
- */
-function removeActionFromCode(
-  existing: ActionMap,
-  action: GamepadActionName
-): ActionMap | undefined {
-  const next = existing.filter(
-    (e) => !(e.type === 'action' && e.action === action)
-  );
-  return next.length === 0 ? undefined : next;
-}
-
 interface Props {
   keyboardConfig: GamepadKeyboardConfig;
-  onChange: (code: string, value: ActionMap | undefined) => void;
-  actions?: GamepadActionName[];
+  onChange: (
+    code: string,
+    action: GamepadActionName,
+    op: 'add' | 'remove'
+  ) => void;
 }
 
-export default function KeyBindingEditor({
-  keyboardConfig,
-  onChange,
-  actions,
-}: Props) {
-  const visibleActions = actions
-    ? ACTION_LABELS.filter((a) => actions.includes(a.action))
-    : ACTION_LABELS;
+export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
+  const visibleActions = ACTION_LABELS;
   const [listening, setListening] = React.useState<GamepadActionName | null>(
     null
   );
@@ -273,8 +235,7 @@ export default function KeyBindingEditor({
       if (listening === null) {
         return;
       }
-      const newValue = addActionToCode(keyboardConfig, code, listening);
-      onChange(code, newValue);
+      onChange(code, listening, 'add');
       setListening(null);
     }
 
@@ -319,18 +280,13 @@ export default function KeyBindingEditor({
       document.removeEventListener('wheel', handleWheel, true);
       document.removeEventListener('contextmenu', handleContextMenu, true);
     };
-  }, [listening, keyboardConfig, onChange]);
+  }, [listening, onChange]);
 
   const handleRemove = React.useCallback(
     (action: GamepadActionName, code: string) => {
-      const existing = keyboardConfig[code];
-      if (existing === undefined) {
-        return;
-      }
-      const next = removeActionFromCode(existing, action);
-      onChange(code, next);
+      onChange(code, action, 'remove');
     },
-    [keyboardConfig, onChange]
+    [onChange]
   );
 
   return (

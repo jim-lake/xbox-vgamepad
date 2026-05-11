@@ -1,71 +1,99 @@
-import { StyleSheet, View } from '@/components/base_components';
-import TextButton from '@/components/buttons/text_button';
+import {
+  StyleSheet,
+  Text,
+  TouchableWithoutFeedback,
+  View,
+} from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import plusIcon from '@/assets/img/plus.svg';
-import closeIcon from '@/assets/img/close.svg';
+
+import '@/css/colors.css';
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: '0.4rem',
+    alignItems: 'stretch',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--surface-border)',
+    marginTop: '1rem',
     paddingLeft: '0.8rem',
     paddingRight: '0.8rem',
-    paddingTop: '0.4rem',
-    flexWrap: 'wrap',
   },
-  tab: { borderRadius: '0.6rem', height: '2.6rem' },
-  removeBtn: { margin: '0 0.2rem 0 0.2rem' },
+  slot: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: '1.2rem',
+    paddingRight: '1.2rem',
+    paddingTop: '0.8rem',
+    paddingBottom: '0.8rem',
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderBottomWidth: 0,
+    borderTopLeftRadius: '0.6rem',
+    borderTopRightRadius: '0.6rem',
+  },
+  tabActive: {
+    backgroundColor: 'var(--surface-bg)',
+    borderColor: 'var(--surface-border)',
+  },
+  tabText: {
+    fontSize: '1.3rem',
+    fontWeight: '500',
+    color: 'var(--text-muted)',
+  },
+  tabTextActive: { color: 'var(--text-primary)' },
 });
 
 interface Props {
-  count: number;
+  slots: (0 | 1 | 2 | 3)[];
   activeIndex: number;
   onSelect: (i: number) => void;
   onAdd: () => void;
-  onRemove: (i: number) => void;
 }
 
 export default function GamepadTabs({
-  count,
+  slots,
   activeIndex,
   onSelect,
   onAdd,
-  onRemove,
 }: Props) {
   return (
     <View style={styles.container}>
-      {Array.from({ length: count }, (_, i) => (
-        <TextButton
-          key={i}
-          style={styles.tab}
-          text={`Gamepad ${String(i + 1)}`}
-          type={activeIndex === i ? 'blue' : 'ghost'}
-          onPress={() => {
-            onSelect(i);
-          }}
-          {...(count > 1
-            ? {
-                afterText: (
-                  <IconButton
-                    style={styles.removeBtn}
-                    source={closeIcon}
-                    type='danger'
-                    onPress={() => {
-                      // eslint-disable-next-line no-alert
-                      if (window.confirm('Remove this gamepad?')) {
-                        onRemove(i);
-                      }
-                    }}
-                  />
-                ),
-              }
-            : {})}
-        />
-      ))}
-      {count < 4 && (
-        <IconButton source={plusIcon} type='green' onPress={onAdd} />
-      )}
+      {Array.from({ length: 4 }, (_, i) => {
+        if (i < slots.length) {
+          const active = i === activeIndex;
+          return (
+            <View key={i} style={styles.slot}>
+              <TouchableWithoutFeedback
+                style={active ? [styles.tab, styles.tabActive] : styles.tab}
+                onPress={() => {
+                  onSelect(i);
+                }}
+              >
+                <Text
+                  style={
+                    active
+                      ? [styles.tabText, styles.tabTextActive]
+                      : styles.tabText
+                  }
+                >
+                  {`GAMEPAD ${String((slots[i] ?? 0) + 1)}`}
+                </Text>
+              </TouchableWithoutFeedback>
+            </View>
+          );
+        }
+        if (i === slots.length) {
+          return (
+            <View key={i} style={styles.slot}>
+              <IconButton source={plusIcon} type='green' onPress={onAdd} />
+            </View>
+          );
+        }
+        return <View key={i} style={styles.slot} />;
+      })}
     </View>
   );
 }

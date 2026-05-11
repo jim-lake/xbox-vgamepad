@@ -1,7 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GamepadConfig, ActionMap } from '@/types/gamepad';
+import type {
+  GamepadConfig,
+  ActionMap,
+  GamepadActionName,
+} from '@/types/gamepad';
 import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import {
   loadStorage,
@@ -23,7 +27,7 @@ import PresetNav from '@/components/popup/preset-nav';
 import Toolbar from '@/components/popup/toolbar';
 import GamepadTabs from './gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
-import KeyBindingEditor from './key-binding-editor';
+import GlobalBindingEditor from './global-binding-editor';
 
 const MAX_PRESETS = 25;
 
@@ -320,15 +324,36 @@ export default function App() {
 
   const makeUpdateKeyboardConfig = React.useCallback(
     (slotIndex: 0 | 1 | 2 | 3) =>
-      (code: string, value: ActionMap | undefined) => {
+      (code: string, action: GamepadActionName, op: 'add' | 'remove') => {
         setConfigs((prev) => {
           const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
           const existing = current.keyboardConfig[code] ?? [];
-          const otherSlots = existing.filter(
-            (e) => !(e.type === 'action' && e.gamepadIndex === slotIndex)
-          );
-          const merged =
-            value === undefined ? otherSlots : [...otherSlots, ...value];
+          let merged: ActionMap;
+          if (op === 'add') {
+            if (
+              existing.some(
+                (e) =>
+                  e.type === 'action' &&
+                  e.gamepadIndex === slotIndex &&
+                  e.action === action
+              )
+            ) {
+              return prev;
+            }
+            merged = [
+              ...existing,
+              { type: 'action', gamepadIndex: slotIndex, action },
+            ];
+          } else {
+            merged = existing.filter(
+              (e) =>
+                !(
+                  e.type === 'action' &&
+                  e.gamepadIndex === slotIndex &&
+                  e.action === action
+                )
+            );
+          }
           const nextKeyboardConfig =
             merged.length === 0
               ? Object.fromEntries(
@@ -399,9 +424,18 @@ export default function App() {
 
   const handleChangeSlotIndex = React.useCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
-      setActiveSlots((prev) =>
-        prev.map((i) => (i === oldIndex ? newIndex : i))
-      );
+      setActiveSlots((prev) => {
+        const next = prev.map((i) => (i === oldIndex ? newIndex : i));
+        next.sort((a, b) => a - b);
+        return next;
+      });
+      setActiveSlotTab((prev) => {
+        // After sort, find where newIndex lands
+        const sorted = activeSlots
+          .map((i) => (i === oldIndex ? newIndex : i))
+          .sort((a, b) => a - b);
+        return sorted.indexOf(newIndex) >= 0 ? sorted.indexOf(newIndex) : prev;
+      });
       setConfigs((prev) => {
         const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
         const mouseControls = current.mouseConfig.mouseControls.map((m) =>
@@ -427,7 +461,7 @@ export default function App() {
       });
       setDirty(true);
     },
-    [activeConfigName, persist]
+    [activeSlots, activeConfigName, persist]
   );
 
   const handleAddSlot = React.useCallback(() => {
@@ -438,8 +472,9 @@ export default function App() {
     if (next === undefined) {
       return;
     }
-    setActiveSlots((prev) => [...prev, next]);
-    setActiveSlotTab(activeSlots.length);
+    const sorted = [...activeSlots, next].sort((a, b) => a - b);
+    setActiveSlots(sorted);
+    setActiveSlotTab(sorted.indexOf(next));
   }, [activeSlots]);
 
   const handleRemoveSlot = React.useCallback(
@@ -542,31 +577,32 @@ export default function App() {
       {/* Config editor */}
       <View style={styles.body}>
         <GamepadTabs
-          count={activeSlots.length}
+          slots={activeSlots}
           activeIndex={activeSlotTab}
           onSelect={setActiveSlotTab}
           onAdd={handleAddSlot}
-          onRemove={handleRemoveSlot}
         />
         <GamepadConfigSection
-          key={activeSlotIndex}
           config={activeConfig}
           gamepadIndex={activeSlotIndex}
           usedIndices={activeSlots}
+          gamepadCount={activeSlots.length}
           onChangeIndex={(next) => {
             handleChangeSlotIndex(activeSlotIndex, next);
           }}
           onChangeKeyboard={makeUpdateKeyboardConfig(activeSlotIndex)}
           onChangeMouseStick={makeUpdateMouseStick(activeSlotIndex)}
           onChangeMouseSensitivity={makeUpdateMouseSensitivity(activeSlotIndex)}
+          onRemove={() => {
+            handleRemoveSlot(activeSlotTab);
+          }}
         />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Advanced</Text>
-          <KeyBindingEditor
+          <GlobalBindingEditor
             keyboardConfig={activeConfig.keyboardConfig}
-            onChange={makeUpdateKeyboardConfig(activeSlotIndex)}
-            actions={['toggleAllGamepads', 'toggleExtension']}
+            onChange={makeUpdateKeyboardConfig(0)}
           />
         </View>
       </View>

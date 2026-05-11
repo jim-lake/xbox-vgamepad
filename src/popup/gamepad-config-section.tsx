@@ -1,9 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import Select from '@/components/select';
+import TextButton from '@/components/buttons/text_button';
 import MouseSettings from './mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
-import type { GamepadConfig, ActionMap } from '@/types/gamepad';
+import type { GamepadConfig, GamepadActionName } from '@/types/gamepad';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
@@ -20,10 +21,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  label: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  rowEnd: {
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: 'var(--row-border)',
   },
-  label: { color: 'var(--text-muted)', fontSize: '1.3rem' },
   select: {
     padding: '2px 4px 2px 6px',
     width: '6rem',
@@ -40,10 +48,16 @@ interface Props {
   config: GamepadConfig;
   gamepadIndex: 0 | 1 | 2 | 3;
   usedIndices: (0 | 1 | 2 | 3)[];
+  gamepadCount: number;
   onChangeIndex: (next: 0 | 1 | 2 | 3) => void;
-  onChangeKeyboard: (code: string, value: ActionMap | undefined) => void;
+  onChangeKeyboard: (
+    code: string,
+    action: GamepadActionName,
+    op: 'add' | 'remove'
+  ) => void;
   onChangeMouseStick: (val: 'left' | 'right' | undefined) => void;
   onChangeMouseSensitivity: (val: number) => void;
+  onRemove: () => void;
 }
 
 const GAMEPAD_OPTIONS = [
@@ -57,10 +71,12 @@ export default function GamepadConfigSection({
   config,
   gamepadIndex,
   usedIndices,
+  gamepadCount,
   onChangeIndex,
   onChangeKeyboard,
   onChangeMouseStick,
   onChangeMouseSensitivity,
+  onRemove,
 }: Props) {
   // Filter mouseControls to just this slot's entry
   const mouseControls = config.mouseConfig.mouseControls.filter(
@@ -84,7 +100,7 @@ export default function GamepadConfigSection({
   return (
     <>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Gamepad</Text>
+        <Text style={styles.sectionTitle}>Config</Text>
         <View style={styles.row}>
           <Text style={styles.label}>Gamepad Number</Text>
           <Select
@@ -101,6 +117,20 @@ export default function GamepadConfigSection({
             }}
           />
         </View>
+        {gamepadCount > 1 && (
+          <View style={styles.rowEnd}>
+            <TextButton
+              text='Remove Gamepad'
+              type='danger'
+              onPress={() => {
+                // eslint-disable-next-line no-alert
+                if (window.confirm('Remove this gamepad?')) {
+                  onRemove();
+                }
+              }}
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>
