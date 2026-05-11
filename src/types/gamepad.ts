@@ -24,7 +24,9 @@ export type GamepadActionName =
   | 'rightStickDown'
   | 'rightStickLeft'
   | 'rightStickRight'
-  | 'toggleGamepad';
+  | 'toggleGamepad'
+  | 'toggleAllGamepads'
+  | 'toggleExtension';
 
 export interface GamepadAction {
   type: 'action';
