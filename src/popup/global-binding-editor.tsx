@@ -12,6 +12,7 @@ const GLOBAL_ACTIONS: { action: GamepadActionName; label: string }[] = [
 ];
 
 const styles = StyleSheet.create({
+  container: { flexDirection: 'column' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,7 +121,7 @@ export default function GlobalBindingEditor({
   }, [listening, onChange]);
 
   return (
-    <View style={{ flexDirection: 'column' }}>
+    <View style={styles.container}>
       {GLOBAL_ACTIONS.map(({ action, label }) => {
         const codes = getCodesForAction(keyboardConfig, action);
         return (

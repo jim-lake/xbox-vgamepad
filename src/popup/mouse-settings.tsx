@@ -1,6 +1,6 @@
-import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
+import Range from '@/components/range';
 import type { MouseControlTarget } from '@/types/gamepad';
 import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
 
@@ -27,6 +27,15 @@ const styles = StyleSheet.create({
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
     width: '3rem',
+  },
+  rangeInput: {
+    flex: 1,
+    accentColor: 'var(--chip-active-bg)',
+    height: '0.6rem',
+    borderRadius: '0.3rem',
+    border: '1px solid var(--surface-border)',
+    background: 'var(--chip-bg)',
+    margin: '0.6rem 0',
   },
 });
 
@@ -56,14 +65,6 @@ export default function MouseSettings({
   // Display = 1001 - stored
   const displaySensitivity = 1001 - sensitivity;
 
-  const handleSensitivityChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const display = Number(e.target.value);
-      onChangeSensitivity(1001 - display);
-    },
-    [onChangeSensitivity]
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -87,20 +88,13 @@ export default function MouseSettings({
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Sensitivity</Text>
-        <input
-          type='range'
+        <Range
+          style={styles.rangeInput}
           min={1}
           max={1000}
           value={displaySensitivity}
-          onChange={handleSensitivityChange}
-          style={{
-            flex: 1,
-            accentColor: 'var(--chip-active-bg)',
-            height: '0.6rem',
-            borderRadius: '0.3rem',
-            border: '1px solid var(--surface-border)',
-            background: 'var(--chip-bg)',
-            margin: '0.6rem 0',
+          onChange={(v) => {
+            onChangeSensitivity(1001 - v);
           }}
         />
         <Text style={styles.sensitivityValue}>{displaySensitivity}</Text>

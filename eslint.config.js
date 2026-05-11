@@ -17,7 +17,7 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
-    plugins: { import: importPlugin, '@react-native': reactNative, },
+    plugins: { import: importPlugin, '@react-native': reactNative },
     settings: { 'import/resolver': { typescript: true } },
     languageOptions: {
       globals: globals.browser,

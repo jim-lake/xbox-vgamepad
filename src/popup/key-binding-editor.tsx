@@ -36,6 +36,7 @@ const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
 ];
 
 const styles = StyleSheet.create({
+  container: { flexDirection: 'column' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,7 +291,7 @@ export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
   );
 
   return (
-    <View style={{ flexDirection: 'column' }}>
+    <View style={styles.container}>
       {visibleActions.map(({ action, label }) => {
         const codes = getCodesForAction(keyboardConfig, action);
         return (
