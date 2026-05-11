@@ -29,6 +29,7 @@ import Toolbar from '@/components/popup/toolbar';
 import GamepadTabs from './gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
 import GlobalBindingEditor from './global-binding-editor';
+import type { ScriptEntry } from './script-helpers';
 
 const MAX_PRESETS = 25;
 
@@ -104,6 +105,16 @@ export default function App() {
     React.useState<GamepadConfig>(DEFAULT_CONFIG);
   const [activeSlots, setActiveSlots] = React.useState<(0 | 1 | 2 | 3)[]>([0]);
   const [activeSlotTab, setActiveSlotTab] = React.useState(0);
+  const [editingScriptKey, setEditingScriptKey] = React.useState<string | null>(
+    null
+  );
+  const [listeningScriptEntry, setListeningScriptEntry] =
+    React.useState<ScriptEntry | null>(null);
+
+  function clearScriptEditState() {
+    setEditingScriptKey(null);
+    setListeningScriptEntry(null);
+  }
 
   React.useEffect(() => {
     void (async () => {
@@ -162,6 +173,7 @@ export default function App() {
       setSavedConfig(structuredClone(cfg));
       setDirty(false);
       setRenaming(false);
+      clearScriptEditState();
       const usedSet = new Set<0 | 1 | 2 | 3>();
       for (const entries of Object.values(cfg.keyboardConfig)) {
         for (const e of entries) {
@@ -267,6 +279,7 @@ export default function App() {
     const reverted = structuredClone(savedConfig);
     setConfigs((prev) => ({ ...prev, [activeConfigName]: reverted }));
     setDirty(false);
+    clearScriptEditState();
     void persist(reverted);
   }, [dirty, savedConfig, activeConfigName, persist]);
 
@@ -593,7 +606,10 @@ export default function App() {
         <GamepadTabs
           slots={activeSlots}
           activeIndex={activeSlotTab}
-          onSelect={setActiveSlotTab}
+          onSelect={(i) => {
+            setActiveSlotTab(i);
+            clearScriptEditState();
+          }}
           onAdd={handleAddSlot}
         />
         <GamepadConfigSection
@@ -601,6 +617,10 @@ export default function App() {
           gamepadIndex={activeSlotIndex}
           usedIndices={activeSlots}
           gamepadCount={activeSlots.length}
+          editingScriptKey={editingScriptKey}
+          listeningScriptEntry={listeningScriptEntry}
+          onEditingScriptKeyChange={setEditingScriptKey}
+          onListeningScriptEntryChange={setListeningScriptEntry}
           onChangeIndex={(next) => {
             handleChangeSlotIndex(activeSlotIndex, next);
           }}

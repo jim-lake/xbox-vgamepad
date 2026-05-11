@@ -5,6 +5,7 @@ import TextButton from '@/components/buttons/text_button';
 import MouseSettings from './mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
 import ScriptEditor from './script-editor';
+import type { ScriptEntry } from './script-helpers';
 import type {
   GamepadConfig,
   GamepadActionName,
@@ -54,6 +55,10 @@ interface Props {
   gamepadIndex: 0 | 1 | 2 | 3;
   usedIndices: (0 | 1 | 2 | 3)[];
   gamepadCount: number;
+  editingScriptKey: string | null;
+  listeningScriptEntry: ScriptEntry | null;
+  onEditingScriptKeyChange: (key: string | null) => void;
+  onListeningScriptEntryChange: (entry: ScriptEntry | null) => void;
   onChangeIndex: (next: 0 | 1 | 2 | 3) => void;
   onChangeKeyboard: (
     code: string,
@@ -78,6 +83,10 @@ export default function GamepadConfigSection({
   gamepadIndex,
   usedIndices,
   gamepadCount,
+  editingScriptKey,
+  listeningScriptEntry,
+  onEditingScriptKeyChange,
+  onListeningScriptEntryChange,
   onChangeIndex,
   onChangeKeyboard,
   onChangeScripts,
@@ -85,12 +94,10 @@ export default function GamepadConfigSection({
   onChangeMouseSensitivity,
   onRemove,
 }: Props) {
-  // Filter mouseControls to just this slot's entry
   const mouseControls = config.mouseConfig.mouseControls.filter(
     (m) => m.gamepadIndex === gamepadIndex
   );
 
-  // Filter keyboardConfig to only entries that have at least one action for this index
   const slotKeyboardConfig = React.useMemo(() => {
     const result: GamepadConfig['keyboardConfig'] = {};
     for (const [code, entries] of Object.entries(config.keyboardConfig)) {
@@ -162,6 +169,10 @@ export default function GamepadConfigSection({
         <ScriptEditor
           keyboardConfig={config.keyboardConfig}
           gamepadIndex={gamepadIndex}
+          editingKeyCode={editingScriptKey}
+          listeningEntry={listeningScriptEntry}
+          onEditingKeyCodeChange={onEditingScriptKeyChange}
+          onListeningEntryChange={onListeningScriptEntryChange}
           onChange={onChangeScripts}
         />
       </View>

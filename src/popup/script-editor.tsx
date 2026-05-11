@@ -27,27 +27,27 @@ const styles = StyleSheet.create({
 interface Props {
   keyboardConfig: GamepadKeyboardConfig;
   gamepadIndex: 0 | 1 | 2 | 3;
+  editingKeyCode: string | null;
+  listeningEntry: ScriptEntry | null;
+  onEditingKeyCodeChange: (keyCode: string | null) => void;
+  onListeningEntryChange: (entry: ScriptEntry | null) => void;
   onChange: (keyboardConfig: GamepadKeyboardConfig) => void;
 }
 
 export default function ScriptEditor({
   keyboardConfig,
   gamepadIndex,
+  editingKeyCode,
+  listeningEntry,
+  onEditingKeyCodeChange,
+  onListeningEntryChange,
   onChange,
 }: Props) {
-  // Track which script is being edited by its keyCode (stable across name edits).
-  const [editingKeyCode, setEditingKeyCode] = React.useState<string | null>(
-    null
-  );
-  const [listeningEntry, setListeningEntry] =
-    React.useState<ScriptEntry | null>(null);
-
   const entries = React.useMemo(
     () => extractScripts(keyboardConfig),
     [keyboardConfig]
   );
 
-  // Key-capture effect for binding a script to a key.
   React.useEffect(() => {
     if (listeningEntry === null) {
       return;
@@ -58,7 +58,7 @@ export default function ScriptEditor({
       e.preventDefault();
       e.stopPropagation();
       if (e.code === 'Escape') {
-        setListeningEntry(null);
+        onListeningEntryChange(null);
         return;
       }
       onChange(
@@ -69,7 +69,7 @@ export default function ScriptEditor({
           copyScriptForSlot(entry.script, gamepadIndex)
         )
       );
-      setListeningEntry(null);
+      onListeningEntryChange(null);
     }
 
     function handleMouseDown(e: MouseEvent) {
@@ -84,7 +84,7 @@ export default function ScriptEditor({
           copyScriptForSlot(entry.script, gamepadIndex)
         )
       );
-      setListeningEntry(null);
+      onListeningEntryChange(null);
     }
 
     function handleContextMenu(e: Event) {
@@ -99,7 +99,13 @@ export default function ScriptEditor({
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('contextmenu', handleContextMenu, true);
     };
-  }, [listeningEntry, keyboardConfig, gamepadIndex, onChange]);
+  }, [
+    listeningEntry,
+    keyboardConfig,
+    gamepadIndex,
+    onChange,
+    onListeningEntryChange,
+  ]);
 
   function handleAdd() {
     const script: GameScript = {
@@ -110,7 +116,7 @@ export default function ScriptEditor({
     };
     const [newConfig, sentinel] = addScript(keyboardConfig, script);
     onChange(newConfig);
-    setEditingKeyCode(sentinel);
+    onEditingKeyCodeChange(sentinel);
   }
 
   function handleScriptChange(entry: ScriptEntry, newScript: GameScript) {
@@ -119,7 +125,7 @@ export default function ScriptEditor({
 
   function handleDelete(entry: ScriptEntry) {
     onChange(removeScript(keyboardConfig, entry));
-    setEditingKeyCode(null);
+    onEditingKeyCodeChange(null);
   }
 
   function handleRemoveBinding(entry: ScriptEntry) {
@@ -140,7 +146,7 @@ export default function ScriptEditor({
                 handleScriptChange(entry, s);
               }}
               onDone={() => {
-                setEditingKeyCode(null);
+                onEditingKeyCodeChange(null);
               }}
               onDelete={() => {
                 handleDelete(entry);
@@ -153,10 +159,10 @@ export default function ScriptEditor({
             key={entry.keyCode}
             entry={entry}
             onEdit={() => {
-              setEditingKeyCode(entry.keyCode);
+              onEditingKeyCodeChange(entry.keyCode);
             }}
             onAddBinding={() => {
-              setListeningEntry(entry);
+              onListeningEntryChange(entry);
             }}
             onRemoveBinding={() => {
               handleRemoveBinding(entry);
