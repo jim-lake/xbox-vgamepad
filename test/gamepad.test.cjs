@@ -39,4 +39,5 @@ runSuites([
   path.join(__dirname, 'suites', 'toggle-syncs-enabled.cjs'),
   path.join(__dirname, 'suites', 'additive-press.cjs'),
   path.join(__dirname, 'suites', 'multi-gamepad.cjs'),
+  path.join(__dirname, 'suites', 'multi-gamepad-extended.cjs'),
 ]);

@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.88",
+  "version": "0.0.93",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
   "dependencies": {
     "aphrodite": "^2.4.0",
     "events": "^3.3.0",
+    "ioctl": "^2.0.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

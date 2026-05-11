@@ -62,7 +62,7 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
   const indices = new Set<0 | 1 | 2 | 3>();
   for (const entries of Object.values(config.keyboardConfig)) {
     for (const entry of entries) {
-      if (entry.type === 'action') {
+      if (entry.type === 'action' && entry.action !== 'toggleGamepad') {
         indices.add(entry.gamepadIndex);
       }
     }
@@ -70,6 +70,8 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
   for (const mc of config.mouseConfig.mouseControls) {
     indices.add(mc.gamepadIndex);
   }
+  // Always enable at least slot 0 so a gamepad is always present when active
+  indices.add(0);
   return indices;
 }
 
@@ -387,6 +389,7 @@ export function activate(
     setMinimizedDismissed(false);
   }
 
+  const prevMouseTarget = g_mouseTarget;
   const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
   g_sensitivity = mouseTarget?.sensitivity ?? 10;
   g_mouseTarget = mouseTarget
@@ -398,17 +401,15 @@ export function activate(
 
   if (g_active) {
     // Hot-swap: update bindings without disconnect/reconnect for existing pads
-    const hadMouse = g_mouseTarget !== null;
+    const hadMouse = prevMouseTarget !== null;
     removeListeners();
     clearTimers();
 
     const newIndices = getActiveGamepadIndices(config);
 
-    // setMode first so combine mode clears virtual slots before updateVirtualSlots
+    // setMode first so the interceptors know the new mode before updateVirtualSlots
     gamepadSimulator.setMode(config.otherGamepadMode);
-    if (config.otherGamepadMode !== 'combine') {
-      updateVirtualSlots(newIndices);
-    }
+    updateVirtualSlots(newIndices);
 
     // Disable pads no longer in the new config
     for (const idx of g_activeIndices) {
@@ -443,10 +444,7 @@ export function activate(
   g_activeIndices = getActiveGamepadIndices(config);
   g_active = true;
   gamepadSimulator.setMode(config.otherGamepadMode);
-
-  if (config.otherGamepadMode !== 'combine') {
-    updateVirtualSlots(g_activeIndices);
-  }
+  updateVirtualSlots(g_activeIndices);
   attachKeyboard();
   attachMouseButtons();
   if (g_mouseTarget !== null) {
