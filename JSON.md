@@ -390,7 +390,7 @@ The built-in default preset (all actions target virtual pad 0):
       { "type": "action", "gamepadIndex": 0, "action": "rightStickRight" }
     ],
     "Backslash": [{ "type": "action", "gamepadIndex": 0, "action": "home" }],
-    "F8": [{ "type": "action", "gamepadIndex": 0, "action": "toggleGamepad" }]
+    "F8": [{ "type": "action", "gamepadIndex": 0, "action": "toggleExtension" }]
   }
 }
 ```

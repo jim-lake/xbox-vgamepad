@@ -89,13 +89,13 @@ module.exports = async function ({
           .filter(
             ([, v]) =>
               !v.some(
-                (e) => e.type === 'action' && e.action === 'toggleGamepad'
+                (e) => e.type === 'action' && e.action === 'toggleExtension'
               )
           )
           .concat([
             [
               'F7',
-              [{ type: 'action', gamepadIndex: 0, action: 'toggleGamepad' }],
+              [{ type: 'action', gamepadIndex: 0, action: 'toggleExtension' }],
             ],
           ])
       ),

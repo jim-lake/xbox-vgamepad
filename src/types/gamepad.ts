@@ -161,6 +161,6 @@ export const DEFAULT_CONFIG: GamepadConfig = {
     KeyK: [{ type: 'action', gamepadIndex: 0, action: 'rightStickLeft' }],
     Semicolon: [{ type: 'action', gamepadIndex: 0, action: 'rightStickRight' }],
     Backslash: [{ type: 'action', gamepadIndex: 0, action: 'home' }],
-    F8: [{ type: 'action', gamepadIndex: 0, action: 'toggleGamepad' }],
+    F8: [{ type: 'action', gamepadIndex: 0, action: 'toggleExtension' }],
   },
 };
