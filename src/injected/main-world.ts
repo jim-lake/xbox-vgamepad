@@ -54,31 +54,66 @@ function handleMessage(msg: ExtensionMessage): void {
 
 // Global toggle listener (works regardless of active state, uses config-driven keys)
 let toggleCodes: Set<string> = new Set(['F9']);
+// Map from key code → set of toggle action names bound to it
+let toggleCodeActions = new Map<string, Set<string>>();
 
 function updateToggleCodes(config: GamepadConfig): void {
-  const codes = new Set<string>();
+  const codeActions = new Map<string, Set<string>>();
   for (const [code, entries] of Object.entries(config.keyboardConfig)) {
-    if (
-      entries.some((e) => e.type === 'action' && e.action === 'toggleGamepad')
-    ) {
-      codes.add(code);
+    for (const e of entries) {
+      if (
+        e.type === 'action' &&
+        (e.action === 'toggleGamepad' ||
+          e.action === 'toggleAllGamepads' ||
+          e.action === 'toggleExtension')
+      ) {
+        let set = codeActions.get(code);
+        if (!set) {
+          set = new Set();
+          codeActions.set(code, set);
+        }
+        // For toggleGamepad, encode the index so we know which pad to toggle
+        set.add(
+          e.action === 'toggleGamepad'
+            ? `toggleGamepad:${String(e.gamepadIndex)}`
+            : e.action
+        );
+      }
     }
   }
-  toggleCodes = codes;
+  toggleCodes = new Set(codeActions.keys());
+  toggleCodeActions = codeActions;
 }
 
 document.addEventListener(
   'keydown',
   (e: KeyboardEvent) => {
-    if (!e.repeat && toggleCodes.has(e.code)) {
-      sendMessage({
-        source: MSG_SOURCE,
-        type: 'TOGGLE_ENABLED',
-        enabled: !inputProcessor.isActive(),
-      });
-      if (e.cancelable) {
-        e.preventDefault();
+    if (e.repeat || !toggleCodes.has(e.code)) {
+      return;
+    }
+    const actions = toggleCodeActions.get(e.code);
+    if (actions) {
+      for (const action of actions) {
+        if (action === 'toggleAllGamepads') {
+          inputProcessor.toggleAllGamepads();
+        } else if (action === 'toggleExtension') {
+          sendMessage({
+            source: MSG_SOURCE,
+            type: 'TOGGLE_ENABLED',
+            enabled: !inputProcessor.isActive(),
+          });
+        } else if (action.startsWith('toggleGamepad:')) {
+          const idx = Number(action.slice('toggleGamepad:'.length)) as
+            | 0
+            | 1
+            | 2
+            | 3;
+          inputProcessor.toggleGamepadIndex(idx);
+        }
       }
+    }
+    if (e.cancelable) {
+      e.preventDefault();
     }
   },
   true

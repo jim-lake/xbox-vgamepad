@@ -37,6 +37,12 @@ const AXIS_ACTION_MAP: Record<string, { stick: number; direction: Direction }> =
     rightStickRight: { stick: 1, direction: Direction.RIGHT },
   };
 
+const TOGGLE_ACTIONS = new Set([
+  'toggleGamepad',
+  'toggleAllGamepads',
+  'toggleExtension',
+]);
+
 function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
   const map = new Map<string, GamepadAction[]>();
 
@@ -46,7 +52,7 @@ function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
     }
     const actions: GamepadAction[] = [];
     for (const entry of entries) {
-      if (entry.type === 'script' || entry.action === 'toggleGamepad') {
+      if (entry.type === 'script' || TOGGLE_ACTIONS.has(entry.action)) {
         continue;
       }
       actions.push(entry);
@@ -62,7 +68,7 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
   const indices = new Set<0 | 1 | 2 | 3>();
   for (const entries of Object.values(config.keyboardConfig)) {
     for (const entry of entries) {
-      if (entry.type === 'action' && entry.action !== 'toggleGamepad') {
+      if (entry.type === 'action' && !TOGGLE_ACTIONS.has(entry.action)) {
         indices.add(entry.gamepadIndex);
       }
     }
@@ -483,5 +489,33 @@ export function toggle(): void {
     deactivate();
   } else if (g_config) {
     activate(g_config);
+  }
+}
+
+/** Toggle a single virtual gamepad slot on/off. */
+export function toggleGamepadIndex(index: 0 | 1 | 2 | 3): void {
+  const sim = getSimulator(index);
+  if (sim.isEnabled()) {
+    sim.disable(index);
+    g_activeIndices.delete(index);
+  } else {
+    sim.enable(index);
+    g_activeIndices.add(index);
+  }
+}
+
+/** Toggle all virtual gamepads on/off simultaneously. */
+export function toggleAllGamepads(): void {
+  const anyEnabled = Array.from(g_activeIndices).some((i) =>
+    getSimulator(i).isEnabled()
+  );
+  if (anyEnabled) {
+    for (const idx of g_activeIndices) {
+      getSimulator(idx).disable(idx);
+    }
+  } else if (g_config) {
+    for (const idx of g_activeIndices) {
+      getSimulator(idx).enable(idx);
+    }
   }
 }

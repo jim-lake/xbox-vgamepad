@@ -11,19 +11,23 @@ See `../JSON.md` for the authoritative JSON schema. This document covers runtime
 For each entry in `keyboardConfig`:
 
 1. **Reject** if the key code is `"Escape"` (log error, skip)
-2. Collect all `GamepadAction` entries (type `"action"`) whose `action` is not `"toggleGamepad"` into the runtime map for that key code
-3. `GameScript` entries and `toggleGamepad` actions are handled separately and are not included in the regular key map
+2. Collect all `GamepadAction` entries (type `"action"`) whose `action` is not `"toggleGamepad"`, `"toggleAllGamepads"`, or `"toggleExtension"` into the runtime map for that key code
+3. `GameScript` entries and toggle actions (`toggleGamepad`, `toggleAllGamepads`, `toggleExtension`) are handled separately and are not included in the regular key map
 
 ### Determining Active Virtual Gamepad Indices
 
 The set of virtual gamepad indices that need simulators enabled is the union of:
 
-- All `gamepadIndex` values from `GamepadAction` entries in `keyboardConfig` (excluding `toggleGamepad`)
+- All `gamepadIndex` values from `GamepadAction` entries in `keyboardConfig` (excluding `toggleGamepad`, `toggleAllGamepads`, and `toggleExtension`)
 - All `gamepadIndex` values from `MouseControlTarget` entries in `mouseConfig.mouseControls`
 
 ### Toggle Key Codes
 
-Separately, collect all key codes whose `ActionMap` contains a `GamepadAction` with `action === "toggleGamepad"`. These are registered on a global always-on listener independent of the active state.
+Separately, collect all key codes whose `ActionMap` contains a `GamepadAction` with `action === "toggleGamepad"`, `action === "toggleAllGamepads"`, or `action === "toggleExtension"`. These are registered on a global always-on listener independent of the active state.
+
+- `"toggleGamepad"`: toggles the virtual gamepad at the specified `gamepadIndex` on/off.
+- `"toggleAllGamepads"`: toggles all virtual gamepads on/off simultaneously. `gamepadIndex` is ignored.
+- `"toggleExtension"`: toggles the entire extension on/off (flips `isEnabled`). `gamepadIndex` is ignored.
 
 ## Validation Rules
 

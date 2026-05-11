@@ -166,11 +166,13 @@ The `Gamepad.axes[]` array has 4 entries: `[leftStickX, leftStickY, rightStickX,
 
 #### Extension Actions
 
-| `action`          | Description                                                                                                                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"toggleGamepad"` | Toggles all virtual gamepads on/off. When toggled off, all virtual pads disconnect. When toggled on, they reconnect with the current config. `gamepadIndex` is ignored for this action. |
+| `action`              | Description                                                                                                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"toggleGamepad"`     | Toggles the virtual gamepad at the specified `gamepadIndex` on/off. When toggled off, that pad disconnects. When toggled on, it reconnects with the current config.                                        |
+| `"toggleAllGamepads"` | Toggles all virtual gamepads on/off simultaneously. When toggled off, all virtual pads disconnect. When toggled on, they all reconnect with the current config. `gamepadIndex` is ignored for this action. |
+| `"toggleExtension"`   | Toggles the entire extension on/off (equivalent to flipping `isEnabled`). When toggled off, all virtual pads disconnect and input processing stops. `gamepadIndex` is ignored for this action.             |
 
-The toggle keybinding works regardless of whether the gamepad is currently connected — it is always listening.
+These toggle keybindings work regardless of whether the gamepad is currently connected — they are always listening.
 
 ### GameScript
 
