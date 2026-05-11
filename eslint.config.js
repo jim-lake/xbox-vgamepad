@@ -5,6 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import importPlugin from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
+import reactNative from 'eslint-plugin-react-native';
 
 export default defineConfig([
   globalIgnores(['dist', 'build', 'scripts']),
@@ -16,7 +17,7 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
-    plugins: { import: importPlugin },
+    plugins: { import: importPlugin, '@react-native': reactNative, },
     settings: { 'import/resolver': { typescript: true } },
     languageOptions: {
       globals: globals.browser,
@@ -26,6 +27,7 @@ export default defineConfig([
       },
     },
     rules: {
+      '@react-native/no-inline-styles': 'error',
       curly: 'error',
       eqeqeq: 'error',
       'no-console': 'warn',
