@@ -286,7 +286,7 @@ module.exports = async function ({
         name: 'allUndef',
         gamepadConfig: config,
       });
-      await helpers.waitForStatus(page, 'connected');
+      // Empty config creates no virtual pads — no 'connected' event fires; just wait briefly
       await new Promise((r) => setTimeout(r, 500));
 
       await page.keyboard.down('Space');

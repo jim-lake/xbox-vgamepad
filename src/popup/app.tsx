@@ -95,10 +95,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'var(--row-border)',
   },
-  label: {
-    color: 'var(--text-muted)',
-    fontSize: '1.3rem',
-  },
+  label: { color: 'var(--text-muted)', fontSize: '1.3rem' },
   select: {
     padding: '2px 4px 2px 6px',
     width: '6rem',
@@ -446,7 +443,13 @@ export default function App() {
             <Text style={styles.label}>Gamepad Number</Text>
             <Select
               style={styles.select}
-              value={String(activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ?? 0)}
+              value={String(
+                activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ??
+                  Object.values(activeConfig.keyboardConfig)
+                    .flat()
+                    .find((e) => e.type === 'action')?.gamepadIndex ??
+                  0
+              )}
               options={[
                 { value: '0', text: '1' },
                 { value: '1', text: '2' },

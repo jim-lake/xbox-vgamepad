@@ -37,8 +37,6 @@ const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
   { action: 'rightStickRight', label: 'RS Right' },
   { action: 'home', label: 'Home' },
   { action: 'toggleGamepad', label: 'Toggle Gamepad' },
-  { action: 'toggleAllGamepads', label: 'Toggle All Gamepads' },
-  { action: 'toggleExtension', label: 'Toggle Extension' },
 ];
 
 const styles = StyleSheet.create({
@@ -254,7 +252,11 @@ interface Props {
   actions?: GamepadActionName[];
 }
 
-export default function KeyBindingEditor({ keyboardConfig, onChange, actions }: Props) {
+export default function KeyBindingEditor({
+  keyboardConfig,
+  onChange,
+  actions,
+}: Props) {
   const visibleActions = actions
     ? ACTION_LABELS.filter((a) => actions.includes(a.action))
     : ACTION_LABELS;

@@ -76,8 +76,6 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
   for (const mc of config.mouseConfig.mouseControls) {
     indices.add(mc.gamepadIndex);
   }
-  // Always enable at least slot 0 so a gamepad is always present when active
-  indices.add(0);
   return indices;
 }
 
