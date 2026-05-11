@@ -14,9 +14,27 @@ import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
-  loopContainer: { flexDirection: 'column' },
-  label: { color: 'var(--text-muted)', fontSize: '1.3rem', width: '3rem' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '0.4rem',
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+  },
+  loopContainer: {
+    flexDirection: 'column',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+  },
+  loopHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '0.4rem',
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+  },
   select: {
     padding: '2px 4px 2px 6px',
     color: 'var(--text-muted)',
@@ -94,7 +112,6 @@ export default function ScriptActionRow({
   if (action.type === 'delay') {
     return (
       <View style={[styles.row, ipad]}>
-        <Text style={styles.label}>#{String(index + 1)}</Text>
         <Select
           style={styles.select}
           value={action.type}
@@ -127,8 +144,7 @@ export default function ScriptActionRow({
     const countIsInfinite = action.count === 'infinite';
     return (
       <View style={styles.loopContainer}>
-        <View style={[styles.row, ipad]}>
-          <Text style={styles.label}>#{String(index + 1)}</Text>
+      <View style={[styles.loopHeaderRow, ipad]}>
           <Select
             style={styles.select}
             value={action.type}
@@ -188,7 +204,6 @@ export default function ScriptActionRow({
   const { buttons } = action;
   return (
     <View style={[styles.row, ipad]}>
-      <Text style={styles.label}>#{String(index + 1)}</Text>
       <Select
         style={styles.select}
         value={action.type}

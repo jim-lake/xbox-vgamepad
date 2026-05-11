@@ -1,4 +1,3 @@
-import { StyleSheet } from '@/components/base_components';
 import type { StyleInput } from '@/components/base_components';
 import type { GamepadActionName } from '@/types/gamepad';
 
@@ -73,26 +72,11 @@ export const ACTION_OPTIONS = ACTION_NAMES.map((a) => ({
   text: ACTION_LABEL[a],
 }));
 
-// Pre-computed indent styles for nesting levels 0–4.
-// Each level adds 1.5rem of left padding on top of the 0.5rem base.
-const indentStyles = StyleSheet.create({
-  i0: { paddingLeft: '0.5rem' },
-  i1: { paddingLeft: '2.0rem' },
-  i2: { paddingLeft: '3.5rem' },
-  i3: { paddingLeft: '5.0rem' },
-  i4: { paddingLeft: '6.5rem' },
-});
-
-const INDENT_STYLE: StyleInput[] = [
-  indentStyles.i0,
-  indentStyles.i1,
-  indentStyles.i2,
-  indentStyles.i3,
-  indentStyles.i4,
-];
-
 export function indentStyle(level: number): StyleInput {
-  return (
-    INDENT_STYLE[Math.min(level, INDENT_STYLE.length - 1)] ?? indentStyles.i4
-  );
+  return {
+    paddingLeft: `${String(level * 10)}px`,
+    borderLeftWidth: level > 0 ? 2 : 0,
+    borderLeftColor: 'var(--row-border)',
+    borderLeftStyle: 'solid',
+  };
 }

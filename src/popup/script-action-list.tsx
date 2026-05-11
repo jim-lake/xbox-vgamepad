@@ -7,7 +7,7 @@ import { indentStyle } from './script-constants';
 import plusIcon from '@/assets/img/plus.svg';
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'column', gap: '0.2rem' },
+  container: { flexDirection: 'column' },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
   addLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
 });

@@ -21,6 +21,114 @@ export function displayKeyCode(code: string): string | null {
   return isSentinelKey(code) ? null : code;
 }
 
+const isMac = navigator.userAgent.includes('Mac');
+
+/** Format a KeyboardEvent.code or virtual mouse code for display. */
+export function formatCode(code: string): string {
+  if (code.startsWith('Key')) {
+    return code.slice(3);
+  }
+  if (code.startsWith('Digit')) {
+    return code.slice(5);
+  }
+  switch (code) {
+    case 'RightClick':
+      return 'Right Click';
+    case 'ControlLeft':
+      return 'Left Control';
+    case 'ControlRight':
+      return 'Right Control';
+    case 'ShiftLeft':
+      return 'Left Shift';
+    case 'ShiftRight':
+      return 'Right Shift';
+    case 'AltLeft':
+      return isMac ? 'Left Option' : 'Left Alt';
+    case 'AltRight':
+      return isMac ? 'Right Option' : 'Right Alt';
+    case 'MetaLeft':
+      return isMac ? 'Left Command' : 'Left Win';
+    case 'MetaRight':
+      return isMac ? 'Right Command' : 'Right Win';
+    case 'ArrowUp':
+      return '↑';
+    case 'ArrowDown':
+      return '↓';
+    case 'ArrowLeft':
+      return '←';
+    case 'ArrowRight':
+      return '→';
+    case 'CapsLock':
+      return 'Caps Lock';
+    case 'PageUp':
+      return 'Page Up';
+    case 'PageDown':
+      return 'Page Down';
+    case 'NumLock':
+      return 'Num Lock';
+    case 'ScrollLock':
+      return 'Scroll Lock';
+    case 'PrintScreen':
+      return 'Print Screen';
+    case 'NumpadEnter':
+      return 'Numpad Enter';
+    case 'NumpadAdd':
+      return 'Numpad +';
+    case 'NumpadSubtract':
+      return 'Numpad -';
+    case 'NumpadMultiply':
+      return 'Numpad *';
+    case 'NumpadDivide':
+      return 'Numpad /';
+    case 'NumpadDecimal':
+      return 'Numpad .';
+    case 'Numpad0':
+      return 'Numpad 0';
+    case 'Numpad1':
+      return 'Numpad 1';
+    case 'Numpad2':
+      return 'Numpad 2';
+    case 'Numpad3':
+      return 'Numpad 3';
+    case 'Numpad4':
+      return 'Numpad 4';
+    case 'Numpad5':
+      return 'Numpad 5';
+    case 'Numpad6':
+      return 'Numpad 6';
+    case 'Numpad7':
+      return 'Numpad 7';
+    case 'Numpad8':
+      return 'Numpad 8';
+    case 'Numpad9':
+      return 'Numpad 9';
+    case 'BracketLeft':
+      return '[';
+    case 'BracketRight':
+      return ']';
+    case 'Backslash':
+      return '\\';
+    case 'Semicolon':
+      return ';';
+    case 'Quote':
+      return "'";
+    case 'Comma':
+      return ',';
+    case 'Period':
+      return '.';
+    case 'Slash':
+      return '/';
+    case 'Backquote':
+      return '`';
+    case 'Minus':
+      return '-';
+    case 'Equal':
+      return '=';
+    default:
+      return code;
+  }
+}
+
 /** All scripts extracted from keyboardConfig, with their bound key. */
 export function extractScripts(
   keyboardConfig: GamepadKeyboardConfig

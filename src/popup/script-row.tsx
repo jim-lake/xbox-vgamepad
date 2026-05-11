@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import TextButton from '@/components/buttons/text_button';
 import type { ScriptEntry } from './script-helpers';
-import { displayKeyCode } from './script-helpers';
+import { displayKeyCode, formatCode } from './script-helpers';
 
 import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
@@ -59,7 +59,7 @@ export default function ScriptRow({
       <View style={styles.bindings}>
         {boundKey !== null && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{boundKey}</Text>
+            <Text style={styles.badgeText}>{formatCode(boundKey)}</Text>
             <IconButton
               style={styles.deleteBtn}
               source={closeIcon}
