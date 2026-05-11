@@ -4,7 +4,7 @@ This document defines the JSON format for gamepad configuration presets used by 
 
 ## Overview
 
-The extension emulates a **Standard Gamepad** (as defined by the [W3C Gamepad API](https://w3c.github.io/gamepad/#remapping)) with the identity `"Xbox 360 Controller (XInput STANDARD GAMEPAD)"`. A configuration preset maps keyboard key codes and mouse actions to virtual gamepad buttons and analog stick axes.
+The extension emulates up to 4 **Standard Gamepads** (as defined by the [W3C Gamepad API](https://w3c.github.io/gamepad/#remapping)) with the identity `"Xbox 360 Controller (XInput STANDARD GAMEPAD)"`. A configuration preset maps keyboard key codes and mouse actions to virtual gamepad buttons and analog stick axes. Each action targets a specific virtual gamepad slot (`gamepadIndex` 0–3).
 
 ## Top-Level Storage Object
 
@@ -34,51 +34,69 @@ A single preset:
 ```json
 {
   "keyboardConfig": { "..." },
-  "mouseConfig": { "..." }
+  "mouseConfig": { "..." },
+  "otherGamepadMode": "separate"
 }
 ```
 
-| Field            | Type                    | Required | Description                                         |
-| ---------------- | ----------------------- | -------- | --------------------------------------------------- |
-| `keyboardConfig` | `GamepadKeyboardConfig` | Yes      | Keyboard/mouse-to-gamepad button and axis bindings. |
-| `mouseConfig`    | `GamepadMouseConfig`    | Yes      | Mouse movement-to-analog stick settings.            |
+| Field              | Type                      | Required | Description                                                                                                                             |
+| ------------------ | ------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `keyboardConfig`   | `GamepadKeyboardConfig`   | Yes      | Key code to action bindings.                                                                                                            |
+| `mouseConfig`      | `GamepadMouseConfig`      | Yes      | Mouse movement-to-analog stick settings.                                                                                                |
+| `otherGamepadMode` | `"combine" \| "separate"` | No       | How physical gamepads coexist with virtual pads. Defaults to `"separate"`. See [Physical Gamepad Handling](#physical-gamepad-handling). |
 
 ## GamepadMouseConfig
 
-Controls how mouse movement maps to an analog stick.
-
-```json
-{ "mouseControls": 1, "sensitivity": 10 }
-```
-
-| Field           | Type                     | Required | Valid Values                                                       | Description                                                       |
-| --------------- | ------------------------ | -------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `mouseControls` | `0`, `1`, or `undefined` | Yes      | `0` = left stick, `1` = right stick, `undefined`/`null` = disabled | Which analog stick raw mouse movement controls.                   |
-| `sensitivity`   | `number`                 | Yes      | Integer, `1` – `1000`                                              | Multiplier for mouse movement-to-stick deflection. Default: `10`. |
-
-## GamepadKeyboardConfig
-
-Maps keyboard key codes and virtual mouse codes to gamepad buttons, analog stick directions, extension actions, and scripted sequences. It is a plain object where each key is a key code string and each value is a **GamepadActionName**, an array of **GamepadActionName**, or a **GameScript** object.
+Controls how mouse movement maps to analog sticks. Multiple targets are supported.
 
 ```json
 {
-  "Space": "a",
-  "KeyW": "leftStickUp",
-  "KeyD": "leftStickRight",
-  "Click": "rightTrigger",
-  "F9": "toggleGamepad",
-  "KeyT": {
-    "activationType": "on_down",
-    "actions": [
-      { "type": "down", "buttons": ["a"] },
-      { "type": "delay", "durationMs": 100 },
-      { "type": "up", "buttons": ["a"] }
-    ]
-  }
+  "mouseControls": [{ "stick": "right", "gamepadIndex": 0, "sensitivity": 101 }]
 }
 ```
 
-Every entry is optional — omitted key codes are simply unbound.
+| Field           | Type                   | Required | Description                                                  |
+| --------------- | ---------------------- | -------- | ------------------------------------------------------------ |
+| `mouseControls` | `MouseControlTarget[]` | Yes      | List of mouse-to-stick mappings. Empty array disables mouse. |
+
+### MouseControlTarget
+
+| Field          | Type                | Required | Valid Values          | Description                                                                              |
+| -------------- | ------------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| `stick`        | `"left" \| "right"` | Yes      |                       | Which analog stick on the target virtual pad mouse movement controls.                    |
+| `gamepadIndex` | `0 \| 1 \| 2 \| 3`  | Yes      |                       | Which virtual gamepad slot this mouse target drives.                                     |
+| `sensitivity`  | `number`            | Yes      | Integer, `1` – `1000` | Divisor for mouse movement-to-stick deflection. Higher = less sensitive. Default: `101`. |
+
+## GamepadKeyboardConfig
+
+Maps keyboard key codes and virtual mouse codes to arrays of gamepad actions and scripts. Each key is a key code string; each value is an `ActionMap` — an array of `GamepadAction` and/or `GameScript` objects.
+
+```json
+{
+  "Space": [{ "type": "action", "gamepadIndex": 0, "action": "a" }],
+  "KeyW": [{ "type": "action", "gamepadIndex": 0, "action": "leftStickUp" }],
+  "F8": [{ "type": "action", "gamepadIndex": 0, "action": "toggleGamepad" }],
+  "KeyT": [
+    {
+      "type": "script",
+      "activationType": "on_down",
+      "actions": [
+        {
+          "type": "down",
+          "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+        },
+        { "type": "delay", "durationMs": 100 },
+        {
+          "type": "up",
+          "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every entry is optional — omitted key codes are simply unbound. A single key code may activate actions on multiple virtual gamepad slots simultaneously by including multiple `GamepadAction` entries in the array.
 
 ### Key Code Format
 
@@ -90,37 +108,45 @@ Keys are [KeyboardEvent.code](https://developer.mozilla.org/en-US/docs/Web/API/K
 | `"RightClick"` | Right mouse button (button 2) |
 | `"Scroll"`     | Mouse scroll wheel            |
 
-### GamepadActionName Values
+### GamepadAction
 
-Each value is a **GamepadActionName** string, or an array of them. A single key code may activate multiple gamepad actions simultaneously by providing an array.
+```json
+{ "type": "action", "gamepadIndex": 0, "action": "a" }
+```
+
+| Field          | Type                | Required | Description                                             |
+| -------------- | ------------------- | -------- | ------------------------------------------------------- |
+| `type`         | `"action"`          | Yes      | Discriminator.                                          |
+| `gamepadIndex` | `0 \| 1 \| 2 \| 3`  | Yes      | Which virtual gamepad slot this action targets.         |
+| `action`       | `GamepadActionName` | Yes      | The button or axis action to perform. See tables below. |
 
 #### Button Actions
 
-| GamepadActionName     | Gamepad Button         | `gamepadIndex` |
-| --------------------- | ---------------------- | -------------- |
-| `"a"`                 | A (Cross)              | 0              |
-| `"b"`                 | B (Circle)             | 1              |
-| `"x"`                 | X (Square)             | 2              |
-| `"y"`                 | Y (Triangle)           | 3              |
-| `"leftShoulder"`      | Left Bumper (LB)       | 4              |
-| `"rightShoulder"`     | Right Bumper (RB)      | 5              |
-| `"leftTrigger"`       | Left Trigger (LT)      | 6              |
-| `"rightTrigger"`      | Right Trigger (RT)     | 7              |
-| `"select"`            | Back / Select / View   | 8              |
-| `"start"`             | Start / Menu           | 9              |
-| `"leftStickPressed"`  | Left Stick Click (L3)  | 10             |
-| `"rightStickPressed"` | Right Stick Click (R3) | 11             |
-| `"dpadUp"`            | D-Pad Up               | 12             |
-| `"dpadDown"`          | D-Pad Down             | 13             |
-| `"dpadLeft"`          | D-Pad Left             | 14             |
-| `"dpadRight"`         | D-Pad Right            | 15             |
-| `"home"`              | Xbox / Guide           | 16             |
+| `action`              | Gamepad Button         | Button Index |
+| --------------------- | ---------------------- | ------------ |
+| `"a"`                 | A (Cross)              | 0            |
+| `"b"`                 | B (Circle)             | 1            |
+| `"x"`                 | X (Square)             | 2            |
+| `"y"`                 | Y (Triangle)           | 3            |
+| `"leftShoulder"`      | Left Bumper (LB)       | 4            |
+| `"rightShoulder"`     | Right Bumper (RB)      | 5            |
+| `"leftTrigger"`       | Left Trigger (LT)      | 6            |
+| `"rightTrigger"`      | Right Trigger (RT)     | 7            |
+| `"select"`            | Back / Select / View   | 8            |
+| `"start"`             | Start / Menu           | 9            |
+| `"leftStickPressed"`  | Left Stick Click (L3)  | 10           |
+| `"rightStickPressed"` | Right Stick Click (R3) | 11           |
+| `"dpadUp"`            | D-Pad Up               | 12           |
+| `"dpadDown"`          | D-Pad Down             | 13           |
+| `"dpadLeft"`          | D-Pad Left             | 14           |
+| `"dpadRight"`         | D-Pad Right            | 15           |
+| `"home"`              | Xbox / Guide           | 16           |
 
-When a bound key is pressed, the corresponding `Gamepad.buttons[gamepadIndex]` must report `pressed: true, value: 1`. On release: `pressed: false, value: 0`.
+When a bound key is pressed, `buttons[buttonIndex]` on the virtual pad at `gamepadIndex` must report `pressed: true, value: 1`. On release: `pressed: false, value: 0`.
 
 #### Axis Actions
 
-| GamepadActionName   | Stick | Axis Index | Direction | Axis Value |
+| `action`            | Stick | Axis Index | Direction | Axis Value |
 | ------------------- | ----- | ---------- | --------- | ---------- |
 | `"leftStickUp"`     | Left  | 1          | Up        | `-1`       |
 | `"leftStickDown"`   | Left  | 1          | Down      | `+1`       |
@@ -131,7 +157,7 @@ When a bound key is pressed, the corresponding `Gamepad.buttons[gamepadIndex]` m
 | `"rightStickLeft"`  | Right | 2          | Left      | `-1`       |
 | `"rightStickRight"` | Right | 2          | Right     | `+1`       |
 
-The `Gamepad.axes[]` array has 4 entries: `[leftX, leftY, rightX, rightY]`.
+The `Gamepad.axes[]` array has 4 entries: `[leftStickX, leftStickY, rightStickX, rightStickY]`.
 
 - Axis values range from `-1.0` to `+1.0`. Center is `0`.
 - Pressing a direction key sets the axis to the full value (`-1` or `+1`).
@@ -140,35 +166,37 @@ The `Gamepad.axes[]` array has 4 entries: `[leftX, leftY, rightX, rightY]`.
 
 #### Extension Actions
 
-| GamepadActionName | Description                                                                                                                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"toggleGamepad"` | Toggles the virtual gamepad connection on/off. When toggled off, the gamepad disconnects (`gamepaddisconnected` fires). When toggled on, it reconnects with the current config. Default binding: `"F9"`. |
+| `action`          | Description                                                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"toggleGamepad"` | Toggles all virtual gamepads on/off. When toggled off, all virtual pads disconnect. When toggled on, they reconnect with the current config. `gamepadIndex` is ignored for this action. |
 
 The toggle keybinding works regardless of whether the gamepad is currently connected — it is always listening.
 
 ### GameScript
 
-A key code may instead be bound to a **GameScript** — an object that defines a scripted sequence of button actions triggered by a key event.
-
 ```json
 {
-  "KeyT": {
-    "activationType": "on_down",
-    "actions": [
-      { "type": "down", "buttons": ["a"] },
-      { "type": "delay", "durationMs": 100 },
-      { "type": "up", "buttons": ["a"] }
-    ]
-  }
+  "type": "script",
+  "activationType": "on_down",
+  "actions": [
+    {
+      "type": "down",
+      "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+    },
+    { "type": "delay", "durationMs": 100 },
+    {
+      "type": "up",
+      "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+    }
+  ]
 }
 ```
 
-#### GameScript Fields
-
-| Field            | Type             | Required | Description                                              |
-| ---------------- | ---------------- | -------- | -------------------------------------------------------- |
-| `activationType` | `string`         | Yes      | When the script runs. See activation type details below. |
-| `actions`        | `ScriptAction[]` | Yes      | Ordered list of steps to execute.                        |
+| Field            | Type                                         | Required | Description                                              |
+| ---------------- | -------------------------------------------- | -------- | -------------------------------------------------------- |
+| `type`           | `"script"`                                   | Yes      | Discriminator.                                           |
+| `activationType` | `"on_down" \| "on_up" \| "toggle" \| "held"` | Yes      | When the script runs. See activation type details below. |
+| `actions`        | `ScriptAction[]`                             | Yes      | Ordered list of steps to execute.                        |
 
 #### Activation Types
 
@@ -179,128 +207,203 @@ A key code may instead be bound to a **GameScript** — an object that defines a
 | `"toggle"`       | First key down starts the script.                                                                  | Second key down **cancels** the running script (it does not restart). |
 | `"held"`         | Key down starts the script.                                                                        | Key **up cancels** the running script.                                |
 
-"Cancelling" a script means it stops executing immediately. Any buttons that the script pressed and has not yet released remain held by the script's press — but see the additive press model below for how that interacts with other inputs.
-
 #### ScriptAction
-
-Each step in `actions` is one of the following:
 
 | Shape                                                              | Description                                                                                                         |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `{ "type": "down", "buttons": ["a", "b"] }`                        | Press the listed buttons (does not release them).                                                                   |
-| `{ "type": "up", "buttons": ["a", "b"] }`                          | Release the listed buttons.                                                                                         |
+| `{ "type": "down", "buttons": [GamepadAction, ...] }`              | Press the listed buttons (does not release them).                                                                   |
+| `{ "type": "up",   "buttons": [GamepadAction, ...] }`              | Release the listed buttons.                                                                                         |
 | `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step.                                                                |
 | `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled. |
 
 ### Additive Button Press Model
 
-Button presses from all sources — direct key bindings, multiple scripts running simultaneously, and physical user input — are **additive**. A button is held down as long as **any** source is pressing it.
+Button presses from all sources are **additive**. A button is held as long as any source is pressing it. `"up"` in a script only removes that script's contribution — it is not a force release.
 
-- A `{ "type": "down" }` step adds a press from that script.
-- A `{ "type": "up" }` step removes that script's press. If another source (a different script, or the user physically holding the key) is still pressing the same button, the button **remains held**.
-- Cancelling a script removes all presses that script had applied.
-- The same rule applies to user input: if a script is holding a button and the user also presses that key, releasing the user's key does not release the button — the script's press still holds it.
+### Multiple Actions Per Key
 
-This means `"up"` in a script is not a "force release" — it only removes that script's contribution to the button state.
-
-### Shared Key Codes
-
-A key code may map to multiple gamepad actions by providing an array value. When that key is pressed, all listed actions activate simultaneously.
+A single key activates all entries in its `ActionMap` simultaneously, allowing one key to drive multiple virtual slots:
 
 ```json
-{ "KeyW": ["leftStickUp", "a"] }
+{
+  "Space": [
+    { "type": "action", "gamepadIndex": 0, "action": "a" },
+    { "type": "action", "gamepadIndex": 1, "action": "a" }
+  ]
+}
 ```
 
 ### Multiple Keys for One Action
 
-To bind multiple keys to the same gamepad action, simply add separate entries pointing to the same action name:
-
 ```json
-{ "ArrowUp": "dpadUp", "KeyX": "dpadUp" }
+{
+  "ArrowUp": [{ "type": "action", "gamepadIndex": 0, "action": "dpadUp" }],
+  "KeyX": [{ "type": "action", "gamepadIndex": 0, "action": "dpadUp" }]
+}
 ```
+
+## Physical Gamepad Handling
+
+The `otherGamepadMode` field controls how physical (real) gamepads coexist with virtual pads in `navigator.getGamepads()`.
+
+### Virtual Slots
+
+The **virtual slots** set is the distinct `gamepadIndex` values referenced by any `GamepadAction` in `keyboardConfig` or any `MouseControlTarget` in `mouseConfig.mouseControls`. These slots are owned by the virtual layer.
+
+### `"separate"` mode (default)
+
+Virtual pads occupy their configured slots. Physical pads are passed through but **may be renumbered** to avoid conflicting with virtual slots.
+
+**Slot assignment for physical pads:**
+
+- Each physical pad is identified by its hardware `id` and assigned a stable output slot.
+- The assigned slot must not be in the virtual slots set and must not be used by another physical pad.
+- Assign the lowest-numbered slot satisfying those constraints.
+- If no such slot exists, the pad is not exposed until a slot becomes free.
+
+**On initialization** (config activated, virtual slots set established):
+
+1. For each currently connected physical pad whose **native browser slot index** conflicts with a virtual slot:
+   a. Fire `gamepaddisconnected` for the old slot.
+   b. Reassign to the lowest free non-virtual slot.
+   c. If a slot is available, fire `gamepadconnected` for the new slot.
+2. Physical pads whose native slots do not conflict are assigned that native slot unchanged — no events fired.
+
+**On physical connect:**
+
+1. Intercept the native event (suppress it).
+2. Assign the lowest free non-virtual slot not used by another physical pad.
+3. If available, dispatch `gamepadconnected` with the assigned slot index.
+4. If no slot is available, do not dispatch — pad is ignored.
+
+**On physical disconnect:**
+
+1. Intercept the native event (suppress it).
+2. Remove the pad's slot assignment.
+3. Dispatch `gamepaddisconnected` with the previously assigned slot index.
+
+**On config change** (virtual slots set changes):
+
+1. For each physical pad whose current slot is now in the new virtual slots set:
+   a. Fire `gamepaddisconnected` for the old slot.
+   b. Reassign to the lowest free non-virtual slot.
+   c. If available, fire `gamepadconnected` for the new slot.
+2. Physical pads whose slots remain free keep their slots — no events fired.
+
+### `"combine"` mode
+
+Virtual slots are owned by virtual pads and have physical input merged in. Non-virtual slots pass physical pads through **without modification** — no renumbering, no event interception.
+
+**`navigator.getGamepads()` in combine mode:**
+
+- For each **virtual slot**: return a merged gamepad — the virtual pad's keyboard/mouse state unioned with the physical pad at that same slot index, if one exists (button pressed if virtual OR physical has it pressed; axis uses virtual value if non-zero, otherwise the physical value).
+- For each **non-virtual slot**: return the physical pad exactly as the original `getGamepads()` reports it, unmodified.
+
+**Physical connect/disconnect events in combine mode:**
+
+- Events for physical pads at **non-virtual slots** pass through to the page unchanged.
+- Events for physical pads at **virtual slots** are suppressed — the page does not see them as separate devices.
+
+**Virtual pad initial state in combine mode:**
+
+- When a virtual pad is enabled in combine mode, its keyboard/mouse state starts at zero (no keys pressed, no mouse movement). The merged output will immediately reflect any physical pad input at that slot since the merge happens at read time in `getGamepads()`.
 
 ## Validation Rules
 
-A configuration is **invalid** if any of the following are true:
+1. **Escape key forbidden**: `"Escape"` must not be used as a key in `keyboardConfig`.
+2. **Sensitivity range**: Each `MouseControlTarget.sensitivity` must be an integer between `1` and `1000` inclusive.
+3. **gamepadIndex range**: `gamepadIndex` in any `GamepadAction` or `MouseControlTarget` must be `0`, `1`, `2`, or `3`.
 
-1. **Escape key forbidden**: The code `"Escape"` must not be used as a key in `keyboardConfig`.
-2. **Mouse config range**: `sensitivity` must be between `1` and `1000` inclusive.
-3. **Mouse config stick**: `mouseControls` must be `0`, `1`, or `undefined`/`null`.
-
-An implementation must reject invalid configurations and must not activate them.
+An implementation must reject configurations that fail these rules and must not activate them. However, if only some entries in a config are invalid (e.g. a single bad key binding), the implementation should log the errors and proceed with the valid mappings rather than rejecting the entire config.
 
 ## Default Configuration
 
-The built-in default preset:
+The built-in default preset (all actions target virtual pad 0):
 
 ```json
 {
-  "mouseConfig": { "mouseControls": 1, "sensitivity": 10 },
+  "mouseConfig": {
+    "mouseControls": [
+      { "stick": "right", "gamepadIndex": 0, "sensitivity": 101 }
+    ]
+  },
   "keyboardConfig": {
-    "Space": "a",
-    "ControlLeft": "b",
-    "Backspace": "b",
-    "KeyR": "x",
-    "KeyV": "y",
-    "Scroll": "y",
-    "KeyC": "leftShoulder",
-    "KeyG": "leftShoulder",
-    "KeyQ": "rightShoulder",
-    "RightClick": "leftTrigger",
-    "Click": "rightTrigger",
-    "Enter": "start",
-    "Tab": "select",
-    "ArrowUp": "dpadUp",
-    "KeyX": "dpadUp",
-    "ArrowDown": "dpadDown",
-    "KeyZ": "dpadDown",
-    "ArrowLeft": "dpadLeft",
-    "KeyN": "dpadLeft",
-    "ArrowRight": "dpadRight",
-    "KeyW": "leftStickUp",
-    "KeyS": "leftStickDown",
-    "KeyA": "leftStickLeft",
-    "KeyD": "leftStickRight",
-    "KeyO": "rightStickUp",
-    "KeyL": "rightStickDown",
-    "KeyK": "rightStickLeft",
-    "Semicolon": "rightStickRight",
-    "ShiftLeft": "leftStickPressed",
-    "KeyF": "rightStickPressed",
-    "F9": "toggleGamepad"
+    "Space": [{ "type": "action", "gamepadIndex": 0, "action": "a" }],
+    "KeyB": [{ "type": "action", "gamepadIndex": 0, "action": "b" }],
+    "Backspace": [{ "type": "action", "gamepadIndex": 0, "action": "b" }],
+    "KeyY": [{ "type": "action", "gamepadIndex": 0, "action": "y" }],
+    "KeyX": [{ "type": "action", "gamepadIndex": 0, "action": "x" }],
+    "KeyQ": [{ "type": "action", "gamepadIndex": 0, "action": "leftShoulder" }],
+    "KeyE": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightShoulder" }
+    ],
+    "RightClick": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftTrigger" }
+    ],
+    "Click": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightTrigger" }
+    ],
+    "BracketLeft": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftStickPressed" }
+    ],
+    "BracketRight": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightStickPressed" }
+    ],
+    "Enter": [{ "type": "action", "gamepadIndex": 0, "action": "start" }],
+    "Tab": [{ "type": "action", "gamepadIndex": 0, "action": "select" }],
+    "ArrowUp": [{ "type": "action", "gamepadIndex": 0, "action": "dpadUp" }],
+    "ArrowDown": [
+      { "type": "action", "gamepadIndex": 0, "action": "dpadDown" }
+    ],
+    "ArrowLeft": [
+      { "type": "action", "gamepadIndex": 0, "action": "dpadLeft" }
+    ],
+    "ArrowRight": [
+      { "type": "action", "gamepadIndex": 0, "action": "dpadRight" }
+    ],
+    "ShiftRight": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightTrigger" }
+    ],
+    "ShiftLeft": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftTrigger" }
+    ],
+    "KeyW": [{ "type": "action", "gamepadIndex": 0, "action": "leftStickUp" }],
+    "KeyS": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftStickDown" }
+    ],
+    "KeyA": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftStickLeft" }
+    ],
+    "KeyD": [
+      { "type": "action", "gamepadIndex": 0, "action": "leftStickRight" }
+    ],
+    "KeyO": [{ "type": "action", "gamepadIndex": 0, "action": "rightStickUp" }],
+    "KeyL": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightStickDown" }
+    ],
+    "KeyK": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightStickLeft" }
+    ],
+    "Semicolon": [
+      { "type": "action", "gamepadIndex": 0, "action": "rightStickRight" }
+    ],
+    "Backslash": [{ "type": "action", "gamepadIndex": 0, "action": "home" }],
+    "F8": [{ "type": "action", "gamepadIndex": 0, "action": "toggleGamepad" }]
   }
 }
 ```
 
 ## Virtual Gamepad Shape
 
-The emulated gamepad exposed via `navigator.getGamepads()` must conform to:
+Each virtual gamepad exposed via `navigator.getGamepads()` must conform to:
 
 | Property         | Value                                             |
 | ---------------- | ------------------------------------------------- |
 | `id`             | `"Xbox 360 Controller (XInput STANDARD GAMEPAD)"` |
-| `index`          | `0`                                               |
+| `index`          | The slot index (0–3) this pad occupies            |
 | `mapping`        | `"standard"`                                      |
 | `connected`      | `true` (when active)                              |
 | `buttons.length` | `17`                                              |
 | `axes.length`    | `4`                                               |
 
 Each entry in `buttons[]` is an object with `{ pressed: boolean, touched: boolean, value: number }`.
-
-## Behavioral Contract
-
-These are the observable behaviors any conforming implementation must exhibit, independent of internal architecture:
-
-1. **Gamepad appears on activation**: When the extension is enabled and a game page is detected, `navigator.getGamepads()` must return a gamepad matching the shape above, and a `gamepadconnected` event must fire.
-2. **Key press → button press**: When a keyboard key bound to a button action is pressed, the corresponding `buttons[gamepadIndex]` must immediately reflect `pressed: true, value: 1`.
-3. **Key release → button release**: When the key is released, the button must return to `pressed: false, value: 0`.
-4. **Key press → axis deflection**: When a keyboard key bound to an axis action is pressed, the corresponding axis must deflect to the full value (`-1` or `+1`).
-5. **Key release → axis center**: When the key is released, the axis must return to `0` (unless the opposing direction is still held).
-6. **Opposing axes cancel**: If both opposing direction keys on the same axis are held, the axis value must be `0`.
-7. **Simultaneous inputs**: Multiple buttons and axes may be active at the same time. Pressing one input must not affect unrelated inputs.
-8. **Multi-action keys**: When a key maps to multiple actions, pressing that key activates all listed gamepad inputs simultaneously.
-9. **Multiple keys per action**: When multiple keys map to the same action, any key independently activates that gamepad input.
-10. **Mouse movement → stick**: When `mouseControls` is set, raw mouse movement (via Pointer Lock) must deflect the designated analog stick, scaled by `sensitivity`.
-11. **Gamepad disappears on deactivation**: When the extension is disabled or the game exits, the virtual gamepad must disconnect and a `gamepaddisconnected` event must fire.
-12. **No phantom input**: When no keys are pressed and the mouse is stationary, all buttons must be unpressed and all axes must be at `0`.
-13. **Toggle keybinding**: Pressing the key(s) bound to `"toggleGamepad"` disconnects the virtual gamepad if connected, or reconnects it if disconnected. The toggle listener is always active regardless of gamepad connection state.

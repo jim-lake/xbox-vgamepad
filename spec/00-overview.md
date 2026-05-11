@@ -42,10 +42,11 @@ Four runtime contexts communicate via message passing:
 ```
 
 - **Background service worker**: Central coordinator. Reads config from storage, delivers it to the page on game start.
-- **Content script**: Bridge between extension APIs and page context. Injects the page script into the page's JS context. Relays messages.
+- **Content script**: Bridge between extension APIs and page context. Relays messages.
 - **Injected script**: Runs in the page's JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives the virtual gamepad. Must be a single file (no code splitting) since it is loaded via a `<script>` tag.
 - **Popup UI**: Manages config presets, toggling enable/disable, binding keys.
 
 ### Build Constraints
 
-- The **background** and **injected** bundles must each be single files (no chunk splitting) — service workers cannot load split chunks, and injected scripts are loaded via `<script src>` tags.
+- The **background** bundle must be a single file (no chunk splitting) — service workers cannot load split chunks.
+- The **injected** bundle must be a single file — it is declared in the manifest with `"world": "MAIN"` and `"run_at": "document_start"`, so Chrome injects it natively into the page JS context. No manual injection by the content script is needed.

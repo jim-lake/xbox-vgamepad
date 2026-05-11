@@ -103,12 +103,14 @@ export type Direction = (typeof Direction)[keyof typeof Direction];
 
 export interface AxisAction {
   type: 'axis';
+  gamepadIndex: 0 | 1 | 2 | 3;
   stick: number;
   direction: Direction;
 }
 
 export interface ButtonAction {
   type: 'button';
+  gamepadIndex: 0 | 1 | 2 | 3;
   index: number;
 }
 

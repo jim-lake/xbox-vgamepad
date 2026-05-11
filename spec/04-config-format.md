@@ -1,53 +1,41 @@
 # 04 — Config Format, Validation, and Defaults
 
-See `../JSON.md` for the authoritative JSON schema. This document covers processing and validation rules.
+See `../JSON.md` for the authoritative JSON schema. This document covers runtime processing and validation rules.
 
-## Config Processing: keyConfig → Gamepad Actions
+## Config Processing: keyboardConfig → Key Action Map
 
-The `keyConfig` object (human-readable button names → key codes) must be transformed into a reverse lookup (key codes → gamepad actions) at runtime.
+`keyboardConfig` is a `Record<string, ActionMap>` where each key is a key code and each value is an array of `GamepadAction` and/or `GameScript` objects. At runtime this is used directly as a lookup from key code to actions — no inversion step is needed.
 
-### Button Name → Gamepad Index
+### Building the Runtime Key Map
 
-```
-a:0  b:1  x:2  y:3  leftShoulder:4  rightShoulder:5  leftTrigger:6  rightTrigger:7
-select:8  start:9  leftStickPressed:10  rightStickPressed:11
-dpadUp:12  dpadDown:13  dpadLeft:14  dpadRight:15  home:16
-```
+For each entry in `keyboardConfig`:
 
-### Axis Name → Stick + Direction
+1. **Reject** if the key code is `"Escape"` (log error, skip)
+2. Collect all `GamepadAction` entries (type `"action"`) whose `action` is not `"toggleGamepad"` into the runtime map for that key code
+3. `GameScript` entries and `toggleGamepad` actions are handled separately and are not included in the regular key map
 
-Determine stick number from prefix: starts with `'l'` → stick 0 (left), otherwise → stick 1 (right).
+### Determining Active Virtual Gamepad Indices
 
-Determine direction from suffix after stripping `left/rightStick` prefix:
+The set of virtual gamepad indices that need simulators enabled is the union of:
 
-- `Up` → UP (value -1, Y axis)
-- `Down` → DOWN (value +1, Y axis)
-- `Left` → LEFT (value -1, X axis)
-- `Right` → RIGHT (value +1, X axis)
+- All `gamepadIndex` values from `GamepadAction` entries in `keyboardConfig` (excluding `toggleGamepad`)
+- All `gamepadIndex` values from `MouseControlTarget` entries in `mouseConfig.mouseControls`
 
-### Processing Rules
+### Toggle Key Codes
 
-For each field in keyConfig:
-
-1. Normalize the value to an array (string → `[string]`, undefined → skip, array → as-is)
-2. For each key code in the array:
-   - **Reject** if the code is `"Escape"` (log error, skip this binding)
-   - **Reject** if the code is already mapped (duplicate — log error, skip; first binding wins)
-   - Map the code to the appropriate gamepad button index or axis direction
+Separately, collect all key codes whose `ActionMap` contains a `GamepadAction` with `action === "toggleGamepad"`. These are registered on a global always-on listener independent of the active state.
 
 ## Validation Rules
 
-1. **Duplicate key codes**: Same code in multiple fields → reject the duplicate (first binding wins)
-2. **Escape forbidden**: `"Escape"` cannot be bound to anything
-3. **Array max length**: Each field accepts at most 2 key codes
-4. **Sensitivity range**: `mouseConfig.sensitivity` must be integer 1–1000
-5. **mouseControls values**: Must be `0`, `1`, `undefined`, or `null`
+1. **Escape forbidden**: `"Escape"` must not appear as a key in `keyboardConfig`
+2. **Sensitivity range**: Each `MouseControlTarget.sensitivity` must be an integer between `1` and `1000` inclusive
+3. **gamepadIndex range**: `gamepadIndex` in any `GamepadAction` or `MouseControlTarget` must be `0`, `1`, `2`, or `3`
 
-Invalid configs should be rejected but must not crash the extension. Log errors and proceed with whatever valid mappings exist.
+Invalid configs must not crash the extension. Log errors and proceed with whatever valid mappings exist.
 
 ## Virtual Mouse Codes
 
-Three special string values represent mouse actions (not keyboard keys):
+Three special key code strings represent mouse actions:
 
 | Code           | Trigger                       |
 | -------------- | ----------------------------- |
@@ -55,49 +43,37 @@ Three special string values represent mouse actions (not keyboard keys):
 | `"RightClick"` | Right mouse button (button 2) |
 | `"Scroll"`     | Mouse scroll wheel            |
 
-These can appear anywhere a key code string can appear (as a single string or in an array).
+These appear as keys in `keyboardConfig` and are processed identically to keyboard key codes.
 
-## Default Configuration
+## Action Resolution
 
-```json
-{
-  "mouseConfig": { "mouseControls": 1, "sensitivity": 10 },
-  "keyConfig": {
-    "a": "Space",
-    "b": ["ControlLeft", "Backspace"],
-    "x": "KeyR",
-    "y": ["KeyV", "Scroll"],
-    "leftShoulder": ["KeyC", "KeyG"],
-    "rightShoulder": "KeyQ",
-    "leftTrigger": "RightClick",
-    "rightTrigger": "Click",
-    "start": "Enter",
-    "select": "Tab",
-    "home": undefined,
-    "dpadUp": ["ArrowUp", "KeyX"],
-    "dpadDown": ["ArrowDown", "KeyZ"],
-    "dpadLeft": ["ArrowLeft", "KeyN"],
-    "dpadRight": "ArrowRight",
-    "leftStickUp": "KeyW",
-    "leftStickDown": "KeyS",
-    "leftStickLeft": "KeyA",
-    "leftStickRight": "KeyD",
-    "rightStickUp": "KeyO",
-    "rightStickDown": "KeyL",
-    "rightStickLeft": "KeyK",
-    "rightStickRight": "Semicolon",
-    "leftStickPressed": "ShiftLeft",
-    "rightStickPressed": "KeyF"
-  }
-}
+### Button actions
+
+`action` name → button index via `BUTTON_MAP`:
+
+```
+a:0  b:1  x:2  y:3  leftShoulder:4  rightShoulder:5  leftTrigger:6  rightTrigger:7
+select:8  start:9  leftStickPressed:10  rightStickPressed:11
+dpadUp:12  dpadDown:13  dpadLeft:14  dpadRight:15  home:16
 ```
 
-## Empty Configuration
+### Axis actions
 
-All keyConfig fields set to `undefined`, `mouseControls` set to `undefined`, `sensitivity` set to `10` (the default sensitivity constant).
+`action` name → axis index + direction value:
+
+- `leftStickLeft` → axis 0, value `-1`
+- `leftStickRight` → axis 0, value `+1`
+- `leftStickUp` → axis 1, value `-1`
+- `leftStickDown` → axis 1, value `+1`
+- `rightStickLeft` → axis 2, value `-1`
+- `rightStickRight` → axis 2, value `+1`
+- `rightStickUp` → axis 3, value `-1`
+- `rightStickDown` → axis 3, value `+1`
+
+Axes array: `[leftStickX, leftStickY, rightStickX, rightStickY]` (indices 0–3).
 
 ## Limits
 
 - Default config name: `"default"`
 - Maximum presets: 25
-- Default sensitivity: 10
+- Default sensitivity: `101`

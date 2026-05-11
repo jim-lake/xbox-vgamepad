@@ -1,10 +1,10 @@
-import type {
-  GamepadConfig,
-  ResolvedAction,
-  GamepadActionName,
-} from '@/types/gamepad';
+import type { GamepadConfig, GamepadAction } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
-import { AxisDirection } from './gamepad-simulator';
+import {
+  AxisDirection,
+  getSimulator,
+  updateVirtualSlots,
+} from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
 import {
   showOverlay,
@@ -37,43 +37,19 @@ const AXIS_ACTION_MAP: Record<string, { stick: number; direction: Direction }> =
     rightStickRight: { stick: 1, direction: Direction.RIGHT },
   };
 
-function actionNameToResolvedAction(
-  name: GamepadActionName
-): ResolvedAction | undefined {
-  if (name === 'toggleGamepad') {
-    return undefined;
-  }
-  const buttonIndex = BUTTON_MAP[name];
-  if (buttonIndex !== undefined) {
-    return { type: 'button', index: buttonIndex };
-  }
-  const axisInfo = AXIS_ACTION_MAP[name];
-  if (axisInfo) {
-    return {
-      type: 'axis',
-      stick: axisInfo.stick,
-      direction: axisInfo.direction,
-    };
-  }
-  return undefined;
-}
-
-function buildKeyMap(config: GamepadConfig): Map<string, ResolvedAction[]> {
-  const map = new Map<string, ResolvedAction[]>();
+function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
+  const map = new Map<string, GamepadAction[]>();
 
   for (const [code, entries] of Object.entries(config.keyboardConfig)) {
     if (code === 'Escape') {
       continue;
     }
-    const actions: ResolvedAction[] = [];
+    const actions: GamepadAction[] = [];
     for (const entry of entries) {
-      if (entry.type === 'script') {
-        continue; // GameScript — not yet implemented
+      if (entry.type === 'script' || entry.action === 'toggleGamepad') {
+        continue;
       }
-      const resolved = actionNameToResolvedAction(entry.action);
-      if (resolved) {
-        actions.push(resolved);
-      }
+      actions.push(entry);
     }
     if (actions.length > 0) {
       map.set(code, actions);
@@ -82,12 +58,28 @@ function buildKeyMap(config: GamepadConfig): Map<string, ResolvedAction[]> {
   return map;
 }
 
+function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
+  const indices = new Set<0 | 1 | 2 | 3>();
+  for (const entries of Object.values(config.keyboardConfig)) {
+    for (const entry of entries) {
+      if (entry.type === 'action') {
+        indices.add(entry.gamepadIndex);
+      }
+    }
+  }
+  for (const mc of config.mouseConfig.mouseControls) {
+    indices.add(mc.gamepadIndex);
+  }
+  return indices;
+}
+
 // Module state
-let g_keyMap = new Map<string, ResolvedAction[]>();
-let g_mouseStick: number | null = null;
+let g_keyMap = new Map<string, GamepadAction[]>();
+let g_mouseTarget: { stick: number; gamepadIndex: 0 | 1 | 2 | 3 } | null = null;
 let g_sensitivity = 10;
 let g_active = false;
 let g_config: GamepadConfig | null = null;
+let g_activeIndices = new Set<0 | 1 | 2 | 3>();
 
 // Listeners (stored for removal)
 let g_onKeyDown: ((e: KeyboardEvent) => void) | null = null;
@@ -107,7 +99,7 @@ let g_lastMoveProcess = 0;
 
 // Scroll state
 let g_scrollTimer: ReturnType<typeof setTimeout> | null = null;
-let g_scrollActions: ResolvedAction[] | null = null;
+let g_scrollActions: GamepadAction[] | null = null;
 
 function clearTimers(): void {
   if (g_scrollTimer !== null) {
@@ -128,25 +120,29 @@ function getGameContainer(): Element | null {
   return document.getElementById('game-stream') ?? document.body;
 }
 
-function executePress(action: ResolvedAction): void {
-  if (action.type === 'button') {
-    gamepadSimulator.pressButton(action.index);
-  } else {
-    gamepadSimulator.pressDirection(
-      action.stick,
-      directionToAxis[action.direction]
-    );
+function executePress(action: GamepadAction): void {
+  const sim = getSimulator(action.gamepadIndex);
+  const buttonIndex = BUTTON_MAP[action.action];
+  if (buttonIndex !== undefined) {
+    sim.pressButton(buttonIndex);
+    return;
+  }
+  const axisInfo = AXIS_ACTION_MAP[action.action];
+  if (axisInfo) {
+    sim.pressDirection(axisInfo.stick, directionToAxis[axisInfo.direction]);
   }
 }
 
-function executeUnpress(action: ResolvedAction): void {
-  if (action.type === 'button') {
-    gamepadSimulator.unpressButton(action.index);
-  } else {
-    gamepadSimulator.unpressDirection(
-      action.stick,
-      directionToAxis[action.direction]
-    );
+function executeUnpress(action: GamepadAction): void {
+  const sim = getSimulator(action.gamepadIndex);
+  const buttonIndex = BUTTON_MAP[action.action];
+  if (buttonIndex !== undefined) {
+    sim.unpressButton(buttonIndex);
+    return;
+  }
+  const axisInfo = AXIS_ACTION_MAP[action.action];
+  if (axisInfo) {
+    sim.unpressDirection(axisInfo.stick, directionToAxis[axisInfo.direction]);
   }
 }
 
@@ -156,8 +152,12 @@ function processMouseMovement(): void {
     clearTimeout(g_stopTimer);
   }
   g_stopTimer = setTimeout(() => {
-    if (g_mouseStick !== null) {
-      gamepadSimulator.moveStick(g_mouseStick, 0, 0);
+    if (g_mouseTarget !== null) {
+      getSimulator(g_mouseTarget.gamepadIndex).moveStick(
+        g_mouseTarget.stick,
+        0,
+        0
+      );
     }
     g_stopTimer = null;
   }, MOUSE_STOP_MS);
@@ -166,8 +166,12 @@ function processMouseMovement(): void {
   const y = Math.max(-1, Math.min(1, g_accY / g_sensitivity));
   g_accX = 0;
   g_accY = 0;
-  if (g_mouseStick !== null) {
-    gamepadSimulator.moveStick(g_mouseStick, x, y);
+  if (g_mouseTarget !== null) {
+    getSimulator(g_mouseTarget.gamepadIndex).moveStick(
+      g_mouseTarget.stick,
+      x,
+      y
+    );
   }
 }
 
@@ -382,20 +386,50 @@ export function activate(
   if (opts?.resetDismissed) {
     setMinimizedDismissed(false);
   }
+
+  const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
+  g_sensitivity = mouseTarget?.sensitivity ?? 10;
+  g_mouseTarget = mouseTarget
+    ? {
+        stick: mouseTarget.stick === 'left' ? 0 : 1,
+        gamepadIndex: mouseTarget.gamepadIndex,
+      }
+    : null;
+
   if (g_active) {
-    // Hot-swap: just update bindings without disconnect/reconnect
-    const hadMouse = g_mouseStick !== null;
+    // Hot-swap: update bindings without disconnect/reconnect for existing pads
+    const hadMouse = g_mouseTarget !== null;
     removeListeners();
     clearTimers();
-    gamepadSimulator.resetState();
+
+    const newIndices = getActiveGamepadIndices(config);
+
+    // setMode first so combine mode clears virtual slots before updateVirtualSlots
     gamepadSimulator.setMode(config.otherGamepadMode);
+    if (config.otherGamepadMode !== 'combine') {
+      updateVirtualSlots(newIndices);
+    }
+
+    // Disable pads no longer in the new config
+    for (const idx of g_activeIndices) {
+      if (!newIndices.has(idx)) {
+        getSimulator(idx).disable(idx);
+      } else {
+        getSimulator(idx).resetState();
+      }
+    }
+    // Enable pads newly added in the new config
+    for (const idx of newIndices) {
+      if (!g_activeIndices.has(idx)) {
+        getSimulator(idx).enable(idx);
+      }
+    }
+
     g_keyMap = buildKeyMap(config);
-    const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
-    g_sensitivity = mouseTarget?.sensitivity ?? 10;
-    g_mouseStick = mouseTarget ? (mouseTarget.stick === 'left' ? 0 : 1) : null;
+    g_activeIndices = newIndices;
     attachKeyboard();
     attachMouseButtons();
-    if (g_mouseStick !== null) {
+    if (g_mouseTarget !== null) {
       attachMouseMovement();
     } else if (hadMouse) {
       exitPointerLock();
@@ -404,19 +438,24 @@ export function activate(
     }
     return;
   }
+
   g_keyMap = buildKeyMap(config);
-  const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
-  g_sensitivity = mouseTarget?.sensitivity ?? 10;
-  g_mouseStick = mouseTarget ? (mouseTarget.stick === 'left' ? 0 : 1) : null;
+  g_activeIndices = getActiveGamepadIndices(config);
   g_active = true;
   gamepadSimulator.setMode(config.otherGamepadMode);
 
+  if (config.otherGamepadMode !== 'combine') {
+    updateVirtualSlots(g_activeIndices);
+  }
   attachKeyboard();
   attachMouseButtons();
-  if (g_mouseStick !== null) {
+  if (g_mouseTarget !== null) {
     attachMouseMovement();
   }
-  gamepadSimulator.enable();
+
+  for (const idx of g_activeIndices) {
+    getSimulator(idx).enable(idx);
+  }
 }
 
 export function deactivate(): void {
@@ -427,9 +466,13 @@ export function deactivate(): void {
   exitPointerLock();
   removeOverlay();
   removeMinimized();
-  gamepadSimulator.disable();
+  for (const idx of g_activeIndices) {
+    getSimulator(idx).disable(idx);
+  }
+  updateVirtualSlots(new Set());
   g_active = false;
   g_keyMap.clear();
+  g_activeIndices.clear();
   clearTimers();
 }
 

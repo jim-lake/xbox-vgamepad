@@ -15,6 +15,15 @@
     <div id="button-touched"></div>
     <div id="axes"></div>
     <div id="event-log"></div>
+    <!-- Per-pad elements: pad-0 through pad-3 -->
+    <div id="pad-0-buttons"></div>
+    <div id="pad-0-axes"></div>
+    <div id="pad-1-buttons"></div>
+    <div id="pad-1-axes"></div>
+    <div id="pad-2-buttons"></div>
+    <div id="pad-2-axes"></div>
+    <div id="pad-3-buttons"></div>
+    <div id="pad-3-axes"></div>
     <script>
       const statusEl = document.getElementById('status');
       const gamepadIdEl = document.getElementById('gamepad-id');
@@ -79,6 +88,27 @@
             statusEl.setAttribute('data-ready', 'true');
           }
         }
+
+        // Per-pad polling for indices 0–3
+        for (let i = 0; i < 4; i++) {
+          const pad = gamepads[i];
+          const btnEl = document.getElementById('pad-' + i + '-buttons');
+          const axEl = document.getElementById('pad-' + i + '-axes');
+          if (pad) {
+            btnEl.setAttribute(
+              'data-buttons',
+              pad.buttons.map((b) => (b.pressed ? '1' : '0')).join(',')
+            );
+            axEl.setAttribute(
+              'data-axes',
+              pad.axes.map((a) => a.toFixed(2)).join(',')
+            );
+          } else {
+            btnEl.setAttribute('data-buttons', '');
+            axEl.setAttribute('data-axes', '');
+          }
+        }
+
         requestAnimationFrame(poll);
       }
       requestAnimationFrame(poll);

@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-Chrome Extension (Manifest V3) that lets users play Xbox Cloud Gaming (xCloud) with keyboard and mouse. It creates a virtual Xbox 360 controller by monkey-patching `navigator.getGamepads()` and translates keyboard/mouse input into gamepad button presses and analog stick movements.
+Chrome Extension (Manifest V3) that lets users play Xbox Cloud Gaming (xCloud) with keyboard and mouse. It creates up to 4 virtual Xbox 360 controllers by monkey-patching `navigator.getGamepads()` and translates keyboard/mouse input into gamepad button presses and analog stick movements.
 
 ## After Any Code Change
 
@@ -22,7 +22,7 @@ Four runtime contexts communicate via message passing:
 
 - **Background service worker** (`src/background/service-worker.ts`): Central coordinator, reads config from storage, delivers to page on game start. Must be a single-file bundle.
 - **Content script** (`src/content/index.ts`): Bridge between extension APIs and page context. Relays messages between the page and background.
-- **Main-world script** (`src/injected/main-world.ts`): Declared in manifest with `"world": "MAIN"`, Chrome injects it directly into the page JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives virtual gamepad.
+- **Main-world script** (`src/injected/main-world.ts`): Declared in manifest with `"world": "MAIN"`, Chrome injects it directly into the page JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives virtual gamepads.
 - **Popup UI** (`src/popup/`): React app for managing config presets, toggling enable/disable, binding keys.
 
 ## Tech Stack
@@ -74,12 +74,14 @@ The `spec/` directory contains the authoritative design specs (00–10). `JSON.m
 
 Key behavioral requirements:
 
+- Up to 4 virtual gamepads (slots 0–3); each `GamepadAction` targets a specific slot via `gamepadIndex`
 - Virtual gamepad ID: `"Xbox 360 Controller (XInput STANDARD GAMEPAD)"`
 - 17 buttons, 4 axes (standard mapping)
-- `gamepadconnected`/`gamepaddisconnected` events must fire
+- `gamepadconnected`/`gamepaddisconnected` events must fire on virtual pad enable/disable
 - Opposing axis keys cancel to 0
 - Escape key must never be bound
 - Max 25 config presets
+- Physical gamepad coexistence: `separate` mode renumbers physical pads away from virtual slots; `combine` mode merges physical input into virtual slots
 - A key code may map to multiple actions via an array value; multiple keys may map to the same action via separate entries
 
 ## Testing

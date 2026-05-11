@@ -321,6 +321,72 @@ function makeConfig({ mouseConfig, keyboardConfig }) {
   };
 }
 
+async function getPadButtonStates(page, padIndex) {
+  return page.evaluate((i) => {
+    const el = document.getElementById('pad-' + i + '-buttons');
+    const data = el?.getAttribute('data-buttons');
+    if (!data) return Array(17).fill(false);
+    return data.split(',').map((v) => v === '1');
+  }, padIndex);
+}
+
+async function getPadAxesStates(page, padIndex) {
+  return page.evaluate((i) => {
+    const el = document.getElementById('pad-' + i + '-axes');
+    const data = el?.getAttribute('data-axes');
+    if (!data) return [0, 0, 0, 0];
+    return data.split(',').map(Number);
+  }, padIndex);
+}
+
+async function waitForPadButton(
+  page,
+  padIndex,
+  buttonIndex,
+  pressed,
+  timeout = 3000
+) {
+  const target = pressed ? '1' : '0';
+  await page.waitForFunction(
+    (pi, bi, val) => {
+      const el = document.getElementById('pad-' + pi + '-buttons');
+      const data = el?.getAttribute('data-buttons');
+      if (!data) return false;
+      return data.split(',')[bi] === val;
+    },
+    { timeout },
+    padIndex,
+    buttonIndex,
+    target
+  );
+}
+
+async function waitForPadAxis(
+  page,
+  padIndex,
+  axisIndex,
+  comparator,
+  threshold,
+  timeout = 3000
+) {
+  await page.waitForFunction(
+    (pi, ai, cmp, thr) => {
+      const el = document.getElementById('pad-' + pi + '-axes');
+      const data = el?.getAttribute('data-axes');
+      if (!data) return false;
+      const val = parseFloat(data.split(',')[ai]);
+      if (cmp === 'gt') return val > thr;
+      if (cmp === 'lt') return val < thr;
+      return Math.abs(val - thr) < 0.01;
+    },
+    { timeout },
+    padIndex,
+    axisIndex,
+    comparator,
+    threshold
+  );
+}
+
 module.exports = {
   startServer,
   stopServer,
@@ -344,5 +410,9 @@ module.exports = {
   getExtensionId,
   getTabId,
   makeConfig,
+  getPadButtonStates,
+  getPadAxesStates,
+  waitForPadButton,
+  waitForPadAxis,
   serverPort: () => serverPort,
 };

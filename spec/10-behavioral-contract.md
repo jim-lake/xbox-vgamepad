@@ -4,31 +4,31 @@ These are the observable behaviors any conforming implementation must exhibit. T
 
 ## Gamepad Lifecycle
 
-1. **Gamepad appears on activation**: When the extension is enabled and a game page is detected, `navigator.getGamepads()` must return a gamepad matching the virtual gamepad shape (see `02-gamepad-simulator.md`), and a `gamepadconnected` event must fire on `window`.
+1. **Virtual pads appear on activation**: When the extension is enabled and a game page is detected, `navigator.getGamepads()` must return a virtual gamepad at each configured slot, and a `gamepadconnected` event must fire for each.
 
-2. **Gamepad disappears on deactivation**: When the extension is disabled or the game exits, the virtual gamepad must disconnect and a `gamepaddisconnected` event must fire on `window`. `navigator.getGamepads()` must return null/empty for that slot.
+2. **Virtual pads disappear on deactivation**: When the extension is disabled or the game exits, all virtual pads must disconnect and a `gamepaddisconnected` event must fire for each. Those slots must return `null` in `getGamepads()`.
 
-3. **No duplicate gamepads**: After any number of enable/disable cycles or page reloads, `getGamepads()` must contain at most one non-null gamepad.
+3. **No slot collision** (`separate` mode only): A virtual pad and a physical pad must never occupy the same slot in the `getGamepads()` result. In `combine` mode, a virtual slot intentionally merges with a physical pad at the same index.
 
-4. **Clean reconnection after page reload**: The gamepad must reconnect with correct identity and shape. No phantom input (all buttons false, all axes 0). Buttons held before reload must NOT be stuck after reload.
+4. **Clean reconnection**: On re-enable, virtual pads reconnect with correct identity and shape. Keyboard/mouse state starts at zero (no phantom input from prior session).
 
 ## Button Behavior
 
-5. **Key press → button press**: When a keyboard key bound to a button field is pressed, `buttons[gamepadIndex]` must immediately reflect `pressed: true, value: 1`.
+5. **Key press → button press**: When a key bound to a button action is pressed, `buttons[buttonIndex]` on the target virtual pad must immediately reflect `pressed: true, value: 1`.
 
 6. **Key release → button release**: When the key is released, the button must return to `pressed: false, value: 0`.
 
-7. **Exact values**: Button `value` is exactly `0` or `1` (integer, not floating point approximation).
+7. **Exact values**: Button `value` is exactly `0` or `1`.
 
 8. **Touched property**: `touched` is `false` for all idle buttons. Resets to `false` after release.
 
-9. **Simultaneous buttons**: Multiple buttons can be active at the same time without interference.
+9. **Simultaneous buttons**: Multiple buttons across any virtual pads can be active at the same time without interference.
 
-10. **All 17 buttons simultaneously**: All 17 buttons can be pressed at once and must all register correctly.
+10. **All 17 buttons simultaneously**: All 17 buttons on a virtual pad can be pressed at once and must all register correctly.
 
 ## Axis Behavior
 
-11. **Key press → axis deflection**: When a key bound to an axis direction is pressed, the corresponding axis must deflect to exactly `-1` or `+1`.
+11. **Key press → axis deflection**: When a key bound to an axis direction is pressed, the corresponding axis on the target virtual pad must deflect to exactly `-1` or `+1`.
 
 12. **Key release → axis center**: When the key is released, the axis must return to exactly `0` (unless the opposing direction is still held).
 
@@ -38,74 +38,90 @@ These are the observable behaviors any conforming implementation must exhibit. T
 
 15. **All 4 axes independent**: Deflecting one axis does not affect others.
 
-16. **Diagonal movement**: Both X and Y of the same stick can be deflected simultaneously. Both sticks can be diagonal simultaneously (all 4 axes non-zero).
+16. **Diagonal movement**: Both X and Y of the same stick can be deflected simultaneously.
 
 17. **Axis values clamped**: Axis values never exceed the `[-1, +1]` range.
 
-## Alternate Bindings
+## Multi-Slot Behavior
 
-18. **Either key activates**: When a button has two key bindings, either key independently activates the button.
+18. **Actions target correct slot**: A `GamepadAction` with `gamepadIndex: 1` affects only the virtual pad at slot 1, not slot 0.
 
-19. **Axis alternates**: Array bindings work for axis fields too — either key deflects the axis.
+19. **One key, multiple slots**: A key whose `ActionMap` contains actions for multiple `gamepadIndex` values activates all of them simultaneously.
+
+20. **Independent slot state**: Input on one virtual pad slot does not affect the state of any other virtual pad slot.
 
 ## Mouse Input
 
-20. **mouseControls=0**: Mouse movement targets left stick (axes 0, 1).
+21. **Mouse targets correct slot and stick**: Mouse movement drives the stick and `gamepadIndex` specified in `mouseControls[0]`.
 
-21. **mouseControls=1**: Mouse movement targets right stick (axes 2, 3).
+22. **Empty mouseControls**: When `mouseControls` is empty, mouse movement produces no stick deflection.
 
-22. **mouseControls=undefined/null**: Mouse movement produces NO stick deflection.
+23. **Sensitivity scaling**: Higher `sensitivity` value means less deflection for the same mouse movement (it's a divisor).
 
-23. **Sensitivity scaling**: Higher sensitivity value (as stored) means less deflection for the same mouse movement (it's a divisor).
+24. **Mouse auto-reset**: When the mouse stops moving, the target stick returns to center `(0, 0)` after ~50ms.
 
-24. **Mouse auto-reset**: When the mouse stops moving, the target stick returns to center (0, 0) after ~50ms.
-
-25. **Click/RightClick/Scroll**: Virtual mouse codes work as button bindings — left click, right click, and scroll wheel can be bound to any gamepad button.
+25. **Click/RightClick/Scroll**: Virtual mouse codes work as button bindings on any target `gamepadIndex`.
 
 ## Config Switching
 
 26. **Immediate effect**: Switching presets changes key bindings immediately — old keys stop working, new keys start working.
 
-27. **State cleared on switch**: Activating a new config resets all buttons to unpressed and all axes to 0, regardless of what keys are physically held.
+27. **Minimal pad churn on switch**: Virtual pads that exist in both old and new configs are not disconnected and reconnected — their state is reset but they remain connected. Only pads added or removed fire connect/disconnect events.
 
-28. **Rapid switching**: Rapid config switching (up to 20 times) must result in the last config being active with no corruption.
+28. **Rapid switching**: Rapid config switching must result in the last config being active with no corruption.
 
-29. **Same key, different configs**: The same physical key can map to different buttons in different configs.
+## Physical Gamepad Handling — Separate Mode
+
+29. **Physical pads passed through**: In `separate` mode, physical pads appear in `getGamepads()` at their assigned slots.
+
+30. **No slot conflict**: Physical pads are renumbered away from virtual slots. A physical pad never appears at a virtual slot.
+
+31. **Stable slots**: A physical pad keeps its assigned slot across config changes as long as that slot remains free.
+
+32. **Renumber on conflict**: When a config change causes a physical pad's slot to become a virtual slot, the pad fires `gamepaddisconnected` for the old slot and `gamepadconnected` for the new slot. If no free slot exists, the pad is not exposed.
+
+33. **Physical connect fires**: When a physical pad connects, `gamepadconnected` fires with its assigned (possibly renumbered) slot.
+
+34. **Physical disconnect fires**: When a physical pad disconnects, `gamepaddisconnected` fires with its previously assigned slot.
+
+35. **Minimal events on config change**: Physical pads whose slots are unaffected by a config change receive no connect/disconnect events.
+
+## Physical Gamepad Handling — Combine Mode
+
+36. **Virtual slots merge physical input**: In `combine` mode, `getGamepads()` at a virtual slot returns the union of the virtual pad's keyboard/mouse state and the physical pad at that same slot index, if one exists (button OR'd; axis uses virtual value if non-zero, else physical value).
+
+37. **Non-virtual slots unmodified**: Physical pads at non-virtual slots are returned exactly as the browser reports them, with no renumbering or modification.
+
+38. **Physical events at non-virtual slots pass through**: `gamepadconnected` / `gamepaddisconnected` for physical pads at non-virtual slots are not intercepted.
+
+39. **Physical events at virtual slots suppressed**: Physical pads that would appear at a virtual slot do not generate separate connect/disconnect events to the page.
 
 ## Enable/Disable
 
-30. **Disable clears state**: No stuck buttons or axes after disable.
+40. **Disable clears state**: No stuck buttons or axes after disable.
 
-31. **Keys ignored when disabled**: Key presses have no effect when the extension is disabled (and must not crash).
+41. **Keys ignored when disabled**: Key presses have no effect when the extension is disabled.
 
-32. **Multiple cycles**: Multiple rapid enable/disable cycles end in the correct state.
+42. **Multiple cycles**: Multiple rapid enable/disable cycles end in the correct state.
 
-33. **Event counts**: `gamepadconnected` fires exactly once per enable, `gamepaddisconnected` fires exactly once per disable.
+43. **Event counts**: `gamepadconnected` fires exactly once per virtual pad per enable. `gamepaddisconnected` fires exactly once per virtual pad per disable.
 
 ## No Phantom Input
 
-34. **Idle state**: When no keys are pressed and the mouse is stationary, all buttons must be unpressed (`pressed: false, value: 0`) and all axes must be at `0`.
+44. **Idle state**: When no keys are pressed and the mouse is stationary, all virtual pad buttons must be unpressed and all axes at `0`.
 
-35. **After disable/enable**: No phantom input after any number of disable/enable cycles.
+45. **After disable/enable**: No phantom input after any number of disable/enable cycles.
 
-36. **After config switch**: No phantom input from the previous config's bindings.
-
-## Input Isolation
-
-37. **Button ↔ axis isolation**: Pressing a button does NOT affect any axis value. Pressing an axis direction does NOT affect any button state.
-
-38. **Cross-axis isolation**: Deflecting one axis does not affect any other axis.
+46. **After config switch**: No phantom input from the previous config's bindings.
 
 ## Timing
 
-39. **Immediate response**: Button/axis state changes must be observable within one animation frame cycle.
+47. **Immediate response**: Button/axis state changes must be observable within one animation frame cycle.
 
-40. **Timestamp advances**: The gamepad's `timestamp` property must advance whenever input state changes.
+48. **Timestamp advances**: The gamepad's `timestamp` property must advance whenever input state changes.
 
 ## Validation
 
-41. **Duplicate keys rejected**: A key code bound to multiple fields must not activate multiple buttons — only the first binding is accepted.
+49. **Escape forbidden**: The `"Escape"` key must never be bindable.
 
-42. **Escape forbidden**: The `"Escape"` key must never be bindable.
-
-43. **Invalid configs don't crash**: The extension must survive invalid configs, rapid switching, page reloads, and any combination of enable/disable cycles without crashing.
+50. **Invalid configs don't crash**: The extension must survive invalid configs, rapid switching, page reloads, and any combination of enable/disable cycles without crashing.
