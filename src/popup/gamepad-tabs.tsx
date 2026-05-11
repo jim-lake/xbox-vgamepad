@@ -1,5 +1,8 @@
 import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
+import IconButton from '@/components/buttons/icon_button';
+import plusIcon from '@/assets/img/plus.svg';
+import closeIcon from '@/assets/img/close.svg';
 
 const styles = StyleSheet.create({
   container: {
@@ -9,11 +12,10 @@ const styles = StyleSheet.create({
     paddingLeft: '0.8rem',
     paddingRight: '0.8rem',
     paddingTop: '0.4rem',
+    flexWrap: 'wrap',
   },
-  tabs: { flex: 1, flexDirection: 'row', gap: '0.4rem' },
   tab: { borderRadius: '0.6rem', height: '2.6rem' },
-  actions: { flexDirection: 'row', gap: '0.4rem' },
-  addRemoveBtn: { height: '2.6rem', borderRadius: '0.6rem' },
+  removeBtn: { margin: '0 0.2rem 0 0.2rem' },
 });
 
 interface Props {
@@ -21,7 +23,7 @@ interface Props {
   activeIndex: number;
   onSelect: (i: number) => void;
   onAdd: () => void;
-  onRemove: () => void;
+  onRemove: (i: number) => void;
 }
 
 export default function GamepadTabs({
@@ -33,37 +35,37 @@ export default function GamepadTabs({
 }: Props) {
   return (
     <View style={styles.container}>
-      {count > 1 && (
-        <View style={styles.tabs}>
-          {Array.from({ length: count }, (_, i) => (
-            <TextButton
-              key={i}
-              style={styles.tab}
-              text={`Gamepad ${String(i + 1)}`}
-              type={activeIndex === i ? 'blue' : 'ghost'}
-              onPress={() => {
-                onSelect(i);
-              }}
-            />
-          ))}
-        </View>
+      {Array.from({ length: count }, (_, i) => (
+        <TextButton
+          key={i}
+          style={styles.tab}
+          text={`Gamepad ${String(i + 1)}`}
+          type={activeIndex === i ? 'blue' : 'ghost'}
+          onPress={() => {
+            onSelect(i);
+          }}
+          {...(count > 1
+            ? {
+                afterText: (
+                  <IconButton
+                    style={styles.removeBtn}
+                    source={closeIcon}
+                    type='danger'
+                    onPress={() => {
+                      // eslint-disable-next-line no-alert
+                      if (window.confirm('Remove this gamepad?')) {
+                        onRemove(i);
+                      }
+                    }}
+                  />
+                ),
+              }
+            : {})}
+        />
+      ))}
+      {count < 4 && (
+        <IconButton source={plusIcon} type='green' onPress={onAdd} />
       )}
-      <View style={styles.actions}>
-        <TextButton
-          style={styles.addRemoveBtn}
-          text='+ Add'
-          type='green'
-          disabled={count >= 4}
-          onPress={onAdd}
-        />
-        <TextButton
-          style={styles.addRemoveBtn}
-          text='Remove'
-          type='danger'
-          disabled={count <= 1}
-          onPress={onRemove}
-        />
-      </View>
     </View>
   );
 }
