@@ -5,6 +5,7 @@ import type { StyleInput } from './base_components';
 interface SelectOption {
   value: string | number;
   text: string;
+  disabled?: boolean;
 }
 
 export interface Props {
@@ -68,7 +69,11 @@ function _mapOpt(opt: string | SelectOption, i: number) {
     );
   } else {
     ret = (
-      <option key={i} value={String(opt.value)}>
+      <option
+        key={i}
+        value={String(opt.value)}
+        {...(opt.disabled ? { disabled: true } : {})}
+      >
         {opt.text}
       </option>
     );

@@ -1,11 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type {
-  GamepadConfig,
-  ActionMap,
-  GamepadMouseConfig,
-} from '@/types/gamepad';
+import type { GamepadConfig, ActionMap } from '@/types/gamepad';
 import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import {
   loadStorage,
@@ -22,12 +18,12 @@ import {
   sendConfigChanged,
 } from './messaging';
 import { validateConfig } from './validate';
-import KeyBindingEditor from './key-binding-editor';
-import MouseSettings from './mouse-settings';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import Toolbar from '@/components/popup/toolbar';
-import Select from '@/components/select';
+import GamepadTabs from './gamepad-tabs';
+import GamepadConfigSection from './gamepad-config-section';
+import KeyBindingEditor from './key-binding-editor';
 
 const MAX_PRESETS = 25;
 
@@ -86,26 +82,6 @@ const styles = StyleSheet.create({
     color: 'var(--text-muted)',
     fontSize: '1.4rem',
   },
-  row: {
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { color: 'var(--text-muted)', fontSize: '1.3rem' },
-  select: {
-    padding: '2px 4px 2px 6px',
-    width: '6rem',
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    appearance: 'auto',
-    borderWidth: 1,
-    borderRadius: 6,
-    backgroundColor: '#fefefe',
-  },
 });
 
 export default function App() {
@@ -121,6 +97,8 @@ export default function App() {
   const [dirty, setDirty] = React.useState(false);
   const [savedConfig, setSavedConfig] =
     React.useState<GamepadConfig>(DEFAULT_CONFIG);
+  const [activeSlots, setActiveSlots] = React.useState<(0 | 1 | 2 | 3)[]>([0]);
+  const [activeSlotTab, setActiveSlotTab] = React.useState(0);
 
   React.useEffect(() => {
     void (async () => {
@@ -128,10 +106,24 @@ export default function App() {
       setIsEnabled(data.isEnabled);
       setActiveConfigName(data.activeConfig);
       setConfigs(data.configs);
-      setSavedConfig(
-        structuredClone(data.configs[data.activeConfig] ?? DEFAULT_CONFIG)
-      );
+      const cfg = data.configs[data.activeConfig] ?? DEFAULT_CONFIG;
+      setSavedConfig(structuredClone(cfg));
       setGameName(name);
+      // Derive which gamepad slots are in use from the config
+      const usedSet = new Set<0 | 1 | 2 | 3>();
+      for (const entries of Object.values(cfg.keyboardConfig)) {
+        for (const e of entries) {
+          if (e.type === 'action') {
+            usedSet.add(e.gamepadIndex);
+          }
+        }
+      }
+      for (const m of cfg.mouseConfig.mouseControls) {
+        usedSet.add(m.gamepadIndex);
+      }
+      const slots = ([0, 1, 2, 3] as const).filter((i) => usedSet.has(i));
+      setActiveSlots(slots.length > 0 ? slots : [0]);
+      setActiveSlotTab(0);
       setLoading(false);
     })();
   }, []);
@@ -142,6 +134,7 @@ export default function App() {
   );
   const activeIndex = presetNames.indexOf(activeConfigName);
   const activeConfig = configs[activeConfigName] ?? DEFAULT_CONFIG;
+  const activeSlotIndex = activeSlots[activeSlotTab] ?? 0;
 
   const handleToggle = React.useCallback(async () => {
     const next = !isEnabled;
@@ -159,14 +152,28 @@ export default function App() {
     async (dir: -1 | 1) => {
       const idx = (activeIndex + dir + presetNames.length) % presetNames.length;
       const name = presetNames[idx] ?? 'default';
+      const cfg = configs[name] ?? DEFAULT_CONFIG;
       setActiveConfigName(name);
-      setSavedConfig(structuredClone(configs[name] ?? DEFAULT_CONFIG));
+      setSavedConfig(structuredClone(cfg));
       setDirty(false);
       setRenaming(false);
+      const usedSet = new Set<0 | 1 | 2 | 3>();
+      for (const entries of Object.values(cfg.keyboardConfig)) {
+        for (const e of entries) {
+          if (e.type === 'action') {
+            usedSet.add(e.gamepadIndex);
+          }
+        }
+      }
+      for (const m of cfg.mouseConfig.mouseControls) {
+        usedSet.add(m.gamepadIndex);
+      }
+      const slots = ([0, 1, 2, 3] as const).filter((i) => usedSet.has(i));
+      setActiveSlots(slots.length > 0 ? slots : [0]);
+      setActiveSlotTab(0);
       await setActiveConfig(name);
       if (isEnabled) {
-        const config = configs[name] ?? DEFAULT_CONFIG;
-        await sendConfigChanged(name, config);
+        await sendConfigChanged(name, cfg);
       }
     },
     [activeIndex, presetNames, isEnabled, configs]
@@ -311,34 +318,57 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [activeConfig, activeConfigName]);
 
-  const updateKeyboardConfig = React.useCallback(
-    (code: string, value: ActionMap | undefined) => {
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const nextKeyboardConfig =
-          value === undefined
-            ? Object.fromEntries(
-                Object.entries(current.keyboardConfig).filter(
-                  ([k]) => k !== code
+  const makeUpdateKeyboardConfig = React.useCallback(
+    (slotIndex: 0 | 1 | 2 | 3) =>
+      (code: string, value: ActionMap | undefined) => {
+        setConfigs((prev) => {
+          const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+          const existing = current.keyboardConfig[code] ?? [];
+          const otherSlots = existing.filter(
+            (e) => !(e.type === 'action' && e.gamepadIndex === slotIndex)
+          );
+          const merged =
+            value === undefined ? otherSlots : [...otherSlots, ...value];
+          const nextKeyboardConfig =
+            merged.length === 0
+              ? Object.fromEntries(
+                  Object.entries(current.keyboardConfig).filter(
+                    ([k]) => k !== code
+                  )
                 )
-              )
-            : { ...current.keyboardConfig, [code]: value };
-        const next = { ...current, keyboardConfig: nextKeyboardConfig };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setDirty(true);
-    },
+              : { ...current.keyboardConfig, [code]: merged };
+          const next = { ...current, keyboardConfig: nextKeyboardConfig };
+          void persist(next);
+          return { ...prev, [activeConfigName]: next };
+        });
+        setDirty(true);
+      },
     [activeConfigName, persist]
   );
 
-  const updateMouseConfig = React.useCallback(
-    (patch: Partial<GamepadMouseConfig>) => {
+  const makeUpdateMouseStick = React.useCallback(
+    (slotIndex: 0 | 1 | 2 | 3) => (val: 'left' | 'right' | undefined) => {
       setConfigs((prev) => {
         const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+        const others = current.mouseConfig.mouseControls.filter(
+          (m) => m.gamepadIndex !== slotIndex
+        );
+        const mouseControls = val
+          ? [
+              ...others,
+              {
+                stick: val,
+                gamepadIndex: slotIndex,
+                sensitivity:
+                  current.mouseConfig.mouseControls.find(
+                    (m) => m.gamepadIndex === slotIndex
+                  )?.sensitivity ?? DEFAULT_SENSITIVITY,
+              },
+            ]
+          : others;
         const next = {
           ...current,
-          mouseConfig: { ...current.mouseConfig, ...patch },
+          mouseConfig: { ...current.mouseConfig, mouseControls },
         };
         void persist(next);
         return { ...prev, [activeConfigName]: next };
@@ -348,19 +378,42 @@ export default function App() {
     [activeConfigName, persist]
   );
 
-  const updateGamepadIndex = React.useCallback(
-    (index: 0 | 1 | 2 | 3) => {
+  const makeUpdateMouseSensitivity = React.useCallback(
+    (slotIndex: 0 | 1 | 2 | 3) => (val: number) => {
       setConfigs((prev) => {
         const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const mouseControls = current.mouseConfig.mouseControls.map((t) => ({
-          ...t,
-          gamepadIndex: index,
-        }));
+        const mouseControls = current.mouseConfig.mouseControls.map((m) =>
+          m.gamepadIndex === slotIndex ? { ...m, sensitivity: val } : m
+        );
+        const next = {
+          ...current,
+          mouseConfig: { ...current.mouseConfig, mouseControls },
+        };
+        void persist(next);
+        return { ...prev, [activeConfigName]: next };
+      });
+      setDirty(true);
+    },
+    [activeConfigName, persist]
+  );
+
+  const handleChangeSlotIndex = React.useCallback(
+    (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
+      setActiveSlots((prev) =>
+        prev.map((i) => (i === oldIndex ? newIndex : i))
+      );
+      setConfigs((prev) => {
+        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+        const mouseControls = current.mouseConfig.mouseControls.map((m) =>
+          m.gamepadIndex === oldIndex ? { ...m, gamepadIndex: newIndex } : m
+        );
         const keyboardConfig = Object.fromEntries(
           Object.entries(current.keyboardConfig).map(([code, entries]) => [
             code,
             entries.map((e) =>
-              e.type === 'action' ? { ...e, gamepadIndex: index } : e
+              e.type === 'action' && e.gamepadIndex === oldIndex
+                ? { ...e, gamepadIndex: newIndex }
+                : e
             ),
           ])
         );
@@ -376,6 +429,54 @@ export default function App() {
     },
     [activeConfigName, persist]
   );
+
+  const handleAddSlot = React.useCallback(() => {
+    if (activeSlots.length >= 4) {
+      return;
+    }
+    const next = ([0, 1, 2, 3] as const).find((i) => !activeSlots.includes(i));
+    if (next === undefined) {
+      return;
+    }
+    setActiveSlots((prev) => [...prev, next]);
+    setActiveSlotTab(activeSlots.length);
+  }, [activeSlots]);
+
+  const handleRemoveSlot = React.useCallback(() => {
+    if (activeSlots.length <= 1) {
+      return;
+    }
+    const slotIndex = activeSlots[activeSlotTab];
+    if (slotIndex === undefined) {
+      return;
+    }
+    setConfigs((prev) => {
+      const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
+      const mouseControls = current.mouseConfig.mouseControls.filter(
+        (m) => m.gamepadIndex !== slotIndex
+      );
+      const keyboardConfig = Object.fromEntries(
+        Object.entries(current.keyboardConfig)
+          .map(([code, entries]): [string, ActionMap] => [
+            code,
+            entries.filter(
+              (e) => !(e.type === 'action' && e.gamepadIndex === slotIndex)
+            ),
+          ])
+          .filter(([, entries]) => entries.length > 0)
+      );
+      const next = {
+        ...current,
+        mouseConfig: { ...current.mouseConfig, mouseControls },
+        keyboardConfig,
+      };
+      void persist(next);
+      return { ...prev, [activeConfigName]: next };
+    });
+    setActiveSlots((prev) => prev.filter((_, i) => i !== activeSlotTab));
+    setActiveSlotTab((prev) => Math.min(prev, activeSlots.length - 2));
+    setDirty(true);
+  }, [activeSlots, activeSlotTab, activeConfigName, persist]);
 
   if (loading) {
     return (
@@ -439,65 +540,26 @@ export default function App() {
       <View style={styles.body}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gamepad</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Gamepad Number</Text>
-            <Select
-              style={styles.select}
-              value={String(
-                activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ??
-                  Object.values(activeConfig.keyboardConfig)
-                    .flat()
-                    .find((e) => e.type === 'action')?.gamepadIndex ??
-                  0
-              )}
-              options={[
-                { value: '0', text: '1' },
-                { value: '1', text: '2' },
-                { value: '2', text: '3' },
-                { value: '3', text: '4' },
-              ]}
-              onChange={(val) => {
-                updateGamepadIndex(Number(val) as 0 | 1 | 2 | 3);
-              }}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mouse</Text>
-          <MouseSettings
-            mouseControls={activeConfig.mouseConfig.mouseControls}
-            onChangeStick={(val) => {
-              updateMouseConfig({
-                mouseControls: val
-                  ? [
-                      {
-                        stick: val,
-                        gamepadIndex: 0,
-                        sensitivity:
-                          activeConfig.mouseConfig.mouseControls[0]
-                            ?.sensitivity ?? DEFAULT_SENSITIVITY,
-                      },
-                    ]
-                  : [],
-              });
-            }}
-            onChangeSensitivity={(val) => {
-              const current = activeConfig.mouseConfig.mouseControls[0];
-              if (current) {
-                updateMouseConfig({
-                  mouseControls: [{ ...current, sensitivity: val }],
-                });
-              }
-            }}
+          <GamepadTabs
+            count={activeSlots.length}
+            activeIndex={activeSlotTab}
+            onSelect={setActiveSlotTab}
+            onAdd={handleAddSlot}
+            onRemove={handleRemoveSlot}
           />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Key Bindings</Text>
-          <KeyBindingEditor
-            keyboardConfig={activeConfig.keyboardConfig}
-            onChange={updateKeyboardConfig}
+          <GamepadConfigSection
+            key={activeSlotIndex}
+            config={activeConfig}
+            gamepadIndex={activeSlotIndex}
+            usedIndices={activeSlots}
+            onChangeIndex={(next) => {
+              handleChangeSlotIndex(activeSlotIndex, next);
+            }}
+            onChangeKeyboard={makeUpdateKeyboardConfig(activeSlotIndex)}
+            onChangeMouseStick={makeUpdateMouseStick(activeSlotIndex)}
+            onChangeMouseSensitivity={makeUpdateMouseSensitivity(
+              activeSlotIndex
+            )}
           />
         </View>
 
@@ -505,7 +567,7 @@ export default function App() {
           <Text style={styles.sectionTitle}>Advanced</Text>
           <KeyBindingEditor
             keyboardConfig={activeConfig.keyboardConfig}
-            onChange={updateKeyboardConfig}
+            onChange={makeUpdateKeyboardConfig(activeSlotIndex)}
             actions={['toggleAllGamepads', 'toggleExtension']}
           />
         </View>
