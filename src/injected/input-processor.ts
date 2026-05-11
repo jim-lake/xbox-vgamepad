@@ -1,11 +1,13 @@
-import type { GamepadConfig, GamepadAction } from '@/types/gamepad';
-import { BUTTON_MAP, Direction } from '@/types/gamepad';
-import {
-  AxisDirection,
-  getSimulator,
-  updateVirtualSlots,
-} from './gamepad-simulator';
+import type {
+  GamepadConfig,
+  GamepadAction,
+  GameScript,
+  ScriptAction,
+} from '@/types/gamepad';
+import { getSimulator, updateVirtualSlots } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
+import { executePress, executeUnpress } from './script-actions';
+import { ScriptManager } from './script-runner';
 import {
   showOverlay,
   removeOverlay,
@@ -18,50 +20,55 @@ const MOUSE_THROTTLE_MS = 40;
 const MOUSE_STOP_MS = 50;
 const SCROLL_UNPRESS_MS = 20;
 
-const directionToAxis: Record<Direction, AxisDirection> = {
-  [Direction.UP]: AxisDirection.UP,
-  [Direction.DOWN]: AxisDirection.DOWN,
-  [Direction.LEFT]: AxisDirection.LEFT,
-  [Direction.RIGHT]: AxisDirection.RIGHT,
-};
-
-const AXIS_ACTION_MAP: Record<string, { stick: number; direction: Direction }> =
-  {
-    leftStickUp: { stick: 0, direction: Direction.UP },
-    leftStickDown: { stick: 0, direction: Direction.DOWN },
-    leftStickLeft: { stick: 0, direction: Direction.LEFT },
-    leftStickRight: { stick: 0, direction: Direction.RIGHT },
-    rightStickUp: { stick: 1, direction: Direction.UP },
-    rightStickDown: { stick: 1, direction: Direction.DOWN },
-    rightStickLeft: { stick: 1, direction: Direction.LEFT },
-    rightStickRight: { stick: 1, direction: Direction.RIGHT },
-  };
-
 const TOGGLE_ACTIONS = new Set([
   'toggleGamepad',
   'toggleAllGamepads',
   'toggleExtension',
 ]);
 
-function buildKeyMap(config: GamepadConfig): Map<string, GamepadAction[]> {
-  const map = new Map<string, GamepadAction[]>();
+function buildKeyMap(config: GamepadConfig): {
+  keyMap: Map<string, GamepadAction[]>;
+  scriptMap: Map<string, GameScript[]>;
+} {
+  const keyMap = new Map<string, GamepadAction[]>();
+  const scriptMap = new Map<string, GameScript[]>();
 
   for (const [code, entries] of Object.entries(config.keyboardConfig)) {
     if (code === 'Escape') {
       continue;
     }
     const actions: GamepadAction[] = [];
+    const scripts: GameScript[] = [];
     for (const entry of entries) {
-      if (entry.type === 'script' || TOGGLE_ACTIONS.has(entry.action)) {
-        continue;
+      if (entry.type === 'script') {
+        scripts.push(entry);
+      } else if (!TOGGLE_ACTIONS.has(entry.action)) {
+        actions.push(entry);
       }
-      actions.push(entry);
     }
     if (actions.length > 0) {
-      map.set(code, actions);
+      keyMap.set(code, actions);
+    }
+    if (scripts.length > 0) {
+      scriptMap.set(code, scripts);
     }
   }
-  return map;
+  return { keyMap, scriptMap };
+}
+
+function collectScriptIndices(
+  actions: ScriptAction[],
+  indices: Set<0 | 1 | 2 | 3>
+): void {
+  for (const step of actions) {
+    if (step.type === 'down' || step.type === 'up') {
+      for (const btn of step.buttons) {
+        indices.add(btn.gamepadIndex);
+      }
+    } else if (step.type === 'loop') {
+      collectScriptIndices(step.actions, indices);
+    }
+  }
 }
 
 function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
@@ -70,6 +77,8 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
     for (const entry of entries) {
       if (entry.type === 'action' && !TOGGLE_ACTIONS.has(entry.action)) {
         indices.add(entry.gamepadIndex);
+      } else if (entry.type === 'script') {
+        collectScriptIndices(entry.actions, indices);
       }
     }
   }
@@ -81,6 +90,8 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
 
 // Module state
 let g_keyMap = new Map<string, GamepadAction[]>();
+let g_scriptMap = new Map<string, GameScript[]>();
+let g_scriptManager = new ScriptManager();
 let g_mouseTarget: { stick: number; gamepadIndex: 0 | 1 | 2 | 3 } | null = null;
 let g_sensitivity = 10;
 let g_active = false;
@@ -124,32 +135,6 @@ function clearTimers(): void {
 
 function getGameContainer(): Element | null {
   return document.getElementById('game-stream') ?? document.body;
-}
-
-function executePress(action: GamepadAction): void {
-  const sim = getSimulator(action.gamepadIndex);
-  const buttonIndex = BUTTON_MAP[action.action];
-  if (buttonIndex !== undefined) {
-    sim.pressButton(buttonIndex);
-    return;
-  }
-  const axisInfo = AXIS_ACTION_MAP[action.action];
-  if (axisInfo) {
-    sim.pressDirection(axisInfo.stick, directionToAxis[axisInfo.direction]);
-  }
-}
-
-function executeUnpress(action: GamepadAction): void {
-  const sim = getSimulator(action.gamepadIndex);
-  const buttonIndex = BUTTON_MAP[action.action];
-  if (buttonIndex !== undefined) {
-    sim.unpressButton(buttonIndex);
-    return;
-  }
-  const axisInfo = AXIS_ACTION_MAP[action.action];
-  if (axisInfo) {
-    sim.unpressDirection(axisInfo.stick, directionToAxis[axisInfo.direction]);
-  }
 }
 
 function processMouseMovement(): void {
@@ -319,23 +304,39 @@ function attachKeyboard(): void {
       return;
     }
     const actions = g_keyMap.get(e.code);
-    if (!actions) {
-      return;
+    if (actions) {
+      for (const action of actions) {
+        executePress(action);
+      }
     }
-    for (const action of actions) {
-      executePress(action);
+    const scripts = g_scriptMap.get(e.code);
+    if (scripts) {
+      for (let i = 0; i < scripts.length; i++) {
+        const script = scripts[i];
+        if (script) {
+          g_scriptManager.onKeyDown(`${e.code}:${String(i)}`, script);
+        }
+      }
     }
-    if (e.cancelable) {
+    if ((actions ?? scripts) && e.cancelable) {
       e.preventDefault();
     }
   };
   g_onKeyUp = (e: KeyboardEvent) => {
     const actions = g_keyMap.get(e.code);
-    if (!actions) {
-      return;
+    if (actions) {
+      for (const action of actions) {
+        executeUnpress(action);
+      }
     }
-    for (const action of actions) {
-      executeUnpress(action);
+    const scripts = g_scriptMap.get(e.code);
+    if (scripts) {
+      for (let i = 0; i < scripts.length; i++) {
+        const script = scripts[i];
+        if (script) {
+          g_scriptManager.onKeyUp(`${e.code}:${String(i)}`, script);
+        }
+      }
     }
   };
   document.addEventListener('keydown', g_onKeyDown, true);
@@ -430,7 +431,11 @@ export function activate(
       }
     }
 
-    g_keyMap = buildKeyMap(config);
+    g_scriptManager.cancelAll();
+    const built = buildKeyMap(config);
+    g_keyMap = built.keyMap;
+    g_scriptMap = built.scriptMap;
+    g_scriptManager = new ScriptManager();
     g_activeIndices = newIndices;
     attachKeyboard();
     attachMouseButtons();
@@ -444,7 +449,10 @@ export function activate(
     return;
   }
 
-  g_keyMap = buildKeyMap(config);
+  const built = buildKeyMap(config);
+  g_keyMap = built.keyMap;
+  g_scriptMap = built.scriptMap;
+  g_scriptManager = new ScriptManager();
   g_activeIndices = getActiveGamepadIndices(config);
   g_active = true;
   gamepadSimulator.setMode(config.otherGamepadMode);
@@ -464,6 +472,7 @@ export function deactivate(): void {
   if (!g_active) {
     return;
   }
+  g_scriptManager.cancelAll();
   removeListeners();
   exitPointerLock();
   removeOverlay();
@@ -474,6 +483,7 @@ export function deactivate(): void {
   updateVirtualSlots(new Set());
   g_active = false;
   g_keyMap.clear();
+  g_scriptMap.clear();
   g_activeIndices.clear();
   clearTimers();
 }

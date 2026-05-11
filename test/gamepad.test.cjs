@@ -41,4 +41,6 @@ runSuites([
   path.join(__dirname, 'suites', 'multi-gamepad.cjs'),
   path.join(__dirname, 'suites', 'multi-gamepad-extended.cjs'),
   path.join(__dirname, 'suites', 'gamepad-index-sparse.cjs'),
+  path.join(__dirname, 'suites', 'gamescript.cjs'),
+  path.join(__dirname, 'suites', 'gamescript-extended.cjs'),
 ]);
