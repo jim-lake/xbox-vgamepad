@@ -84,7 +84,30 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
     color: 'var(--text-muted)',
+    fontSize: '1.4rem',
+  },
+  row: {
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+  },
+  label: {
+    color: 'var(--text-muted)',
     fontSize: '1.3rem',
+  },
+  select: {
+    padding: '2px 4px 2px 6px',
+    width: '6rem',
+    color: 'var(--text-muted)',
+    fontSize: '1.4rem',
+    appearance: 'auto',
+    borderWidth: 1,
+    borderRadius: 6,
+    backgroundColor: '#fefefe',
   },
 });
 
@@ -418,19 +441,23 @@ export default function App() {
       {/* Config editor */}
       <View style={styles.body}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Gamepad Number</Text>
-          <Select
-            value={String(activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ?? 0)}
-            options={[
-              { value: '0', text: 'Gamepad 1' },
-              { value: '1', text: 'Gamepad 2' },
-              { value: '2', text: 'Gamepad 3' },
-              { value: '3', text: 'Gamepad 4' },
-            ]}
-            onChange={(val) => {
-              updateGamepadIndex(Number(val) as 0 | 1 | 2 | 3);
-            }}
-          />
+          <Text style={styles.sectionTitle}>Gamepad</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Gamepad Number</Text>
+            <Select
+              style={styles.select}
+              value={String(activeConfig.mouseConfig.mouseControls[0]?.gamepadIndex ?? 0)}
+              options={[
+                { value: '0', text: '1' },
+                { value: '1', text: '2' },
+                { value: '2', text: '3' },
+                { value: '3', text: '4' },
+              ]}
+              onChange={(val) => {
+                updateGamepadIndex(Number(val) as 0 | 1 | 2 | 3);
+              }}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
