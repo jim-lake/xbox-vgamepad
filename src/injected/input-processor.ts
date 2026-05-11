@@ -388,6 +388,7 @@ export function activate(
     removeListeners();
     clearTimers();
     gamepadSimulator.resetState();
+    gamepadSimulator.setMode(config.otherGamepadMode);
     g_keyMap = buildKeyMap(config);
     const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
     g_sensitivity = mouseTarget?.sensitivity ?? 10;
@@ -408,6 +409,7 @@ export function activate(
   g_sensitivity = mouseTarget?.sensitivity ?? 10;
   g_mouseStick = mouseTarget ? (mouseTarget.stick === 'left' ? 0 : 1) : null;
   g_active = true;
+  gamepadSimulator.setMode(config.otherGamepadMode);
 
   attachKeyboard();
   attachMouseButtons();

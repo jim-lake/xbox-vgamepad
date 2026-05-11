@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xbox vGamepad",
-  "version": "0.0.84",
+  "version": "0.0.85",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": { "default_popup": "src/popup/index.html" },
   "background": {

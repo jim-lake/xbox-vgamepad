@@ -38,6 +38,7 @@ let g_timestamp = performance.now();
 let g_connected = false;
 let g_enabled = false;
 const g_originalGetGamepads = navigator.getGamepads.bind(navigator);
+let g_mode: 'combine' | 'separate' = 'separate';
 // Track which directions are pressed per stick: [stick][direction] = press count
 let g_dirPressed: number[][] = [
   [0, 0, 0, 0],
@@ -74,10 +75,104 @@ function reset(): void {
   g_buttonPressCount = Array.from<number>({ length: 17 }).fill(0);
 }
 
+function padToPlain(
+  pad: Gamepad,
+  overrides?: Partial<{ index: number }>
+): Gamepad {
+  return {
+    id: pad.id,
+    index: overrides?.index ?? pad.index,
+    mapping: pad.mapping,
+    connected: pad.connected,
+    buttons: Array.from(pad.buttons).map((b) => ({
+      pressed: b.pressed,
+      touched: b.touched,
+      value: b.value,
+    })),
+    axes: Array.from(pad.axes),
+    timestamp: pad.timestamp,
+    hapticActuators: [] as unknown as GamepadHapticActuator[],
+    vibrationActuator: null,
+  } as unknown as Gamepad;
+}
+
 // Patch getGamepads immediately on module load
 navigator.getGamepads = (): (Gamepad | null)[] => {
   if (g_enabled) {
-    return [snapshot(), null, null, null];
+    const real = g_originalGetGamepads();
+    if (g_mode === 'combine') {
+      // Merge all real pad inputs into virtual state, virtual axes take priority
+      const merged = snapshot();
+      const mergedButtons = Array.from(merged.buttons).map((b) => ({
+        pressed: b.pressed,
+        touched: b.touched,
+        value: b.value,
+      }));
+      const mergedAxes = Array.from(merged.axes);
+      for (const pad of real) {
+        if (!pad) {
+          continue;
+        }
+        for (let i = 0; i < mergedButtons.length; i++) {
+          const rb = pad.buttons[i];
+          if (rb?.pressed) {
+            const mb = mergedButtons[i];
+            if (mb) {
+              mb.pressed = true;
+              mb.touched = true;
+              mb.value = 1;
+            }
+          }
+        }
+        // Virtual axes override: only use real axis if virtual axis is 0
+        for (let i = 0; i < mergedAxes.length; i++) {
+          if (mergedAxes[i] === 0) {
+            mergedAxes[i] = pad.axes[i] ?? 0;
+          }
+        }
+      }
+      return [
+        {
+          id: merged.id,
+          index: merged.index,
+          mapping: merged.mapping,
+          connected: merged.connected,
+          buttons: mergedButtons,
+          axes: mergedAxes,
+          timestamp: merged.timestamp,
+          hapticActuators: [] as unknown as GamepadHapticActuator[],
+          vibrationActuator: null,
+        } as unknown as Gamepad,
+        null,
+        null,
+        null,
+      ];
+    } else {
+      // Separate: virtual pad at first free slot, real pads fill remaining slots
+      const result: (Gamepad | null)[] = [null, null, null, null];
+      // Find first free slot for virtual pad
+      const realPads = Array.from(real).filter((p): p is Gamepad => p !== null);
+      let virtualSlot = 0;
+      while (virtualSlot < 4 && realPads.some((p) => p.index === virtualSlot)) {
+        virtualSlot++;
+      }
+      if (virtualSlot < 4) {
+        const s = snapshot();
+        result[virtualSlot] = padToPlain(s, { index: virtualSlot });
+      }
+      // Place real pads into remaining slots in order
+      let nextSlot = 0;
+      for (const pad of realPads) {
+        while (nextSlot < 4 && nextSlot === virtualSlot) {
+          nextSlot++;
+        }
+        if (nextSlot < 4) {
+          result[nextSlot] = padToPlain(pad, { index: nextSlot });
+          nextSlot++;
+        }
+      }
+      return result;
+    }
   }
   return g_originalGetGamepads();
 };
@@ -186,6 +281,10 @@ export function moveStick(stick: number, x: number, y: number): void {
   g_axes[stick * 2] = x;
   g_axes[stick * 2 + 1] = y;
   g_timestamp = performance.now();
+}
+
+export function setMode(mode: 'combine' | 'separate' | undefined): void {
+  g_mode = mode ?? 'separate';
 }
 
 export function restore(): void {

@@ -58,9 +58,12 @@ export interface GamepadMouseConfig {
   mouseControls: MouseControlTarget[];
 }
 
+export type OtherGamepadMode = 'combine' | 'separate';
+
 export interface GamepadConfig {
   keyboardConfig: GamepadKeyboardConfig;
   mouseConfig: GamepadMouseConfig;
+  otherGamepadMode?: OtherGamepadMode;
 }
 
 export interface StorageData {
