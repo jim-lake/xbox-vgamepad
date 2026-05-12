@@ -13,31 +13,18 @@ import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
 import closeIcon from '@/assets/img/close.svg';
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'column',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '0.4rem',
-  },
+  container: { flexDirection: 'column', paddingTop: '0.5rem' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
   params: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: '0.4rem',
     paddingLeft: '1.2rem',
     paddingTop: '0.3rem',
+    paddingBottom: '1rem',
   },
-  loopContainer: { flexDirection: 'column' },
-  loopHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '0.4rem',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-  },
+  loopContainer: { flexDirection: 'column', paddingTop: '0.5rem' },
+  loopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
   loopBody: {
     borderLeftWidth: 1,
     borderLeftColor: 'var(--row-border)',
@@ -53,12 +40,12 @@ const styles = StyleSheet.create({
   },
   select: {
     padding: '2px 4px 2px 6px',
-    color: 'var(--text-muted)',
+    color: 'var(--text-primary)',
     fontSize: '1.3rem',
     appearance: 'auto',
     borderWidth: 1,
     borderRadius: 6,
-    backgroundColor: '#fefefe',
+    backgroundColor: 'var(--input-bg)',
   },
   delayInput: {
     color: 'var(--text-primary)',
@@ -66,20 +53,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: '0.4rem',
     padding: '0.2rem 0.5rem',
-    backgroundColor: 'var(--app-bg)',
+    backgroundColor: 'var(--input-bg)',
     width: '5rem',
   },
-  msLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  paramLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
   loopCountInput: {
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
     borderWidth: 1,
     borderRadius: '0.4rem',
     padding: '0.2rem 0.5rem',
-    backgroundColor: 'var(--app-bg)',
+    backgroundColor: 'var(--input-bg)',
     width: '5rem',
   },
-  loopTimesLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
   buttonList: {
     flexDirection: 'row',
     gap: '0.4rem',
@@ -165,6 +151,7 @@ export default function ScriptActionRow({
           />
         </View>
         <View style={styles.params}>
+          <Text style={styles.paramLabel}>Milliseconds:</Text>
           <TextInput
             style={styles.delayInput}
             value={String(action.durationMs)}
@@ -175,7 +162,6 @@ export default function ScriptActionRow({
               }
             }}
           />
-          <Text style={styles.msLabel}>ms</Text>
         </View>
       </View>
     );
@@ -203,7 +189,7 @@ export default function ScriptActionRow({
         </View>
         {!isForever && (
           <View style={styles.params}>
-            <Text style={styles.loopTimesLabel}>×</Text>
+            <Text style={styles.paramLabel}>Times:</Text>
             <TextInput
               style={styles.loopCountInput}
               value={String(action.count)}
@@ -253,6 +239,7 @@ export default function ScriptActionRow({
         />
       </View>
       <View style={styles.params}>
+        <Text style={styles.paramLabel}>Keys:</Text>
         <View style={styles.buttonList}>
           {buttons.map((btn, bi) => (
             <View key={bi} style={styles.badge}>

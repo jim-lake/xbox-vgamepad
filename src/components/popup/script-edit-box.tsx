@@ -44,12 +44,12 @@ const styles = StyleSheet.create({
   },
   select: {
     padding: '2px 4px 2px 6px',
-    color: 'var(--text-muted)',
+    color: 'var(--text-primary)',
     fontSize: '1.3rem',
     appearance: 'auto',
     borderWidth: 1,
     borderRadius: 6,
-    backgroundColor: '#fefefe',
+    backgroundColor: 'var(--input-bg)',
   },
   doneRow: {
     flexDirection: 'row',
