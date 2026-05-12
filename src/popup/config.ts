@@ -269,28 +269,24 @@ export async function loadAllPopupConfigs(): Promise<{
   };
 }
 
-export async function savePopupConfig(
+async function savePopupConfig(
+  configName: string,
+  popup: PopupConfig
+): Promise<GamepadConfig | null> {
+  const cfg = popupConfigToGamepadConfig(popup);
+  if (!validateConfig(cfg)) {
+    return null;
+  }
+  await saveConfig(configName, cfg);
+  return cfg;
+}
+
+export async function saveAndBroadcastPopupConfig(
   configName: string,
   popup: PopupConfig
 ): Promise<void> {
-  const cfg = popupConfigToGamepadConfig(popup);
-  if (!validateConfig(cfg)) {
-    return;
-  }
-  await saveConfig(configName, cfg);
-}
-
-export async function saveAndBroadcast(
-  configName: string,
-  popup: PopupConfig,
-  isEnabled: boolean
-): Promise<void> {
-  const cfg = popupConfigToGamepadConfig(popup);
-  if (!validateConfig(cfg)) {
-    return;
-  }
-  await saveConfig(configName, cfg);
-  if (isEnabled) {
+  const cfg = await savePopupConfig(configName, popup);
+  if (cfg) {
     await sendConfigChanged(configName, cfg);
   }
 }
@@ -315,7 +311,7 @@ export async function renamePopupConfig(
   popup: PopupConfig
 ): Promise<void> {
   await deleteConfig(oldName);
-  await saveConfig(newName, popupConfigToGamepadConfig(popup));
+  await savePopupConfig(newName, popup);
   await setActiveConfig(newName);
 }
 

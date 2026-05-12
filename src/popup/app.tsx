@@ -6,8 +6,7 @@ import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
 import { sendDisableGamepad } from './messaging';
 import {
   loadAllPopupConfigs,
-  savePopupConfig,
-  saveAndBroadcast,
+  saveAndBroadcastPopupConfig,
   activatePopupConfig,
   broadcastPopupConfig,
   renamePopupConfig,
@@ -151,9 +150,9 @@ export default function App() {
 
   const persist = React.useCallback(
     async (popup: PopupConfig) => {
-      await saveAndBroadcast(activeConfigName, popup, isEnabled);
+      await saveAndBroadcastPopupConfig(activeConfigName, popup);
     },
-    [activeConfigName, isEnabled]
+    [activeConfigName]
   );
 
   const handleToggle = React.useCallback(async () => {
@@ -182,11 +181,9 @@ export default function App() {
       setActiveSlotTab(0);
       clearScriptEditState();
       await setActiveConfig(name);
-      if (isEnabled) {
-        await broadcastPopupConfig(name, popup);
-      }
+      await broadcastPopupConfig(name, popup);
     },
-    [activeIndex, presetNames, isEnabled, configs]
+    [activeIndex, presetNames, configs]
   );
 
   const createPreset = React.useCallback(
@@ -205,13 +202,10 @@ export default function App() {
       setActiveConfigName(uniqueName);
       setSavedConfig(structuredClone(cloned));
       setDirty(false);
-      await savePopupConfig(uniqueName, cloned);
+      await saveAndBroadcastPopupConfig(uniqueName, cloned);
       await setActiveConfig(uniqueName);
-      if (isEnabled) {
-        await broadcastPopupConfig(uniqueName, cloned);
-      }
     },
-    [presetNames, isEnabled]
+    [presetNames]
   );
 
   const handleNew = React.useCallback(
@@ -290,7 +284,9 @@ export default function App() {
             setActiveConfigName(name);
             setSavedConfig(structuredClone(popup));
             setDirty(false);
-            void savePopupConfig(name, popup).then(() => setActiveConfig(name));
+            void saveAndBroadcastPopupConfig(name, popup).then(() =>
+              setActiveConfig(name)
+            );
           }
         } catch {
           // invalid JSON, ignore
@@ -379,26 +375,31 @@ export default function App() {
   );
 
   const handleAddSlot = React.useCallback(() => {
-    const next = ([0, 1, 2, 3] as const).find(
-      (i) => !activePopup.slots[i].active
-    );
-    if (next === undefined) {
-      return;
-    }
-    setActiveSlotTab(next);
-    updateActivePopup(popupAddSlot);
-  }, [activePopup.slots, updateActivePopup]);
+    updateActivePopup((popup) => {
+      const next = ([0, 1, 2, 3] as const).find((i) => !popup.slots[i].active);
+      if (next !== undefined) {
+        setActiveSlotTab(next);
+      }
+      return popupAddSlot(popup);
+    });
+  }, [updateActivePopup]);
 
   const handleRemoveSlot = React.useCallback(
     (slotIndex: 0 | 1 | 2 | 3) => {
       if (activeSlots.length <= 1) {
         return;
       }
-      const remaining = activeSlots.filter((i) => i !== slotIndex);
-      setActiveSlotTab(remaining[0] ?? 0);
-      updateActivePopup((popup) => popupRemoveSlot(popup, slotIndex));
+      updateActivePopup((popup) => {
+        const next = popup.slots.find(
+          (s) => s.active && s.gamepadIndex !== slotIndex
+        );
+        if (next) {
+          setActiveSlotTab(next.gamepadIndex);
+        }
+        return popupRemoveSlot(popup, slotIndex);
+      });
     },
-    [activeSlots, updateActivePopup]
+    [activeSlots.length, updateActivePopup]
   );
 
   if (loading) {
