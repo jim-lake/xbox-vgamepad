@@ -30,11 +30,6 @@ const styles = StyleSheet.create({
   },
   rangeInput: {
     flex: 1,
-    accentColor: 'var(--chip-active-bg)',
-    height: '0.6rem',
-    borderRadius: '0.3rem',
-    border: '1px solid var(--surface-border)',
-    background: 'var(--chip-bg)',
     margin: '0.6rem 0',
   },
 });

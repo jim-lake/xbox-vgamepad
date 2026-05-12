@@ -23,7 +23,7 @@ export default function Range({
   return (
     <input
       type='range'
-      className={className}
+      className={'range-styled ' + className}
       style={inlineStyle}
       min={min}
       max={max}

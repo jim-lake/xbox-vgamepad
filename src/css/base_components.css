@@ -11,7 +11,6 @@
 .touchable-highlight:active .touchable-highlight-underlay {
   display: block;
 }
-
 .touchable-highlight {
   cursor: pointer;
   pointer-events: auto;
@@ -180,4 +179,26 @@
 }
 .video-overlay.faded {
   opacity: 0;
+}
+
+input[type='range'].range-styled {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range'].range-styled::-webkit-slider-runnable-track {
+  height: 0.8rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface-border);
+  background: var(--chip-bg);
+}
+input[type='range'].range-styled::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--chip-active-bg);
+  margin-top: -0.4rem;
 }
