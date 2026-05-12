@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import Select from '@/components/select';
 import TextButton from '@/components/buttons/text_button';
@@ -6,11 +5,8 @@ import MouseSettings from '@/components/popup/mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
 import ScriptEditor from './script-editor';
 import type { ScriptEntry } from './script-helpers';
-import type {
-  GamepadConfig,
-  GamepadActionName,
-  GamepadKeyboardConfig,
-} from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import type { PopupSlot, PopupScript, ScriptBinding } from '@/types/popup';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
@@ -42,21 +38,24 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  config: GamepadConfig;
-  gamepadIndex: 0 | 1 | 2 | 3;
+  slot: PopupSlot;
+  scripts: PopupScript[];
   usedIndices: (0 | 1 | 2 | 3)[];
   gamepadCount: number;
-  editingScriptKey: string | null;
+  editingScriptId: string | null;
   listeningScriptEntry: ScriptEntry | null;
-  onEditingScriptKeyChange: (key: string | null) => void;
+  onEditingScriptIdChange: (id: string | null) => void;
   onListeningScriptEntryChange: (entry: ScriptEntry | null) => void;
   onChangeIndex: (next: 0 | 1 | 2 | 3) => void;
-  onChangeKeyboard: (
-    code: string,
+  onChangeBinding: (
     action: GamepadActionName,
+    code: string,
     op: 'add' | 'remove'
   ) => void;
-  onChangeScripts: (keyboardConfig: GamepadKeyboardConfig) => void;
+  onChangeScripts: (
+    scriptBindings: ScriptBinding[],
+    scripts: PopupScript[]
+  ) => void;
   onChangeMouseStick: (val: 'left' | 'right' | undefined) => void;
   onChangeMouseSensitivity: (val: number) => void;
   onRemove: () => void;
@@ -70,37 +69,30 @@ const GAMEPAD_OPTIONS = [
 ] as const;
 
 export default function GamepadConfigSection({
-  config,
-  gamepadIndex,
+  slot,
+  scripts,
   usedIndices,
   gamepadCount,
-  editingScriptKey,
+  editingScriptId,
   listeningScriptEntry,
-  onEditingScriptKeyChange,
+  onEditingScriptIdChange,
   onListeningScriptEntryChange,
   onChangeIndex,
-  onChangeKeyboard,
+  onChangeBinding,
   onChangeScripts,
   onChangeMouseStick,
   onChangeMouseSensitivity,
   onRemove,
 }: Props) {
-  const mouseControls = config.mouseConfig.mouseControls.filter(
-    (m) => m.gamepadIndex === gamepadIndex
-  );
-
-  const slotKeyboardConfig = React.useMemo(() => {
-    const result: GamepadConfig['keyboardConfig'] = {};
-    for (const [code, entries] of Object.entries(config.keyboardConfig)) {
-      const filtered = entries.filter(
-        (e) => e.type !== 'action' || e.gamepadIndex === gamepadIndex
-      );
-      if (filtered.length > 0) {
-        result[code] = filtered;
-      }
-    }
-    return result;
-  }, [config.keyboardConfig, gamepadIndex]);
+  const mouseControls = slot.mouse.stick
+    ? [
+        {
+          stick: slot.mouse.stick,
+          gamepadIndex: slot.gamepadIndex,
+          sensitivity: slot.mouse.sensitivity,
+        },
+      ]
+    : [];
 
   return (
     <>
@@ -110,11 +102,11 @@ export default function GamepadConfigSection({
           <Text style={styles.label}>Gamepad Number</Text>
           <Select
             style={styles.select}
-            value={String(gamepadIndex)}
+            value={String(slot.gamepadIndex)}
             options={GAMEPAD_OPTIONS.map((opt) => ({
               ...opt,
               disabled:
-                opt.value !== String(gamepadIndex) &&
+                opt.value !== String(slot.gamepadIndex) &&
                 usedIndices.includes(Number(opt.value) as 0 | 1 | 2 | 3),
             }))}
             onChange={(val) => {
@@ -148,22 +140,20 @@ export default function GamepadConfigSection({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Key Bindings</Text>
-        <KeyBindingEditor
-          keyboardConfig={slotKeyboardConfig}
-          onChange={onChangeKeyboard}
-        />
+        <KeyBindingEditor bindings={slot.bindings} onChange={onChangeBinding} />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Scripts</Text>
         <ScriptEditor
-          keyboardConfig={config.keyboardConfig}
-          gamepadIndex={gamepadIndex}
-          editingKeyCode={editingScriptKey}
+          scriptBindings={slot.scriptBindings}
+          scripts={scripts}
+          gamepadIndex={slot.gamepadIndex}
+          editingScriptId={editingScriptId}
           listeningEntry={listeningScriptEntry}
-          onEditingKeyCodeChange={onEditingScriptKeyChange}
+          onEditingScriptIdChange={onEditingScriptIdChange}
           onListeningEntryChange={onListeningScriptEntryChange}
-          onChange={onChangeScripts}
+          onChangeBindings={onChangeScripts}
         />
       </View>
     </>

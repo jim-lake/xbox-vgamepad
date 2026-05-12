@@ -1,16 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GamepadKeyboardConfig, GameScript } from '@/types/gamepad';
-import {
-  extractScripts,
-  replaceScript,
-  removeScript,
-  addScript,
-  freeSentinel,
-  copyScriptForSlot,
-  isSentinelKey,
-} from './script-helpers';
+import type { GameScript } from '@/types/gamepad';
+import type { ScriptBinding, PopupScript } from '@/types/popup';
+import { isSentinelKey, SENTINEL_PREFIX } from './script-helpers';
 import ScriptRow from '@/components/popup/script-row';
 import ScriptEditBox from '@/components/popup/script-edit-box';
 import KeyCaptureModal from '@/components/popup/key-capture-modal';
@@ -26,46 +19,65 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  keyboardConfig: GamepadKeyboardConfig;
+  scriptBindings: ScriptBinding[];
+  scripts: PopupScript[];
   gamepadIndex: 0 | 1 | 2 | 3;
-  editingKeyCode: string | null;
+  editingScriptId: string | null;
   listeningEntry: ScriptEntry | null;
-  onEditingKeyCodeChange: (keyCode: string | null) => void;
+  onEditingScriptIdChange: (id: string | null) => void;
   onListeningEntryChange: (entry: ScriptEntry | null) => void;
-  onChange: (keyboardConfig: GamepadKeyboardConfig) => void;
+  onChangeBindings: (
+    scriptBindings: ScriptBinding[],
+    scripts: PopupScript[]
+  ) => void;
+}
+
+function makeEntry(
+  binding: ScriptBinding,
+  scripts: PopupScript[]
+): ScriptEntry | null {
+  const ps = scripts.find((s) => s.scriptId === binding.scriptId);
+  if (!ps) {
+    return null;
+  }
+  return { keyCodes: binding.keyCodes, script: ps.script };
+}
+
+function nextSentinel(usedKeys: Set<string>): string {
+  let sentinel = SENTINEL_PREFIX;
+  let i = 0;
+  while (usedKeys.has(sentinel)) {
+    i++;
+    sentinel = `${SENTINEL_PREFIX}${String(i)}`;
+  }
+  return sentinel;
 }
 
 export default function ScriptEditor({
-  keyboardConfig,
+  scriptBindings,
+  scripts,
   gamepadIndex,
-  editingKeyCode,
+  editingScriptId,
   listeningEntry,
-  onEditingKeyCodeChange,
+  onEditingScriptIdChange,
   onListeningEntryChange,
-  onChange,
+  onChangeBindings,
 }: Props) {
-  const [prevConfig, setPrevConfig] =
-    React.useState<GamepadKeyboardConfig>(keyboardConfig);
-  const [entries, setEntries] = React.useState<
-    ReturnType<typeof extractScripts>
-  >(() => extractScripts(keyboardConfig));
-  if (keyboardConfig !== prevConfig) {
-    setPrevConfig(keyboardConfig);
-    const extracted = extractScripts(keyboardConfig);
-    if (editingKeyCode !== null) {
-      const orderMap = new Map(entries.map((e, i) => [e.script, i]));
-      extracted.sort(
-        (a, b) => (orderMap.get(a.script) ?? 0) - (orderMap.get(b.script) ?? 0)
-      );
-    }
-    setEntries(extracted);
-  }
-
   React.useEffect(() => {
     if (listeningEntry === null) {
       return;
     }
     const entry = listeningEntry;
+    const binding =
+      scriptBindings.find(
+        (b) =>
+          b.keyCodes.some((c) => entry.keyCodes.includes(c)) ||
+          (b.keyCodes.length === 0 && entry.keyCodes.length === 0)
+      ) ??
+      scriptBindings.find((b) => {
+        const ps = scripts.find((s) => s.scriptId === b.scriptId);
+        return ps?.script === entry.script;
+      });
 
     function handleKeyDown(e: KeyboardEvent) {
       e.preventDefault();
@@ -74,42 +86,37 @@ export default function ScriptEditor({
         onListeningEntryChange(null);
         return;
       }
-      const newKeyCodes = [
-        ...entry.keyCodes.filter((c) => !isSentinelKey(c)),
-        e.code,
-      ];
-      onChange(
-        replaceScript(
-          keyboardConfig,
-          entry,
-          newKeyCodes,
-          copyScriptForSlot(entry.script, gamepadIndex)
-        )
-      );
-      onListeningEntryChange(null);
+      addKey(e.code);
     }
 
     function handleMouseDown(e: MouseEvent) {
       e.preventDefault();
       e.stopPropagation();
-      const code = e.button === 2 ? 'RightClick' : 'Click';
-      const newKeyCodes = [
-        ...entry.keyCodes.filter((c) => !isSentinelKey(c)),
-        code,
-      ];
-      onChange(
-        replaceScript(
-          keyboardConfig,
-          entry,
-          newKeyCodes,
-          copyScriptForSlot(entry.script, gamepadIndex)
-        )
-      );
-      onListeningEntryChange(null);
+      addKey(e.button === 2 ? 'RightClick' : 'Click');
     }
 
     function handleContextMenu(e: Event) {
       e.preventDefault();
+    }
+
+    function addKey(code: string) {
+      if (!binding) {
+        onListeningEntryChange(null);
+        return;
+      }
+      const allKeys = new Set(scriptBindings.flatMap((b) => b.keyCodes));
+      const newKeyCodes = [
+        ...binding.keyCodes.filter((c) => !isSentinelKey(c)),
+        code,
+      ];
+      // If was unbound (sentinel), remove sentinel from allKeys
+      const updatedBindings = scriptBindings.map((b) =>
+        b.scriptId === binding.scriptId ? { ...b, keyCodes: newKeyCodes } : b
+      );
+      // Remove any sentinel keys that are no longer needed
+      void allKeys;
+      onChangeBindings(updatedBindings, scripts);
+      onListeningEntryChange(null);
     }
 
     document.addEventListener('keydown', handleKeyDown, true);
@@ -122,9 +129,9 @@ export default function ScriptEditor({
     };
   }, [
     listeningEntry,
-    keyboardConfig,
-    gamepadIndex,
-    onChange,
+    scriptBindings,
+    scripts,
+    onChangeBindings,
     onListeningEntryChange,
   ]);
 
@@ -135,74 +142,104 @@ export default function ScriptEditor({
       activationType: 'on_down',
       actions: [],
     };
-    const [newConfig, sentinel] = addScript(keyboardConfig, script);
-    onChange(newConfig);
-    onEditingKeyCodeChange(sentinel);
+    const usedKeys = new Set(scriptBindings.flatMap((b) => b.keyCodes));
+    const sentinel = nextSentinel(usedKeys);
+    const scriptId = `script_${String(Date.now())}`;
+    const newScripts = [...scripts, { scriptId, script }];
+    const newBindings = [...scriptBindings, { scriptId, keyCodes: [sentinel] }];
+    onChangeBindings(newBindings, newScripts);
+    onEditingScriptIdChange(scriptId);
   }
 
-  function handleScriptChange(entry: ScriptEntry, newScript: GameScript) {
-    onChange(replaceScript(keyboardConfig, entry, entry.keyCodes, newScript));
+  function handleScriptChange(scriptId: string, newScript: GameScript) {
+    const newScripts = scripts.map((s) =>
+      s.scriptId === scriptId ? { ...s, script: newScript } : s
+    );
+    onChangeBindings(scriptBindings, newScripts);
   }
 
-  function handleDelete(entry: ScriptEntry) {
+  function handleDelete(scriptId: string) {
     if (!window.confirm('Delete this script?')) {
       return;
     }
-    onChange(removeScript(keyboardConfig, entry));
-    onEditingKeyCodeChange(null);
+    onChangeBindings(
+      scriptBindings.filter((b) => b.scriptId !== scriptId),
+      scripts.filter((s) => s.scriptId !== scriptId)
+    );
+    onEditingScriptIdChange(null);
   }
 
-  function handleRemoveBinding(entry: ScriptEntry, code: string) {
-    const remaining = entry.keyCodes.filter((c) => c !== code);
+  function handleRemoveBinding(scriptId: string, code: string) {
+    const binding = scriptBindings.find((b) => b.scriptId === scriptId);
+    if (!binding) {
+      return;
+    }
+    const remaining = binding.keyCodes.filter((c) => c !== code);
     if (remaining.length === 0) {
-      const sentinel = freeSentinel(keyboardConfig, code);
-      onChange(replaceScript(keyboardConfig, entry, [sentinel], entry.script));
+      const usedKeys = new Set(
+        scriptBindings.flatMap((b) =>
+          b.scriptId === scriptId ? [] : b.keyCodes
+        )
+      );
+      const sentinel = nextSentinel(usedKeys);
+      const newBindings = scriptBindings.map((b) =>
+        b.scriptId === scriptId ? { ...b, keyCodes: [sentinel] } : b
+      );
+      onChangeBindings(newBindings, scripts);
     } else {
-      onChange(replaceScript(keyboardConfig, entry, remaining, entry.script));
+      const newBindings = scriptBindings.map((b) =>
+        b.scriptId === scriptId ? { ...b, keyCodes: remaining } : b
+      );
+      onChangeBindings(newBindings, scripts);
     }
   }
 
   return (
     <View style={styles.container}>
-      {entries.map((entry) => {
-        const entryKey = entry.keyCodes[0] ?? '';
-        if (entryKey === editingKeyCode) {
+      {scriptBindings.map((binding) => {
+        const entry = makeEntry(binding, scripts);
+        if (!entry) {
+          return null;
+        }
+        const boundKeys = binding.keyCodes.filter((c) => !isSentinelKey(c));
+
+        if (binding.scriptId === editingScriptId) {
           return (
             <ScriptEditBox
-              key={entryKey}
+              key={binding.scriptId}
               script={entry.script}
-              boundKeys={entry.keyCodes.filter((c) => !isSentinelKey(c))}
+              boundKeys={boundKeys}
               gamepadIndex={gamepadIndex}
               onChange={(s) => {
-                handleScriptChange(entry, s);
+                handleScriptChange(binding.scriptId, s);
               }}
               onAddBinding={() => {
                 onListeningEntryChange(entry);
               }}
               onRemoveBinding={(code) => {
-                handleRemoveBinding(entry, code);
+                handleRemoveBinding(binding.scriptId, code);
               }}
               onDone={() => {
-                onEditingKeyCodeChange(null);
+                onEditingScriptIdChange(null);
               }}
               onDelete={() => {
-                handleDelete(entry);
+                handleDelete(binding.scriptId);
               }}
             />
           );
         }
         return (
           <ScriptRow
-            key={entryKey}
+            key={binding.scriptId}
             entry={entry}
             onEdit={() => {
-              onEditingKeyCodeChange(entryKey);
+              onEditingScriptIdChange(binding.scriptId);
             }}
             onAddBinding={() => {
               onListeningEntryChange(entry);
             }}
             onRemoveBinding={(code) => {
-              handleRemoveBinding(entry, code);
+              handleRemoveBinding(binding.scriptId, code);
             }}
           />
         );

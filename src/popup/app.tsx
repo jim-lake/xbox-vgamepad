@@ -1,13 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type {
-  GamepadConfig,
-  ActionMap,
-  GamepadActionName,
-  GamepadKeyboardConfig,
-} from '@/types/gamepad';
-import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import { DEFAULT_CONFIG } from '@/types/gamepad';
+import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
 import {
   loadStorage,
   saveConfig,
@@ -23,6 +19,10 @@ import {
   sendConfigChanged,
 } from './messaging';
 import { validateConfig } from './validate';
+import {
+  gamepadConfigToPopupConfig,
+  popupConfigToGamepadConfig,
+} from './config';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import Toolbar from '@/components/popup/toolbar';
@@ -32,6 +32,7 @@ import GlobalBindingEditor from './global-binding-editor';
 import type { ScriptEntry } from './script-helpers';
 
 const MAX_PRESETS = 25;
+const DEFAULT_POPUP = gamepadConfigToPopupConfig(DEFAULT_CONFIG);
 
 const styles = StyleSheet.create({
   app: {
@@ -90,29 +91,38 @@ const styles = StyleSheet.create({
   },
 });
 
+function updateSlot(
+  popup: PopupConfig,
+  idx: 0 | 1 | 2 | 3,
+  patch: Partial<PopupConfig['slots'][number]>
+): PopupConfig {
+  const slots = [...popup.slots] as PopupConfig['slots'];
+  slots[idx] = { ...slots[idx], ...patch };
+  return { ...popup, slots };
+}
+
 export default function App() {
   const [loading, setLoading] = React.useState(true);
   const [isEnabled, setIsEnabled] = React.useState(true);
   const [activeConfigName, setActiveConfigName] = React.useState('default');
-  const [configs, setConfigs] = React.useState<Record<string, GamepadConfig>>({
-    default: DEFAULT_CONFIG,
+  const [configs, setConfigs] = React.useState<Record<string, PopupConfig>>({
+    default: DEFAULT_POPUP,
   });
   const [gameName, setGameName] = React.useState<string | null>(null);
   const [renaming, setRenaming] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState('');
   const [dirty, setDirty] = React.useState(false);
   const [savedConfig, setSavedConfig] =
-    React.useState<GamepadConfig>(DEFAULT_CONFIG);
-  const [activeSlots, setActiveSlots] = React.useState<(0 | 1 | 2 | 3)[]>([0]);
+    React.useState<PopupConfig>(DEFAULT_POPUP);
   const [activeSlotTab, setActiveSlotTab] = React.useState(0);
-  const [editingScriptKey, setEditingScriptKey] = React.useState<string | null>(
+  const [editingScriptId, setEditingScriptId] = React.useState<string | null>(
     null
   );
   const [listeningScriptEntry, setListeningScriptEntry] =
     React.useState<ScriptEntry | null>(null);
 
   function clearScriptEditState() {
-    setEditingScriptKey(null);
+    setEditingScriptId(null);
     setListeningScriptEntry(null);
   }
 
@@ -121,24 +131,17 @@ export default function App() {
       const [data, name] = await Promise.all([loadStorage(), getGameName()]);
       setIsEnabled(data.isEnabled);
       setActiveConfigName(data.activeConfig);
-      setConfigs(data.configs);
-      const cfg = data.configs[data.activeConfig] ?? DEFAULT_CONFIG;
-      setSavedConfig(structuredClone(cfg));
+      const popupConfigs = Object.fromEntries(
+        Object.entries(data.configs).map(([k, v]) => [
+          k,
+          gamepadConfigToPopupConfig(v),
+        ])
+      );
+      setConfigs(popupConfigs);
+      setSavedConfig(
+        structuredClone(popupConfigs[data.activeConfig] ?? DEFAULT_POPUP)
+      );
       setGameName(name);
-      // Derive which gamepad slots are in use from the config
-      const usedSet = new Set<0 | 1 | 2 | 3>();
-      for (const entries of Object.values(cfg.keyboardConfig)) {
-        for (const e of entries) {
-          if (e.type === 'action') {
-            usedSet.add(e.gamepadIndex);
-          }
-        }
-      }
-      for (const m of cfg.mouseConfig.mouseControls) {
-        usedSet.add(m.gamepadIndex);
-      }
-      const slots = ([0, 1, 2, 3] as const).filter((i) => usedSet.has(i));
-      setActiveSlots(slots.length > 0 ? slots : [0]);
       setActiveSlotTab(0);
       setLoading(false);
     })();
@@ -149,16 +152,36 @@ export default function App() {
     [configs]
   );
   const activeIndex = presetNames.indexOf(activeConfigName);
-  const activeConfig = configs[activeConfigName] ?? DEFAULT_CONFIG;
+  const activePopup = configs[activeConfigName] ?? DEFAULT_POPUP;
+  const activeSlots = activePopup.slots
+    .filter((s) => s.active)
+    .map((s) => s.gamepadIndex);
   const activeSlotIndex = activeSlots[activeSlotTab] ?? 0;
+  const activeSlot = activePopup.slots[activeSlotIndex];
+
+  const persist = React.useCallback(
+    async (popup: PopupConfig) => {
+      const cfg = popupConfigToGamepadConfig(popup);
+      if (!validateConfig(cfg)) {
+        return;
+      }
+      await saveConfig(activeConfigName, cfg);
+      if (isEnabled) {
+        await sendConfigChanged(activeConfigName, cfg);
+      }
+    },
+    [activeConfigName, isEnabled]
+  );
 
   const handleToggle = React.useCallback(async () => {
     const next = !isEnabled;
     setIsEnabled(next);
     await setEnabled(next);
     if (next) {
-      const config = configs[activeConfigName] ?? DEFAULT_CONFIG;
-      await sendActivateConfig(activeConfigName, config);
+      await sendActivateConfig(
+        activeConfigName,
+        popupConfigToGamepadConfig(configs[activeConfigName] ?? DEFAULT_POPUP)
+      );
     } else {
       await sendDisableGamepad();
     }
@@ -168,36 +191,23 @@ export default function App() {
     async (dir: -1 | 1) => {
       const idx = (activeIndex + dir + presetNames.length) % presetNames.length;
       const name = presetNames[idx] ?? 'default';
-      const cfg = configs[name] ?? DEFAULT_CONFIG;
+      const popup = configs[name] ?? DEFAULT_POPUP;
       setActiveConfigName(name);
-      setSavedConfig(structuredClone(cfg));
+      setSavedConfig(structuredClone(popup));
       setDirty(false);
       setRenaming(false);
-      clearScriptEditState();
-      const usedSet = new Set<0 | 1 | 2 | 3>();
-      for (const entries of Object.values(cfg.keyboardConfig)) {
-        for (const e of entries) {
-          if (e.type === 'action') {
-            usedSet.add(e.gamepadIndex);
-          }
-        }
-      }
-      for (const m of cfg.mouseConfig.mouseControls) {
-        usedSet.add(m.gamepadIndex);
-      }
-      const slots = ([0, 1, 2, 3] as const).filter((i) => usedSet.has(i));
-      setActiveSlots(slots.length > 0 ? slots : [0]);
       setActiveSlotTab(0);
+      clearScriptEditState();
       await setActiveConfig(name);
       if (isEnabled) {
-        await sendConfigChanged(name, cfg);
+        await sendConfigChanged(name, popupConfigToGamepadConfig(popup));
       }
     },
     [activeIndex, presetNames, isEnabled, configs]
   );
 
   const createPreset = React.useCallback(
-    async (name: string, config: GamepadConfig) => {
+    async (name: string, popup: PopupConfig) => {
       if (presetNames.length >= MAX_PRESETS) {
         return;
       }
@@ -207,28 +217,29 @@ export default function App() {
         i++;
         uniqueName = `${name} ${String(i)}`;
       }
-      const cloned = structuredClone(config);
+      const cloned = structuredClone(popup);
       setConfigs((prev) => ({ ...prev, [uniqueName]: cloned }));
       setActiveConfigName(uniqueName);
       setSavedConfig(structuredClone(cloned));
       setDirty(false);
-      await saveConfig(uniqueName, cloned);
+      const cfg = popupConfigToGamepadConfig(cloned);
+      await saveConfig(uniqueName, cfg);
       await setActiveConfig(uniqueName);
       if (isEnabled) {
-        await sendConfigChanged(uniqueName, cloned);
+        await sendConfigChanged(uniqueName, cfg);
       }
     },
     [presetNames, isEnabled]
   );
 
   const handleNew = React.useCallback(
-    () => createPreset('New Profile', DEFAULT_CONFIG),
+    () => createPreset('New Profile', DEFAULT_POPUP),
     [createPreset]
   );
 
   const handleCopy = React.useCallback(
-    () => createPreset(activeConfigName, activeConfig),
-    [createPreset, activeConfigName, activeConfig]
+    () => createPreset(activeConfigName, activePopup),
+    [createPreset, activeConfigName, activePopup]
   );
 
   const handleEditName = React.useCallback(() => {
@@ -246,31 +257,18 @@ export default function App() {
       setRenaming(false);
       return;
     }
-    const config = configs[activeConfigName] ?? DEFAULT_CONFIG;
+    const popup = configs[activeConfigName] ?? DEFAULT_POPUP;
     const newConfigs = Object.fromEntries(
       Object.entries(configs).filter(([k]) => k !== activeConfigName)
     );
-    newConfigs[trimmed] = config;
+    newConfigs[trimmed] = popup;
     setConfigs(newConfigs);
     setActiveConfigName(trimmed);
     await deleteConfig(activeConfigName);
-    await saveConfig(trimmed, config);
+    await saveConfig(trimmed, popupConfigToGamepadConfig(popup));
     await setActiveConfig(trimmed);
     setRenaming(false);
   }, [renameValue, activeConfigName, configs, presetNames]);
-
-  const persist = React.useCallback(
-    async (config: GamepadConfig) => {
-      if (!validateConfig(config)) {
-        return;
-      }
-      await saveConfig(activeConfigName, config);
-      if (isEnabled) {
-        await sendConfigChanged(activeConfigName, config);
-      }
-    },
-    [activeConfigName, isEnabled]
-  );
 
   const handleUndo = React.useCallback(() => {
     if (!dirty) {
@@ -307,13 +305,12 @@ export default function App() {
               i++;
               name = `${baseName} ${String(i)}`;
             }
-            const config = structuredClone(parsed);
-            const newConfigs = { ...configs, [name]: config };
-            setConfigs(newConfigs);
+            const popup = gamepadConfigToPopupConfig(parsed);
+            setConfigs((prev) => ({ ...prev, [name]: popup }));
             setActiveConfigName(name);
-            setSavedConfig(structuredClone(config));
+            setSavedConfig(structuredClone(popup));
             setDirty(false);
-            void saveConfig(name, config).then(() => setActiveConfig(name));
+            void saveConfig(name, parsed).then(() => setActiveConfig(name));
           }
         } catch {
           // invalid JSON, ignore
@@ -322,25 +319,25 @@ export default function App() {
       reader.readAsText(file);
     };
     input.click();
-  }, [configs, presetNames]);
+  }, [presetNames]);
 
   const handleExport = React.useCallback(() => {
-    const blob = new Blob([JSON.stringify(activeConfig, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = new Blob(
+      [JSON.stringify(popupConfigToGamepadConfig(activePopup), null, 2)],
+      { type: 'application/json' }
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${activeConfigName}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [activeConfig, activeConfigName]);
+  }, [activePopup, activeConfigName]);
 
-  const handleUpdateScripts = React.useCallback(
-    (keyboardConfig: GamepadKeyboardConfig) => {
+  const updateActivePopup = React.useCallback(
+    (updater: (prev: PopupConfig) => PopupConfig) => {
       setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const next = { ...current, keyboardConfig };
+        const next = updater(prev[activeConfigName] ?? DEFAULT_POPUP);
         void persist(next);
         return { ...prev, [activeConfigName]: next };
       });
@@ -349,146 +346,87 @@ export default function App() {
     [activeConfigName, persist]
   );
 
-  const makeUpdateKeyboardConfig = React.useCallback(
-    (slotIndex: 0 | 1 | 2 | 3) =>
-      (code: string, action: GamepadActionName, op: 'add' | 'remove') => {
-        setConfigs((prev) => {
-          const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-          const existing = current.keyboardConfig[code] ?? [];
-          let merged: ActionMap;
-          if (op === 'add') {
-            if (
-              existing.some(
-                (e) =>
-                  e.type === 'action' &&
-                  e.gamepadIndex === slotIndex &&
-                  e.action === action
-              )
-            ) {
-              return prev;
-            }
-            merged = [
-              ...existing,
-              { type: 'action', gamepadIndex: slotIndex, action },
-            ];
-          } else {
-            merged = existing.filter(
-              (e) =>
-                !(
-                  e.type === 'action' &&
-                  e.gamepadIndex === slotIndex &&
-                  e.action === action
-                )
-            );
-          }
-          const nextKeyboardConfig =
-            merged.length === 0
-              ? Object.fromEntries(
-                  Object.entries(current.keyboardConfig).filter(
-                    ([k]) => k !== code
-                  )
-                )
-              : { ...current.keyboardConfig, [code]: merged };
-          const next = { ...current, keyboardConfig: nextKeyboardConfig };
-          void persist(next);
-          return { ...prev, [activeConfigName]: next };
+  const handleChangeBinding = React.useCallback(
+    (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
+      updateActivePopup((popup) => {
+        const slot = popup.slots[activeSlotIndex];
+        const codes = slot.bindings[action];
+        return updateSlot(popup, activeSlotIndex, {
+          bindings: {
+            ...slot.bindings,
+            [action]:
+              op === 'add'
+                ? [...codes.filter((c) => c !== code), code]
+                : codes.filter((c) => c !== code),
+          },
         });
-        setDirty(true);
-      },
-    [activeConfigName, persist]
+      });
+    },
+    [activeSlotIndex, updateActivePopup]
   );
 
-  const makeUpdateMouseStick = React.useCallback(
-    (slotIndex: 0 | 1 | 2 | 3) => (val: 'left' | 'right' | undefined) => {
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const others = current.mouseConfig.mouseControls.filter(
-          (m) => m.gamepadIndex !== slotIndex
-        );
-        const mouseControls = val
-          ? [
-              ...others,
-              {
-                stick: val,
-                gamepadIndex: slotIndex,
-                sensitivity:
-                  current.mouseConfig.mouseControls.find(
-                    (m) => m.gamepadIndex === slotIndex
-                  )?.sensitivity ?? DEFAULT_SENSITIVITY,
-              },
-            ]
-          : others;
-        const next = {
-          ...current,
-          mouseConfig: { ...current.mouseConfig, mouseControls },
-        };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setDirty(true);
+  const handleChangeScripts = React.useCallback(
+    (scriptBindings: ScriptBinding[], scripts: PopupScript[]) => {
+      updateActivePopup((popup) => ({
+        ...updateSlot(popup, activeSlotIndex, { scriptBindings }),
+        scripts,
+      }));
     },
-    [activeConfigName, persist]
+    [activeSlotIndex, updateActivePopup]
   );
 
-  const makeUpdateMouseSensitivity = React.useCallback(
-    (slotIndex: 0 | 1 | 2 | 3) => (val: number) => {
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const mouseControls = current.mouseConfig.mouseControls.map((m) =>
-          m.gamepadIndex === slotIndex ? { ...m, sensitivity: val } : m
-        );
-        const next = {
-          ...current,
-          mouseConfig: { ...current.mouseConfig, mouseControls },
-        };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setDirty(true);
+  const handleChangeMouseStick = React.useCallback(
+    (val: 'left' | 'right' | undefined) => {
+      updateActivePopup((popup) =>
+        updateSlot(popup, activeSlotIndex, {
+          mouse: { ...popup.slots[activeSlotIndex].mouse, stick: val },
+        })
+      );
     },
-    [activeConfigName, persist]
+    [activeSlotIndex, updateActivePopup]
+  );
+
+  const handleChangeMouseSensitivity = React.useCallback(
+    (val: number) => {
+      updateActivePopup((popup) =>
+        updateSlot(popup, activeSlotIndex, {
+          mouse: { ...popup.slots[activeSlotIndex].mouse, sensitivity: val },
+        })
+      );
+    },
+    [activeSlotIndex, updateActivePopup]
+  );
+
+  const handleChangeGlobalBinding = React.useCallback(
+    (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
+      updateActivePopup((popup) => {
+        const codes = popup.globalBindings[action];
+        return {
+          ...popup,
+          globalBindings: {
+            ...popup.globalBindings,
+            [action]:
+              op === 'add'
+                ? [...codes.filter((c) => c !== code), code]
+                : codes.filter((c) => c !== code),
+          },
+        };
+      });
+    },
+    [updateActivePopup]
   );
 
   const handleChangeSlotIndex = React.useCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
-      setActiveSlots((prev) => {
-        const next = prev.map((i) => (i === oldIndex ? newIndex : i));
-        next.sort((a, b) => a - b);
-        return next;
-      });
-      setActiveSlotTab((prev) => {
-        // After sort, find where newIndex lands
-        const sorted = activeSlots
-          .map((i) => (i === oldIndex ? newIndex : i))
-          .sort((a, b) => a - b);
-        return sorted.indexOf(newIndex) >= 0 ? sorted.indexOf(newIndex) : prev;
-      });
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const mouseControls = current.mouseConfig.mouseControls.map((m) =>
-          m.gamepadIndex === oldIndex ? { ...m, gamepadIndex: newIndex } : m
-        );
-        const keyboardConfig = Object.fromEntries(
-          Object.entries(current.keyboardConfig).map(([code, entries]) => [
-            code,
-            entries.map((e) =>
-              e.type === 'action' && e.gamepadIndex === oldIndex
-                ? { ...e, gamepadIndex: newIndex }
-                : e
-            ),
-          ])
-        );
-        const next = {
-          ...current,
-          mouseConfig: { ...current.mouseConfig, mouseControls },
-          keyboardConfig,
-        };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setDirty(true);
+      const newActiveSlots = activeSlots
+        .map((i) => (i === oldIndex ? newIndex : i))
+        .sort((a, b) => a - b);
+      setActiveSlotTab(newActiveSlots.indexOf(newIndex));
+      updateActivePopup((popup) =>
+        updateSlot(popup, oldIndex, { gamepadIndex: newIndex })
+      );
     },
-    [activeSlots, activeConfigName, persist]
+    [activeSlots, updateActivePopup]
   );
 
   const handleAddSlot = React.useCallback(() => {
@@ -499,10 +437,11 @@ export default function App() {
     if (next === undefined) {
       return;
     }
-    const sorted = [...activeSlots, next].sort((a, b) => a - b);
-    setActiveSlots(sorted);
-    setActiveSlotTab(sorted.indexOf(next));
-  }, [activeSlots]);
+    setActiveSlotTab(
+      [...activeSlots, next].sort((a, b) => a - b).indexOf(next)
+    );
+    updateActivePopup((popup) => updateSlot(popup, next, { active: true }));
+  }, [activeSlots, updateActivePopup]);
 
   const handleRemoveSlot = React.useCallback(
     (tabI: number) => {
@@ -513,34 +452,29 @@ export default function App() {
       if (slotIndex === undefined) {
         return;
       }
-      setConfigs((prev) => {
-        const current = prev[activeConfigName] ?? DEFAULT_CONFIG;
-        const mouseControls = current.mouseConfig.mouseControls.filter(
-          (m) => m.gamepadIndex !== slotIndex
-        );
-        const keyboardConfig = Object.fromEntries(
-          Object.entries(current.keyboardConfig)
-            .map(([code, entries]): [string, ActionMap] => [
-              code,
-              entries.filter(
-                (e) => !(e.type === 'action' && e.gamepadIndex === slotIndex)
-              ),
-            ])
-            .filter(([, entries]) => entries.length > 0)
-        );
-        const next = {
-          ...current,
-          mouseConfig: { ...current.mouseConfig, mouseControls },
-          keyboardConfig,
-        };
-        void persist(next);
-        return { ...prev, [activeConfigName]: next };
-      });
-      setActiveSlots((prev) => prev.filter((_, i) => i !== tabI));
       setActiveSlotTab((prev) => Math.min(prev, activeSlots.length - 2));
+      updateActivePopup((popup) => {
+        const removedIds = new Set(
+          popup.slots[slotIndex].scriptBindings.map((b) => b.scriptId)
+        );
+        return {
+          ...updateSlot(popup, slotIndex, {
+            active: false,
+            bindings: Object.fromEntries(
+              Object.keys(popup.slots[slotIndex].bindings).map((k) => [k, []])
+            ) as unknown as PopupConfig['slots'][number]['bindings'],
+            mouse: {
+              stick: undefined,
+              sensitivity: popup.slots[slotIndex].mouse.sensitivity,
+            },
+            scriptBindings: [],
+          }),
+          scripts: popup.scripts.filter((s) => !removedIds.has(s.scriptId)),
+        };
+      });
       setDirty(true);
     },
-    [activeSlots, activeConfigName, persist]
+    [activeSlots, updateActivePopup]
   );
 
   if (loading) {
@@ -553,7 +487,6 @@ export default function App() {
 
   return (
     <View style={styles.app}>
-      {/* Floating top bar */}
       <View style={styles.topBar}>
         <AppHeader
           gameName={gameName}
@@ -598,10 +531,8 @@ export default function App() {
         )}
       </View>
 
-      {/* Top gutter for fixed header */}
       <View style={styles.topGutter} />
 
-      {/* Config editor */}
       <View style={styles.body}>
         <GamepadTabs
           slots={activeSlots}
@@ -613,21 +544,21 @@ export default function App() {
           onAdd={handleAddSlot}
         />
         <GamepadConfigSection
-          config={activeConfig}
-          gamepadIndex={activeSlotIndex}
+          slot={activeSlot}
+          scripts={activePopup.scripts}
           usedIndices={activeSlots}
           gamepadCount={activeSlots.length}
-          editingScriptKey={editingScriptKey}
+          editingScriptId={editingScriptId}
           listeningScriptEntry={listeningScriptEntry}
-          onEditingScriptKeyChange={setEditingScriptKey}
+          onEditingScriptIdChange={setEditingScriptId}
           onListeningScriptEntryChange={setListeningScriptEntry}
           onChangeIndex={(next) => {
             handleChangeSlotIndex(activeSlotIndex, next);
           }}
-          onChangeKeyboard={makeUpdateKeyboardConfig(activeSlotIndex)}
-          onChangeScripts={handleUpdateScripts}
-          onChangeMouseStick={makeUpdateMouseStick(activeSlotIndex)}
-          onChangeMouseSensitivity={makeUpdateMouseSensitivity(activeSlotIndex)}
+          onChangeBinding={handleChangeBinding}
+          onChangeScripts={handleChangeScripts}
+          onChangeMouseStick={handleChangeMouseStick}
+          onChangeMouseSensitivity={handleChangeMouseSensitivity}
           onRemove={() => {
             handleRemoveSlot(activeSlotTab);
           }}
@@ -636,16 +567,14 @@ export default function App() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Advanced</Text>
           <GlobalBindingEditor
-            keyboardConfig={activeConfig.keyboardConfig}
-            onChange={makeUpdateKeyboardConfig(0)}
+            globalBindings={activePopup.globalBindings}
+            onChange={handleChangeGlobalBinding}
           />
         </View>
       </View>
 
-      {/* Bottom gutter for fixed status bar */}
       {dirty && <View style={styles.bottomGutter} />}
 
-      {/* Floating status bar */}
       {dirty && (
         <View style={styles.statusBar}>
           <TextButton style={styles.undoBtn} text='Undo' onPress={handleUndo} />

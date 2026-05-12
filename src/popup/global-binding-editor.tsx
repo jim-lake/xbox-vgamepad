@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
-import type { GamepadKeyboardConfig, GamepadActionName } from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import type { GlobalBindings } from '@/types/popup';
 
 import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
@@ -67,30 +68,17 @@ const styles = StyleSheet.create({
   modalSub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
 });
 
-function getCodesForAction(
-  keyboardConfig: GamepadKeyboardConfig,
-  action: GamepadActionName
-): string[] {
-  const codes: string[] = [];
-  for (const [code, entries] of Object.entries(keyboardConfig)) {
-    if (entries.some((e) => e.type === 'action' && e.action === action)) {
-      codes.push(code);
-    }
-  }
-  return codes;
-}
-
 interface Props {
-  keyboardConfig: GamepadKeyboardConfig;
+  globalBindings: GlobalBindings;
   onChange: (
-    code: string,
     action: GamepadActionName,
+    code: string,
     op: 'add' | 'remove'
   ) => void;
 }
 
 export default function GlobalBindingEditor({
-  keyboardConfig,
+  globalBindings,
   onChange,
 }: Props) {
   const [listening, setListening] = React.useState<GamepadActionName | null>(
@@ -110,7 +98,7 @@ export default function GlobalBindingEditor({
         setListening(null);
         return;
       }
-      onChange(e.code, action, 'add');
+      onChange(action, e.code, 'add');
       setListening(null);
     }
 
@@ -123,7 +111,7 @@ export default function GlobalBindingEditor({
   return (
     <View style={styles.container}>
       {GLOBAL_ACTIONS.map(({ action, label }) => {
-        const codes = getCodesForAction(keyboardConfig, action);
+        const codes = globalBindings[action];
         return (
           <View key={action} style={styles.row}>
             <Text style={styles.label}>{label}</Text>
@@ -136,7 +124,7 @@ export default function GlobalBindingEditor({
                     source={closeIcon}
                     type='danger'
                     onPress={() => {
-                      onChange(code, action, 'remove');
+                      onChange(action, code, 'remove');
                     }}
                   />
                 </View>

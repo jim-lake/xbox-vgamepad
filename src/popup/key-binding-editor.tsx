@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
-import type { GamepadKeyboardConfig, GamepadActionName } from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import type { SlotBindings } from '@/types/popup';
 import BindingBadges from '@/components/popup/binding-badges';
 
 const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
@@ -68,31 +69,16 @@ const styles = StyleSheet.create({
   modalSub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
 });
 
-/** Returns all key codes currently bound to the given action. */
-function getCodesForAction(
-  keyboardConfig: GamepadKeyboardConfig,
-  action: GamepadActionName
-): string[] {
-  const codes: string[] = [];
-  for (const [code, entries] of Object.entries(keyboardConfig)) {
-    if (entries.some((e) => e.type === 'action' && e.action === action)) {
-      codes.push(code);
-    }
-  }
-  return codes.sort((a, b) => a.localeCompare(b));
-}
-
 interface Props {
-  keyboardConfig: GamepadKeyboardConfig;
+  bindings: SlotBindings;
   onChange: (
-    code: string,
     action: GamepadActionName,
+    code: string,
     op: 'add' | 'remove'
   ) => void;
 }
 
-export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
-  const visibleActions = ACTION_LABELS;
+export default function KeyBindingEditor({ bindings, onChange }: Props) {
   const [listening, setListening] = React.useState<GamepadActionName | null>(
     null
   );
@@ -106,7 +92,7 @@ export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
       if (listening === null) {
         return;
       }
-      onChange(code, listening, 'add');
+      onChange(listening, code, 'add');
       setListening(null);
     }
 
@@ -153,17 +139,10 @@ export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
     };
   }, [listening, onChange]);
 
-  const handleRemove = React.useCallback(
-    (action: GamepadActionName, code: string) => {
-      onChange(code, action, 'remove');
-    },
-    [onChange]
-  );
-
   return (
     <View style={styles.container}>
-      {visibleActions.map(({ action, label }) => {
-        const codes = getCodesForAction(keyboardConfig, action);
+      {ACTION_LABELS.map(({ action, label }) => {
+        const codes = [...bindings[action]].sort((a, b) => a.localeCompare(b));
         return (
           <View key={action} style={styles.row}>
             <Text style={styles.label}>{label}</Text>
@@ -173,7 +152,7 @@ export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
                 setListening(action);
               }}
               onRemove={(code) => {
-                handleRemove(action, code);
+                onChange(action, code, 'remove');
               }}
             />
           </View>
