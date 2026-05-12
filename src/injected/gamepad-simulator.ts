@@ -61,6 +61,7 @@ export class GamepadSimulator {
   private timestamp = performance.now();
   private connected = false;
   private enabled = false;
+  private index = -1;
   private dirPressed: number[][] = [
     [0, 0, 0, 0],
     [0, 0, 0, 0],
@@ -104,6 +105,7 @@ export class GamepadSimulator {
     this.reset();
     this.enabled = true;
     this.connected = true;
+    this.index = index;
     this.timestamp = performance.now();
     debugLog('[gamepad] connected', index);
     const evt = new Event('gamepadconnected');
@@ -144,7 +146,7 @@ export class GamepadSimulator {
       btn.touched = true;
       btn.value = 1;
       this.timestamp = performance.now();
-      debugLog('[gamepad] button down', index);
+      debugLog('[gamepad] button down', index, 'pad', this.index);
     }
   }
 
@@ -158,7 +160,7 @@ export class GamepadSimulator {
         btn.touched = false;
         btn.value = 0;
         this.timestamp = performance.now();
-        debugLog('[gamepad] button up', index);
+        debugLog('[gamepad] button up', index, 'pad', this.index);
       }
     }
   }
@@ -184,7 +186,9 @@ export class GamepadSimulator {
       'axis',
       axisIndex,
       '=',
-      value
+      value,
+      'pad',
+      this.index
     );
   }
 
@@ -216,7 +220,9 @@ export class GamepadSimulator {
       'axis',
       axisIndex,
       '=',
-      this.axes[axisIndex]
+      this.axes[axisIndex],
+      'pad',
+      this.index
     );
   }
 
@@ -224,7 +230,16 @@ export class GamepadSimulator {
     this.axes[stick * 2] = x;
     this.axes[stick * 2 + 1] = y;
     this.timestamp = performance.now();
-    debugLog('[gamepad] axis move stick', stick, 'x =', x, 'y =', y);
+    debugLog(
+      '[gamepad] axis move stick',
+      stick,
+      'x =',
+      x,
+      'y =',
+      y,
+      'pad',
+      this.index
+    );
   }
 }
 
