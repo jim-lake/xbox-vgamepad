@@ -9,7 +9,12 @@ import type {
   GameScript,
   ScriptAction,
 } from '../../src/types/gamepad.ts';
-import type { PopupConfig } from '../../src/types/popup.ts';
+import type {
+  PopupConfig,
+  PopupScript,
+  ScriptBinding,
+} from '../../src/types/popup.ts';
+import { copyScriptForSlot } from '../../src/popup/script-helpers.ts';
 
 function roundTrip(cfg: GamepadConfig): GamepadConfig {
   const popup = parseImportedConfig(cfg) as PopupConfig;
@@ -147,4 +152,187 @@ void test('exportPopupConfig: produces valid JSON that parses back', () => {
   const popup = parseImportedConfig(cfg) as PopupConfig;
   const back = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
   assert.deepEqual(back.keyboardConfig['Space'], cfg.keyboardConfig['Space']);
+});
+
+// ── PopupConfig → GamepadConfig → PopupConfig round-trips ──────────────────
+
+function makePopupScript(id: string): PopupScript {
+  return {
+    scriptId: id,
+    script: {
+      type: 'script',
+      name: 'combo',
+      activationType: 'on_down',
+      actions: [
+        {
+          type: 'down',
+          buttons: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+        },
+        { type: 'delay', durationMs: 100 },
+        {
+          type: 'up',
+          buttons: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+        },
+      ],
+    },
+  };
+}
+
+function emptySlotBindings(): PopupConfig['slots'][0]['bindings'] {
+  return Object.fromEntries(
+    [
+      'a',
+      'b',
+      'x',
+      'y',
+      'leftShoulder',
+      'rightShoulder',
+      'leftTrigger',
+      'rightTrigger',
+      'select',
+      'start',
+      'leftStickPressed',
+      'rightStickPressed',
+      'dpadUp',
+      'dpadDown',
+      'dpadLeft',
+      'dpadRight',
+      'home',
+      'leftStickUp',
+      'leftStickDown',
+      'leftStickLeft',
+      'leftStickRight',
+      'rightStickUp',
+      'rightStickDown',
+      'rightStickLeft',
+      'rightStickRight',
+      'toggleGamepad',
+      'toggleAllGamepads',
+      'toggleExtension',
+    ].map((a) => [a, []])
+  ) as unknown as PopupConfig['slots'][0]['bindings'];
+}
+
+function makePopupConfig(
+  scriptBindingsBySlot: [string[], string[], string[], string[]]
+): PopupConfig {
+  const ps = makePopupScript('script_0');
+  return {
+    scripts: [ps],
+    globalBindings: emptySlotBindings(),
+    otherGamepadMode: 'separate',
+    slots: [0, 1, 2, 3].map((i) => {
+      const keyCodes = scriptBindingsBySlot[i as 0 | 1 | 2 | 3];
+      return {
+        gamepadIndex: i as 0 | 1 | 2 | 3,
+        active: keyCodes.length > 0,
+        bindings: emptySlotBindings(),
+        mouse: { stick: undefined, sensitivity: 101 },
+        scriptBindings: [{ scriptId: 'script_0', keyCodes }],
+      };
+    }) as PopupConfig['slots'],
+  };
+}
+
+function popupRoundTrip(popup: PopupConfig): PopupConfig {
+  const gameConfig = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
+  return parseImportedConfig(gameConfig) as PopupConfig;
+}
+
+void test('popup→game→popup: script on two gamepads preserves both slot bindings', () => {
+  // Script bound on slot 0 (KeyQ) and slot 1 (KeyW)
+  const popup = makePopupConfig([['KeyQ'], ['KeyW'], [], []]);
+  const result = popupRoundTrip(popup);
+
+  const s0 = result.slots[0].scriptBindings.find(
+    (b: ScriptBinding) => b.keyCodes.length > 0
+  );
+  const s1 = result.slots[1].scriptBindings.find(
+    (b: ScriptBinding) => b.keyCodes.length > 0
+  );
+  assert.ok(s0, 'slot 0 should have a script binding');
+  assert.ok(s1, 'slot 1 should have a script binding');
+  assert.deepEqual(s0.keyCodes, ['KeyQ'], 'slot 0 key code preserved');
+  assert.deepEqual(s1.keyCodes, ['KeyW'], 'slot 1 key code preserved');
+});
+
+void test('popup→game→popup: script on three gamepads preserves all slot bindings', () => {
+  const popup = makePopupConfig([['KeyA'], ['KeyB'], ['KeyC'], []]);
+  const result = popupRoundTrip(popup);
+
+  for (const [slot, expectedKey] of [
+    [result.slots[0], 'KeyA'],
+    [result.slots[1], 'KeyB'],
+    [result.slots[2], 'KeyC'],
+  ] as [PopupConfig['slots'][0], string][]) {
+    const binding = slot.scriptBindings.find(
+      (b: ScriptBinding) => b.keyCodes.length > 0
+    );
+    assert.ok(
+      binding,
+      `slot ${String(slot.gamepadIndex)} should have a script binding`
+    );
+    assert.deepEqual(
+      binding.keyCodes,
+      [expectedKey],
+      `slot ${String(slot.gamepadIndex)} key code preserved`
+    );
+  }
+  assert.equal(
+    result.slots[3].scriptBindings.every(
+      (b: ScriptBinding) => b.keyCodes.length === 0
+    ),
+    true,
+    'slot 3 should have no script bindings'
+  );
+});
+
+void test('popup→game→popup: script on all four gamepads round-trips correctly', () => {
+  const popup = makePopupConfig([['KeyA'], ['KeyB'], ['KeyC'], ['KeyD']]);
+  const result = popupRoundTrip(popup);
+
+  for (const [slot, expectedKey] of [
+    [result.slots[0], 'KeyA'],
+    [result.slots[1], 'KeyB'],
+    [result.slots[2], 'KeyC'],
+    [result.slots[3], 'KeyD'],
+  ] as [PopupConfig['slots'][0], string][]) {
+    const binding = slot.scriptBindings.find(
+      (b: ScriptBinding) => b.keyCodes.length > 0
+    );
+    assert.ok(
+      binding,
+      `slot ${String(slot.gamepadIndex)} should have a script binding`
+    );
+    assert.deepEqual(binding.keyCodes, [expectedKey]);
+  }
+});
+
+void test('popup→game→popup: script normalized to slot 0 in scripts array', () => {
+  const popup = makePopupConfig([['KeyQ'], ['KeyW'], [], []]);
+  const result = popupRoundTrip(popup);
+
+  assert.equal(
+    result.scripts.length,
+    1,
+    'should have exactly one script entry'
+  );
+  const first = result.scripts[0];
+  assert.ok(first, 'scripts[0] must exist');
+  const normalized = copyScriptForSlot(first.script, 0);
+  assert.deepEqual(
+    first.script,
+    normalized,
+    'stored script must be normalized to slot 0'
+  );
+});
+
+void test('popup→game→popup: slot active flags reflect script bindings', () => {
+  const popup = makePopupConfig([['KeyQ'], ['KeyW'], [], []]);
+  const result = popupRoundTrip(popup);
+
+  assert.equal(result.slots[0].active, true, 'slot 0 active');
+  assert.equal(result.slots[1].active, true, 'slot 1 active');
+  assert.equal(result.slots[2].active, false, 'slot 2 inactive');
+  assert.equal(result.slots[3].active, false, 'slot 3 inactive');
 });
