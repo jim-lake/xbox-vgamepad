@@ -2,26 +2,23 @@ import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import type { GamepadActionName } from '@/types/gamepad';
-import { DEFAULT_CONFIG } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
+import { sendDisableGamepad } from './messaging';
 import {
-  loadStorage,
-  saveConfig,
-  deleteConfig,
+  loadAllPopupConfigs,
+  savePopupConfig,
+  saveAndBroadcast,
+  activatePopupConfig,
+  broadcastPopupConfig,
+  renamePopupConfig,
+  parseImportedConfig,
+  exportPopupConfig,
   setActiveConfig,
   setEnabled,
   getGameName,
   clearStorage,
-} from './storage';
-import {
-  sendActivateConfig,
-  sendDisableGamepad,
-  sendConfigChanged,
-} from './messaging';
-import { validateConfig } from './validate';
-import {
-  gamepadConfigToPopupConfig,
-  popupConfigToGamepadConfig,
+  MAX_PRESETS,
+  DEFAULT_POPUP,
 } from './config';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
@@ -30,9 +27,6 @@ import GamepadTabs from '@/components/popup/gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
 import GlobalBindingEditor from './global-binding-editor';
 import type { ScriptEntry } from './script-helpers';
-
-const MAX_PRESETS = 25;
-const DEFAULT_POPUP = gamepadConfigToPopupConfig(DEFAULT_CONFIG);
 
 const styles = StyleSheet.create({
   app: {
@@ -128,18 +122,15 @@ export default function App() {
 
   React.useEffect(() => {
     void (async () => {
-      const [data, name] = await Promise.all([loadStorage(), getGameName()]);
+      const [data, name] = await Promise.all([
+        loadAllPopupConfigs(),
+        getGameName(),
+      ]);
       setIsEnabled(data.isEnabled);
       setActiveConfigName(data.activeConfig);
-      const popupConfigs = Object.fromEntries(
-        Object.entries(data.configs).map(([k, v]) => [
-          k,
-          gamepadConfigToPopupConfig(v),
-        ])
-      );
-      setConfigs(popupConfigs);
+      setConfigs(data.configs);
       setSavedConfig(
-        structuredClone(popupConfigs[data.activeConfig] ?? DEFAULT_POPUP)
+        structuredClone(data.configs[data.activeConfig] ?? DEFAULT_POPUP)
       );
       setGameName(name);
       setActiveSlotTab(0);
@@ -161,14 +152,7 @@ export default function App() {
 
   const persist = React.useCallback(
     async (popup: PopupConfig) => {
-      const cfg = popupConfigToGamepadConfig(popup);
-      if (!validateConfig(cfg)) {
-        return;
-      }
-      await saveConfig(activeConfigName, cfg);
-      if (isEnabled) {
-        await sendConfigChanged(activeConfigName, cfg);
-      }
+      await saveAndBroadcast(activeConfigName, popup, isEnabled);
     },
     [activeConfigName, isEnabled]
   );
@@ -178,9 +162,9 @@ export default function App() {
     setIsEnabled(next);
     await setEnabled(next);
     if (next) {
-      await sendActivateConfig(
+      await activatePopupConfig(
         activeConfigName,
-        popupConfigToGamepadConfig(configs[activeConfigName] ?? DEFAULT_POPUP)
+        configs[activeConfigName] ?? DEFAULT_POPUP
       );
     } else {
       await sendDisableGamepad();
@@ -200,7 +184,7 @@ export default function App() {
       clearScriptEditState();
       await setActiveConfig(name);
       if (isEnabled) {
-        await sendConfigChanged(name, popupConfigToGamepadConfig(popup));
+        await broadcastPopupConfig(name, popup);
       }
     },
     [activeIndex, presetNames, isEnabled, configs]
@@ -222,11 +206,10 @@ export default function App() {
       setActiveConfigName(uniqueName);
       setSavedConfig(structuredClone(cloned));
       setDirty(false);
-      const cfg = popupConfigToGamepadConfig(cloned);
-      await saveConfig(uniqueName, cfg);
+      await savePopupConfig(uniqueName, cloned);
       await setActiveConfig(uniqueName);
       if (isEnabled) {
-        await sendConfigChanged(uniqueName, cfg);
+        await broadcastPopupConfig(uniqueName, cloned);
       }
     },
     [presetNames, isEnabled]
@@ -264,9 +247,7 @@ export default function App() {
     newConfigs[trimmed] = popup;
     setConfigs(newConfigs);
     setActiveConfigName(trimmed);
-    await deleteConfig(activeConfigName);
-    await saveConfig(trimmed, popupConfigToGamepadConfig(popup));
-    await setActiveConfig(trimmed);
+    await renamePopupConfig(activeConfigName, trimmed, popup);
     setRenaming(false);
   }, [renameValue, activeConfigName, configs, presetNames]);
 
@@ -294,7 +275,8 @@ export default function App() {
       reader.onload = () => {
         try {
           const parsed: unknown = JSON.parse(reader.result as string);
-          if (validateConfig(parsed)) {
+          const popup = parseImportedConfig(parsed);
+          if (popup) {
             if (presetNames.length >= MAX_PRESETS) {
               return;
             }
@@ -305,12 +287,11 @@ export default function App() {
               i++;
               name = `${baseName} ${String(i)}`;
             }
-            const popup = gamepadConfigToPopupConfig(parsed);
             setConfigs((prev) => ({ ...prev, [name]: popup }));
             setActiveConfigName(name);
             setSavedConfig(structuredClone(popup));
             setDirty(false);
-            void saveConfig(name, parsed).then(() => setActiveConfig(name));
+            void savePopupConfig(name, popup).then(() => setActiveConfig(name));
           }
         } catch {
           // invalid JSON, ignore
@@ -322,10 +303,9 @@ export default function App() {
   }, [presetNames]);
 
   const handleExport = React.useCallback(() => {
-    const blob = new Blob(
-      [JSON.stringify(popupConfigToGamepadConfig(activePopup), null, 2)],
-      { type: 'application/json' }
-    );
+    const blob = new Blob([exportPopupConfig(activePopup)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

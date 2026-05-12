@@ -14,7 +14,14 @@ import type {
   ScriptBinding,
 } from '@/types/popup';
 import { SENTINEL_PREFIX } from './script-helpers';
-import { loadStorage, saveConfig } from './storage';
+import {
+  loadStorage,
+  saveConfig,
+  deleteConfig,
+  setActiveConfig,
+} from './storage';
+import { validateConfig } from './validate';
+import { sendActivateConfig, sendConfigChanged } from './messaging';
 
 const GLOBAL_ACTIONS = new Set<GamepadActionName>([
   'toggleAllGamepads',
@@ -52,27 +59,16 @@ const ALL_ACTIONS: GamepadActionName[] = [
   'toggleExtension',
 ];
 
-function emptySlotBindings(): SlotBindings {
+function emptyBindings(): SlotBindings {
   return Object.fromEntries(
     ALL_ACTIONS.map((a) => [a, []])
   ) as unknown as SlotBindings;
 }
 
-function emptyGlobalBindings(): GlobalBindings {
-  return Object.fromEntries(
-    ALL_ACTIONS.map((a) => [a, []])
-  ) as unknown as GlobalBindings;
-}
-
-export function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
+function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
   const slotBindings: [SlotBindings, SlotBindings, SlotBindings, SlotBindings] =
-    [
-      emptySlotBindings(),
-      emptySlotBindings(),
-      emptySlotBindings(),
-      emptySlotBindings(),
-    ];
-  const globalBindings = emptyGlobalBindings();
+    [emptyBindings(), emptyBindings(), emptyBindings(), emptyBindings()];
+  const globalBindings: GlobalBindings = emptyBindings();
 
   // Track scripts: script object → { scriptId, keyCodes per slot }
   const scriptMap = new Map<
@@ -188,7 +184,7 @@ function findLoopSlot(actions: GameScript['actions']): 0 | 1 | 2 | 3 | null {
   return null;
 }
 
-export function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
+function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
   const keyboardConfig: GamepadKeyboardConfig = {};
 
   function addBinding(
@@ -270,12 +266,24 @@ export function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
   };
 }
 
-export async function loadPopupConfig(
-  configName: string
-): Promise<PopupConfig> {
+export const MAX_PRESETS = 25;
+
+export async function loadAllPopupConfigs(): Promise<{
+  isEnabled: boolean;
+  activeConfig: string;
+  configs: Record<string, PopupConfig>;
+}> {
   const data = await loadStorage();
-  const cfg = data.configs[configName] ?? DEFAULT_CONFIG;
-  return gamepadConfigToPopupConfig(cfg);
+  return {
+    isEnabled: data.isEnabled,
+    activeConfig: data.activeConfig,
+    configs: Object.fromEntries(
+      Object.entries(data.configs).map(([k, v]) => [
+        k,
+        gamepadConfigToPopupConfig(v),
+      ])
+    ),
+  };
 }
 
 export async function savePopupConfig(
@@ -283,5 +291,68 @@ export async function savePopupConfig(
   popup: PopupConfig
 ): Promise<void> {
   const cfg = popupConfigToGamepadConfig(popup);
+  if (!validateConfig(cfg)) {
+    return;
+  }
   await saveConfig(configName, cfg);
 }
+
+export async function saveAndBroadcast(
+  configName: string,
+  popup: PopupConfig,
+  isEnabled: boolean
+): Promise<void> {
+  const cfg = popupConfigToGamepadConfig(popup);
+  if (!validateConfig(cfg)) {
+    return;
+  }
+  await saveConfig(configName, cfg);
+  if (isEnabled) {
+    await sendConfigChanged(configName, cfg);
+  }
+}
+
+export async function activatePopupConfig(
+  configName: string,
+  popup: PopupConfig
+): Promise<void> {
+  await sendActivateConfig(configName, popupConfigToGamepadConfig(popup));
+}
+
+export async function broadcastPopupConfig(
+  configName: string,
+  popup: PopupConfig
+): Promise<void> {
+  await sendConfigChanged(configName, popupConfigToGamepadConfig(popup));
+}
+
+export async function renamePopupConfig(
+  oldName: string,
+  newName: string,
+  popup: PopupConfig
+): Promise<void> {
+  await deleteConfig(oldName);
+  await saveConfig(newName, popupConfigToGamepadConfig(popup));
+  await setActiveConfig(newName);
+}
+
+export function parseImportedConfig(raw: unknown): PopupConfig | null {
+  if (!validateConfig(raw)) {
+    return null;
+  }
+  return gamepadConfigToPopupConfig(raw);
+}
+
+export function exportPopupConfig(popup: PopupConfig): string {
+  return JSON.stringify(popupConfigToGamepadConfig(popup), null, 2);
+}
+
+export {
+  setActiveConfig,
+  setEnabled,
+  getGameName,
+  clearStorage,
+} from './storage';
+
+export const DEFAULT_POPUP: PopupConfig =
+  gamepadConfigToPopupConfig(DEFAULT_CONFIG);
