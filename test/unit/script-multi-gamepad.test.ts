@@ -210,3 +210,86 @@ void test('regression: two slots with same gamepadIndex both emit to that gamepa
     'slot 0 has no keys (gamepadIndex 0 was vacated)'
   );
 });
+
+// ── Regression: loop-wrapped script loses slot detection ──────────────────
+
+const LOOP_SCRIPT_SLOT0: GameScript = {
+  type: 'script',
+  name: 'Scripty McScriptScript',
+  activationType: 'on_down',
+  actions: [
+    {
+      type: 'loop',
+      count: 10,
+      actions: [
+        {
+          type: 'down',
+          buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+        },
+        { type: 'delay', durationMs: 100 },
+        {
+          type: 'up',
+          buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+        },
+        { type: 'delay', durationMs: 100 },
+      ],
+    },
+  ],
+};
+
+const LOOP_SCRIPT_SLOT1: GameScript = copyScriptForSlot(LOOP_SCRIPT_SLOT0, 1);
+
+void test('reload: loop-script on slot 0 (KeyI) and slot 1 (KeyO) — slot 0 key preserved', () => {
+  const cfg: GamepadConfig = {
+    keyboardConfig: { KeyI: [LOOP_SCRIPT_SLOT0], KeyO: [LOOP_SCRIPT_SLOT1] },
+    mouseConfig: { mouseControls: [] },
+  };
+  const popup = parseImportedConfig(cfg) as PopupConfig;
+  assert.deepEqual(slotKeyCodes(popup, 0), ['KeyI']);
+});
+
+void test('reload: loop-script on slot 0 (KeyI) and slot 1 (KeyO) — slot 1 key preserved', () => {
+  const cfg: GamepadConfig = {
+    keyboardConfig: { KeyI: [LOOP_SCRIPT_SLOT0], KeyO: [LOOP_SCRIPT_SLOT1] },
+    mouseConfig: { mouseControls: [] },
+  };
+  const popup = parseImportedConfig(cfg) as PopupConfig;
+  assert.deepEqual(slotKeyCodes(popup, 1), ['KeyO']);
+});
+
+void test('reload: doubly-nested loop-script on slot 1 — slot detected correctly', () => {
+  const nestedLoopScript: GameScript = {
+    type: 'script',
+    name: 'nested',
+    activationType: 'on_down',
+    actions: [
+      {
+        type: 'loop',
+        count: 2,
+        actions: [
+          {
+            type: 'loop',
+            count: 3,
+            actions: [
+              {
+                type: 'down',
+                buttons: [{ type: 'action', gamepadIndex: 1, action: 'x' }],
+              },
+              {
+                type: 'up',
+                buttons: [{ type: 'action', gamepadIndex: 1, action: 'x' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const cfg: GamepadConfig = {
+    keyboardConfig: { KeyZ: [nestedLoopScript] },
+    mouseConfig: { mouseControls: [] },
+  };
+  const popup = parseImportedConfig(cfg) as PopupConfig;
+  assert.deepEqual(slotKeyCodes(popup, 1), ['KeyZ']);
+  assert.deepEqual(slotKeyCodes(popup, 0), []);
+});

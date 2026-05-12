@@ -11,10 +11,11 @@ Always run these commands to verify changes:
 ```bash
 npm run ts:check   # TypeScript type checking
 npm run lint       # ESLint with auto-fix
+npm run test:unit  # Unit tests (fast, no browser)
 npm test           # Builds extension (test mode) and runs Puppeteer integration tests
 ```
 
-All three must pass before considering a change complete.
+All four must pass before considering a change complete.
 
 ## Architecture
 
@@ -37,14 +38,15 @@ Four runtime contexts communicate via message passing:
 
 ## Key Commands
 
-| Task       | Command            | Notes                                                          |
-| ---------- | ------------------ | -------------------------------------------------------------- |
-| Dev server | `npm run dev`      | Outputs to `build/`, includes HMR                              |
-| Build      | `npm run build`    | Type-checks then builds production to `dist/`                  |
-| Type check | `npm run ts:check` | `tsc -b --noEmit`                                              |
-| Lint + fix | `npm run lint`     | `eslint . --fix`                                               |
-| Format     | `npm run pretty`   | `prettier --write .`                                           |
-| Run tests  | `npm test`         | Builds to `build-test/` (test mode) then runs Puppeteer suites |
+| Task       | Command             | Notes                                                          |
+| ---------- | ------------------- | -------------------------------------------------------------- |
+| Dev server | `npm run dev`       | Outputs to `build/`, includes HMR                              |
+| Build      | `npm run build`     | Type-checks then builds production to `dist/`                  |
+| Type check | `npm run ts:check`  | `tsc -b --noEmit`                                              |
+| Lint + fix | `npm run lint`      | `eslint . --fix`                                               |
+| Format     | `npm run pretty`    | `prettier --write .`                                           |
+| Run tests  | `npm test`          | Builds to `build-test/` (test mode) then runs Puppeteer suites |
+| Unit tests | `npm run test:unit` | Fast unit tests (no browser, no build) in `test/unit/`         |
 
 ## Build Modes
 
@@ -98,6 +100,10 @@ Test suites are in `test/suites/` (32 suite files). The harness (`test/harness.c
 To run tests: `npm test`
 
 To run the manual test server: `node test/manual-server.cjs`
+
+### Unit Tests
+
+Fast, browser-free tests for pure logic (config conversion, round-trips, etc.) in `test/unit/*.test.ts`. Run with `npm run test:unit`. Uses Node's built-in `node:test` runner via `tsx`. The setup file (`test/unit/setup.mjs`) stubs `navigator.userAgent` and registers a loader that replaces `popup/storage` and `popup/messaging` with empty stubs so tests run without Chrome APIs.
 
 ## Build Constraints
 

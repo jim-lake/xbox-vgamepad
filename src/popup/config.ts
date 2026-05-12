@@ -3,6 +3,7 @@ import type {
   GamepadKeyboardConfig,
   GamepadActionName,
   GameScript,
+  ScriptAction,
 } from '@/types/gamepad';
 import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import type {
@@ -67,12 +68,21 @@ function emptyBindings(): SlotBindings {
 }
 
 function getScriptSlot(script: GameScript): 0 | 1 | 2 | 3 {
-  for (const a of script.actions) {
-    if ((a.type === 'down' || a.type === 'up') && a.buttons[0]) {
-      return a.buttons[0].gamepadIndex;
+  function findSlot(actions: ScriptAction[]): 0 | 1 | 2 | 3 | null {
+    for (const a of actions) {
+      if ((a.type === 'down' || a.type === 'up') && a.buttons[0]) {
+        return a.buttons[0].gamepadIndex;
+      }
+      if (a.type === 'loop') {
+        const found = findSlot(a.actions);
+        if (found !== null) {
+          return found;
+        }
+      }
     }
+    return null;
   }
-  return 0;
+  return findSlot(script.actions) ?? 0;
 }
 
 function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
