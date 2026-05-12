@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { ScriptEntry } from './script-helpers';
-import { isSentinelKey } from './script-helpers';
+import type { ScriptEntry } from '@/popup/script-helpers';
+import { isSentinelKey } from '@/popup/script-helpers';
 import BindingBadges from './binding-badges';
 
 const styles = StyleSheet.create({

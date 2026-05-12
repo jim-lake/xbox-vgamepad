@@ -11,9 +11,9 @@ import {
   copyScriptForSlot,
   isSentinelKey,
 } from './script-helpers';
-import ScriptRow from './script-row';
-import ScriptEditBox from './script-edit-box';
-import KeyCaptureModal from './key-capture-modal';
+import ScriptRow from '@/components/popup/script-row';
+import ScriptEditBox from '@/components/popup/script-edit-box';
+import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import type { ScriptEntry } from './script-helpers';
 
 const styles = StyleSheet.create({

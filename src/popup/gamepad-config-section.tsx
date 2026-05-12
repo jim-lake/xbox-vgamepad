@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import Select from '@/components/select';
 import TextButton from '@/components/buttons/text_button';
-import MouseSettings from './mouse-settings';
+import MouseSettings from '@/components/popup/mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
 import ScriptEditor from './script-editor';
 import type { ScriptEntry } from './script-helpers';

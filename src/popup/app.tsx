@@ -26,7 +26,7 @@ import { validateConfig } from './validate';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import Toolbar from '@/components/popup/toolbar';
-import GamepadTabs from './gamepad-tabs';
+import GamepadTabs from '@/components/popup/gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
 import GlobalBindingEditor from './global-binding-editor';
 import type { ScriptEntry } from './script-helpers';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import type { GamepadKeyboardConfig, GamepadActionName } from '@/types/gamepad';
-import BindingBadges from './binding-badges';
+import BindingBadges from '@/components/popup/binding-badges';
 
 const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
   { action: 'a', label: 'A' },

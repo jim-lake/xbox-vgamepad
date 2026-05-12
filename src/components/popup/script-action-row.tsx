@@ -8,17 +8,27 @@ import {
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
 import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
-import { TYPE_OPTIONS, ACTION_OPTIONS } from './script-constants';
+import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
 
 import closeIcon from '@/assets/img/close.svg';
 
 const styles = StyleSheet.create({
-  row: {
+  container: {
+    flexDirection: 'column',
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: '0.4rem',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
+  },
+  params: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '0.4rem',
+    paddingLeft: '1.2rem',
+    paddingTop: '0.3rem',
   },
   loopContainer: { flexDirection: 'column' },
   loopHeaderRow: {
@@ -137,32 +147,36 @@ export default function ScriptActionRow({
 
   if (action.type === 'delay') {
     return (
-      <View style={styles.row}>
-        <Select
-          style={styles.select}
-          value={action.type}
-          options={TYPE_OPTIONS}
-          onChange={handleTypeChange}
-        />
-        <TextInput
-          style={styles.delayInput}
-          value={String(action.durationMs)}
-          onChangeText={(v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n >= 0) {
-              onChange(index, { type: 'delay', durationMs: n });
-            }
-          }}
-        />
-        <Text style={styles.msLabel}>ms</Text>
-        <View style={styles.spacer} />
-        <IconButton
-          source={closeIcon}
-          type='danger'
-          onPress={() => {
-            onRemove(index);
-          }}
-        />
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Select
+            style={styles.select}
+            value={action.type}
+            options={TYPE_OPTIONS}
+            onChange={handleTypeChange}
+          />
+          <View style={styles.spacer} />
+          <IconButton
+            source={closeIcon}
+            type='danger'
+            onPress={() => {
+              onRemove(index);
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <TextInput
+            style={styles.delayInput}
+            value={String(action.durationMs)}
+            onChangeText={(v) => {
+              const n = parseInt(v, 10);
+              if (!isNaN(n) && n >= 0) {
+                onChange(index, { type: 'delay', durationMs: n });
+              }
+            }}
+          />
+          <Text style={styles.msLabel}>ms</Text>
+        </View>
       </View>
     );
   }
@@ -178,21 +192,6 @@ export default function ScriptActionRow({
             options={TYPE_OPTIONS}
             onChange={handleTypeChange}
           />
-          {!isForever && (
-            <>
-              <Text style={styles.loopTimesLabel}>×</Text>
-              <TextInput
-                style={styles.loopCountInput}
-                value={String(action.count)}
-                onChangeText={(v) => {
-                  const n = parseInt(v, 10);
-                  if (!isNaN(n) && n >= 1) {
-                    onChange(index, { ...action, count: n });
-                  }
-                }}
-              />
-            </>
-          )}
           <View style={styles.spacer} />
           <IconButton
             source={closeIcon}
@@ -202,6 +201,21 @@ export default function ScriptActionRow({
             }}
           />
         </View>
+        {!isForever && (
+          <View style={styles.params}>
+            <Text style={styles.loopTimesLabel}>×</Text>
+            <TextInput
+              style={styles.loopCountInput}
+              value={String(action.count)}
+              onChangeText={(v) => {
+                const n = parseInt(v, 10);
+                if (!isNaN(n) && n >= 1) {
+                  onChange(index, { ...action, count: n });
+                }
+              }}
+            />
+          </View>
+        )}
         <View style={styles.loopBody}>
           {renderActionList(action.actions, pressedKeys, (nested) => {
             onChange(index, { ...action, actions: nested });
@@ -221,59 +235,64 @@ export default function ScriptActionRow({
       (action.type === 'up' && !pressedKeys.has(o.value)),
   }));
   return (
-    <View style={styles.row}>
-      <Select
-        style={styles.select}
-        value={action.type}
-        options={TYPE_OPTIONS}
-        onChange={handleTypeChange}
-      />
-      <View style={styles.buttonList}>
-        {buttons.map((btn, bi) => (
-          <View key={bi} style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
-                btn.action}
-            </Text>
-            <IconButton
-              style={styles.badgeDelete}
-              source={closeIcon}
-              type='danger'
-              onPress={() => {
-                const next = buttons.filter((_, j) => j !== bi);
-                onChange(index, { type: action.type, buttons: next });
-              }}
-            />
-          </View>
-        ))}
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
         <Select
           style={styles.select}
-          value=''
-          placeholder='Pick Key'
-          options={addOptions}
-          onChange={(v) => {
-            if (usedActions.has(v as GamepadActionName)) {
-              return;
-            }
-            const next = [
-              ...buttons,
-              {
-                type: 'action' as const,
-                gamepadIndex,
-                action: v as GamepadActionName,
-              },
-            ];
-            onChange(index, { type: action.type, buttons: next });
+          value={action.type}
+          options={TYPE_OPTIONS}
+          onChange={handleTypeChange}
+        />
+        <View style={styles.spacer} />
+        <IconButton
+          source={closeIcon}
+          type='danger'
+          onPress={() => {
+            onRemove(index);
           }}
         />
       </View>
-      <IconButton
-        source={closeIcon}
-        type='danger'
-        onPress={() => {
-          onRemove(index);
-        }}
-      />
+      <View style={styles.params}>
+        <View style={styles.buttonList}>
+          {buttons.map((btn, bi) => (
+            <View key={bi} style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
+                  btn.action}
+              </Text>
+              <IconButton
+                style={styles.badgeDelete}
+                source={closeIcon}
+                type='danger'
+                onPress={() => {
+                  const next = buttons.filter((_, j) => j !== bi);
+                  onChange(index, { type: action.type, buttons: next });
+                }}
+              />
+            </View>
+          ))}
+          <Select
+            style={styles.select}
+            value=''
+            placeholder='Pick Key'
+            options={addOptions}
+            onChange={(v) => {
+              if (usedActions.has(v as GamepadActionName)) {
+                return;
+              }
+              const next = [
+                ...buttons,
+                {
+                  type: 'action' as const,
+                  gamepadIndex,
+                  action: v as GamepadActionName,
+                },
+              ];
+              onChange(index, { type: action.type, buttons: next });
+            }}
+          />
+        </View>
+      </View>
     </View>
   );
 }

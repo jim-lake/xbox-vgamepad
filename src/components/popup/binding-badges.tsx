@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
-import { formatCode } from './script-helpers';
+import { formatCode } from '@/popup/script-helpers';
 
 import closeIcon from '@/assets/img/close.svg';
 import plusIcon from '@/assets/img/plus.svg';
