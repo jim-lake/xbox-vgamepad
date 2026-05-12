@@ -28,10 +28,7 @@ const styles = StyleSheet.create({
     fontSize: '1.4rem',
     width: '3rem',
   },
-  rangeInput: {
-    flex: 1,
-    margin: '0.6rem 0',
-  },
+  rangeInput: { flex: 1, margin: '0.6rem 0' },
 });
 
 interface Props {
