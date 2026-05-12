@@ -17,7 +17,6 @@ function alert(title: string, message?: string, buttons?: AlertButton[]) {
   const other_button =
     buttons?.[0] === confirm_button ? buttons?.[1] : buttons?.[0];
   if (confirm_button && other_button) {
-    // eslint-disable-next-line no-alert
     const result = window.confirm(message ?? title);
     if (result) {
       confirm_button.onPress?.();
@@ -25,7 +24,6 @@ function alert(title: string, message?: string, buttons?: AlertButton[]) {
       other_button.onPress?.();
     }
   } else {
-    // eslint-disable-next-line no-alert
     window.alert(message ?? title);
     buttons?.[0]?.onPress?.();
   }

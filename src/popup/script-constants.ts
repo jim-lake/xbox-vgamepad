@@ -1,4 +1,3 @@
-import type { StyleInput } from '@/components/base_components';
 import type { GamepadActionName } from '@/types/gamepad';
 
 export const ACTION_NAMES: GamepadActionName[] = [
@@ -61,22 +60,14 @@ export const ACTION_LABEL: Record<GamepadActionName, string> = {
 };
 
 export const TYPE_OPTIONS = [
-  { value: 'down', text: 'Down' },
-  { value: 'up', text: 'Up' },
+  { value: 'loop', text: 'Repeat' },
+  { value: 'loop_forever', text: 'Forever' },
   { value: 'delay', text: 'Delay' },
-  { value: 'loop', text: 'Loop' },
+  { value: 'down', text: 'Press Key' },
+  { value: 'up', text: 'Release Key' },
 ];
 
 export const ACTION_OPTIONS = ACTION_NAMES.map((a) => ({
   value: a,
   text: ACTION_LABEL[a],
 }));
-
-export function indentStyle(level: number): StyleInput {
-  return {
-    paddingLeft: `${String(level * 10)}px`,
-    borderLeftWidth: level > 0 ? 2 : 0,
-    borderLeftColor: 'var(--row-border)',
-    borderLeftStyle: 'solid',
-  };
-}

@@ -1,11 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
-import IconButton from '@/components/buttons/icon_button';
 import type { GamepadKeyboardConfig, GamepadActionName } from '@/types/gamepad';
-import { formatCode } from './script-helpers';
-
-import closeIcon from '@/assets/img/close.svg';
-import plusIcon from '@/assets/img/plus.svg';
+import BindingBadges from './binding-badges';
 
 const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
   { action: 'a', label: 'A' },
@@ -47,26 +43,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'var(--row-border)',
   },
   label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
-  bindings: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: '0.4rem',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  badge: {
-    backgroundColor: 'var(--chip-bg)',
-    paddingLeft: '1rem',
-    paddingRight: '1rem',
-    paddingTop: '0.2rem',
-    paddingBottom: '0.2rem',
-    borderRadius: '1rem',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  badgeText: { color: 'var(--text-primary)', fontSize: '1.3rem' },
-  deleteBtn: { marginLeft: '0.9rem' },
-  addBtn: { marginLeft: '0.4rem' },
   modal: {
     position: 'fixed',
     top: 0,
@@ -103,7 +79,7 @@ function getCodesForAction(
       codes.push(code);
     }
   }
-  return codes;
+  return codes.sort((a, b) => a.localeCompare(b));
 }
 
 interface Props {
@@ -191,29 +167,15 @@ export default function KeyBindingEditor({ keyboardConfig, onChange }: Props) {
         return (
           <View key={action} style={styles.row}>
             <Text style={styles.label}>{label}</Text>
-            <View style={styles.bindings}>
-              {codes.map((code) => (
-                <View key={code} style={styles.badge}>
-                  <Text style={styles.badgeText}>{formatCode(code)}</Text>
-                  <IconButton
-                    style={styles.deleteBtn}
-                    source={closeIcon}
-                    type='danger'
-                    onPress={() => {
-                      handleRemove(action, code);
-                    }}
-                  />
-                </View>
-              ))}
-              <IconButton
-                style={styles.addBtn}
-                source={plusIcon}
-                type='green'
-                onPress={() => {
-                  setListening(action);
-                }}
-              />
-            </View>
+            <BindingBadges
+              codes={codes}
+              onAdd={() => {
+                setListening(action);
+              }}
+              onRemove={(code) => {
+                handleRemove(action, code);
+              }}
+            />
           </View>
         );
       })}

@@ -1,11 +1,8 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
-import IconButton from '@/components/buttons/icon_button';
 import TextButton from '@/components/buttons/text_button';
 import type { ScriptEntry } from './script-helpers';
-import { displayKeyCode, formatCode } from './script-helpers';
-
-import closeIcon from '@/assets/img/close.svg';
-import plusIcon from '@/assets/img/plus.svg';
+import { isSentinelKey } from './script-helpers';
+import BindingBadges from './binding-badges';
 
 const styles = StyleSheet.create({
   row: {
@@ -17,33 +14,13 @@ const styles = StyleSheet.create({
     borderBottomColor: 'var(--row-border)',
   },
   label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
-  bindings: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: '0.4rem',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  badge: {
-    backgroundColor: 'var(--chip-bg)',
-    paddingLeft: '1rem',
-    paddingRight: '1rem',
-    paddingTop: '0.2rem',
-    paddingBottom: '0.2rem',
-    borderRadius: '1rem',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  badgeText: { color: 'var(--text-primary)', fontSize: '1.3rem' },
-  deleteBtn: { marginLeft: '0.9rem' },
-  addBtn: { marginLeft: '0.4rem' },
 });
 
 interface Props {
   entry: ScriptEntry;
   onEdit: () => void;
   onAddBinding: () => void;
-  onRemoveBinding: () => void;
+  onRemoveBinding: (code: string) => void;
 }
 
 export default function ScriptRow({
@@ -52,29 +29,15 @@ export default function ScriptRow({
   onAddBinding,
   onRemoveBinding,
 }: Props) {
-  const boundKey = displayKeyCode(entry.keyCode);
+  const boundKeys = entry.keyCodes.filter((c) => !isSentinelKey(c));
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{entry.script.name || '(unnamed)'}</Text>
-      <View style={styles.bindings}>
-        {boundKey !== null && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{formatCode(boundKey)}</Text>
-            <IconButton
-              style={styles.deleteBtn}
-              source={closeIcon}
-              type='danger'
-              onPress={onRemoveBinding}
-            />
-          </View>
-        )}
-        <IconButton
-          style={styles.addBtn}
-          source={plusIcon}
-          type='green'
-          onPress={onAddBinding}
-        />
-      </View>
+      <BindingBadges
+        codes={boundKeys}
+        onAdd={onAddBinding}
+        onRemove={onRemoveBinding}
+      />
       <TextButton text='Edit' type='ghost' onPress={onEdit} />
     </View>
   );

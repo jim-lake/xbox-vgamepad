@@ -32,7 +32,7 @@ export default defineConfig([
       eqeqeq: 'error',
       'no-console': 'warn',
       'no-debugger': 'error',
-      'no-alert': 'error',
+      'no-alert': 0,
       'no-var': 'error',
       'prefer-const': 'error',
       '@typescript-eslint/no-explicit-any': 'error',

@@ -8,10 +8,9 @@ import {
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
 import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
-import { TYPE_OPTIONS, ACTION_OPTIONS, indentStyle } from './script-constants';
+import { TYPE_OPTIONS, ACTION_OPTIONS } from './script-constants';
 
 import closeIcon from '@/assets/img/close.svg';
-import plusIcon from '@/assets/img/plus.svg';
 
 const styles = StyleSheet.create({
   row: {
@@ -20,20 +19,27 @@ const styles = StyleSheet.create({
     gap: '0.4rem',
     paddingTop: '0.5rem',
     paddingBottom: '0.5rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
   },
-  loopContainer: {
-    flexDirection: 'column',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
+  loopContainer: { flexDirection: 'column' },
   loopHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: '0.4rem',
     paddingTop: '0.5rem',
     paddingBottom: '0.5rem',
+  },
+  loopBody: {
+    borderLeftWidth: 1,
+    borderLeftColor: 'var(--row-border)',
+    borderLeftStyle: 'solid',
+    borderTopWidth: 1,
+    borderTopColor: 'var(--row-border)',
+    borderTopStyle: 'solid',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+    borderBottomStyle: 'solid',
+    paddingLeft: '10px',
+    marginLeft: '10px',
   },
   select: {
     padding: '2px 4px 2px 6px',
@@ -64,23 +70,38 @@ const styles = StyleSheet.create({
     width: '5rem',
   },
   loopTimesLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
-  buttonList: { flexDirection: 'column', gap: '0.2rem', flex: 1 },
-  buttonRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
-  addButtonRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
-  addButtonLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  buttonList: {
+    flexDirection: 'row',
+    gap: '0.4rem',
+    flex: 1,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  spacer: { flex: 1 },
+  badge: {
+    backgroundColor: 'var(--chip-bg)',
+    paddingLeft: '1rem',
+    paddingRight: '1rem',
+    paddingTop: '0.2rem',
+    paddingBottom: '0.2rem',
+    borderRadius: '1rem',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeText: { color: 'var(--text-primary)', fontSize: '1.3rem' },
+  badgeDelete: { marginLeft: '0.5rem' },
 });
 
 export interface ScriptActionRowProps {
   action: ScriptAction;
   index: number;
   gamepadIndex: 0 | 1 | 2 | 3;
-  indent: number;
+  pressedKeys: Set<GamepadActionName>;
   onChange: (index: number, action: ScriptAction) => void;
   onRemove: (index: number) => void;
-  /** Render nested action list — injected to break circular module dependency. */
   renderActionList: (
     actions: ScriptAction[],
-    indent: number,
+    pressedKeys: Set<GamepadActionName>,
     onChange: (actions: ScriptAction[]) => void
   ) => React.ReactNode;
 }
@@ -89,29 +110,34 @@ export default function ScriptActionRow({
   action,
   index,
   gamepadIndex,
-  indent,
+  pressedKeys,
   onChange,
   onRemove,
   renderActionList,
 }: ScriptActionRowProps) {
-  const ipad = indentStyle(indent);
-
   function handleTypeChange(val: string) {
     if (val === 'delay') {
       onChange(index, { type: 'delay', durationMs: 100 });
     } else if (val === 'down' || val === 'up') {
-      onChange(index, {
-        type: val,
-        buttons: [{ type: 'action', gamepadIndex, action: 'a' }],
-      });
+      onChange(index, { type: val, buttons: [] });
     } else if (val === 'loop') {
-      onChange(index, { type: 'loop', count: 1, actions: [] });
+      onChange(index, {
+        type: 'loop',
+        count: 1,
+        actions: action.type === 'loop' ? action.actions : [],
+      });
+    } else if (val === 'loop_forever') {
+      onChange(index, {
+        type: 'loop',
+        count: 'infinite',
+        actions: action.type === 'loop' ? action.actions : [],
+      });
     }
   }
 
   if (action.type === 'delay') {
     return (
-      <View style={[styles.row, ipad]}>
+      <View style={styles.row}>
         <Select
           style={styles.select}
           value={action.type}
@@ -129,6 +155,7 @@ export default function ScriptActionRow({
           }}
         />
         <Text style={styles.msLabel}>ms</Text>
+        <View style={styles.spacer} />
         <IconButton
           source={closeIcon}
           type='danger'
@@ -141,50 +168,32 @@ export default function ScriptActionRow({
   }
 
   if (action.type === 'loop') {
-    const countIsInfinite = action.count === 'infinite';
+    const isForever = action.count === 'infinite';
     return (
       <View style={styles.loopContainer}>
-      <View style={[styles.loopHeaderRow, ipad]}>
+        <View style={styles.loopHeaderRow}>
           <Select
             style={styles.select}
-            value={action.type}
+            value={isForever ? 'loop_forever' : 'loop'}
             options={TYPE_OPTIONS}
             onChange={handleTypeChange}
           />
-          <Text style={styles.loopTimesLabel}>×</Text>
-          {countIsInfinite ? (
-            <Text style={styles.loopTimesLabel}>∞</Text>
-          ) : (
-            <TextInput
-              style={styles.loopCountInput}
-              value={String(action.count)}
-              onChangeText={(v) => {
-                const n = parseInt(v, 10);
-                if (!isNaN(n) && n >= 1) {
-                  onChange(index, { ...action, count: n });
-                }
-              }}
-            />
+          {!isForever && (
+            <>
+              <Text style={styles.loopTimesLabel}>×</Text>
+              <TextInput
+                style={styles.loopCountInput}
+                value={String(action.count)}
+                onChangeText={(v) => {
+                  const n = parseInt(v, 10);
+                  if (!isNaN(n) && n >= 1) {
+                    onChange(index, { ...action, count: n });
+                  }
+                }}
+              />
+            </>
           )}
-          <Select
-            style={styles.select}
-            value={countIsInfinite ? 'infinite' : 'finite'}
-            options={[
-              { value: 'finite', text: 'times' },
-              { value: 'infinite', text: '∞' },
-            ]}
-            onChange={(v) => {
-              onChange(index, {
-                ...action,
-                count:
-                  v === 'infinite'
-                    ? 'infinite'
-                    : typeof action.count === 'number'
-                      ? action.count
-                      : 1,
-              });
-            }}
-          />
+          <View style={styles.spacer} />
           <IconButton
             source={closeIcon}
             type='danger'
@@ -193,17 +202,26 @@ export default function ScriptActionRow({
             }}
           />
         </View>
-        {renderActionList(action.actions, indent + 1, (nested) => {
-          onChange(index, { ...action, actions: nested });
-        })}
+        <View style={styles.loopBody}>
+          {renderActionList(action.actions, pressedKeys, (nested) => {
+            onChange(index, { ...action, actions: nested });
+          })}
+        </View>
       </View>
     );
   }
 
   // down / up
   const { buttons } = action;
+  const usedActions = new Set(buttons.map((b) => b.action));
+  const addOptions = ACTION_OPTIONS.map((o) => ({
+    ...o,
+    disabled:
+      usedActions.has(o.value) ||
+      (action.type === 'up' && !pressedKeys.has(o.value)),
+  }));
   return (
-    <View style={[styles.row, ipad]}>
+    <View style={styles.row}>
       <Select
         style={styles.select}
         value={action.type}
@@ -212,50 +230,42 @@ export default function ScriptActionRow({
       />
       <View style={styles.buttonList}>
         {buttons.map((btn, bi) => (
-          <View key={bi} style={styles.buttonRow}>
-            <Select
-              style={styles.select}
-              value={btn.action}
-              options={ACTION_OPTIONS}
-              onChange={(v) => {
-                const next = buttons.map((b, j) =>
-                  j === bi
-                    ? { ...b, gamepadIndex, action: v as GamepadActionName }
-                    : b
-                );
+          <View key={bi} style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
+                btn.action}
+            </Text>
+            <IconButton
+              style={styles.badgeDelete}
+              source={closeIcon}
+              type='danger'
+              onPress={() => {
+                const next = buttons.filter((_, j) => j !== bi);
                 onChange(index, { type: action.type, buttons: next });
               }}
             />
-            {buttons.length > 1 && (
-              <IconButton
-                source={closeIcon}
-                type='danger'
-                onPress={() => {
-                  const next = buttons.filter((_, j) => j !== bi);
-                  onChange(index, { type: action.type, buttons: next });
-                }}
-              />
-            )}
           </View>
         ))}
-        <View style={styles.addButtonRow}>
-          <IconButton
-            source={plusIcon}
-            type='green'
-            onPress={() => {
-              const next = [
-                ...buttons,
-                {
-                  type: 'action' as const,
-                  gamepadIndex,
-                  action: 'a' as GamepadActionName,
-                },
-              ];
-              onChange(index, { type: action.type, buttons: next });
-            }}
-          />
-          <Text style={styles.addButtonLabel}>Add button</Text>
-        </View>
+        <Select
+          style={styles.select}
+          value=''
+          placeholder='Pick Key'
+          options={addOptions}
+          onChange={(v) => {
+            if (usedActions.has(v as GamepadActionName)) {
+              return;
+            }
+            const next = [
+              ...buttons,
+              {
+                type: 'action' as const,
+                gamepadIndex,
+                action: v as GamepadActionName,
+              },
+            ];
+            onChange(index, { type: action.type, buttons: next });
+          }}
+        />
       </View>
       <IconButton
         source={closeIcon}

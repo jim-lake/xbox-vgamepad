@@ -4,9 +4,9 @@ import type {
   ScriptAction,
 } from '@/types/gamepad';
 
-/** A script extracted from keyboardConfig, with its bound key. */
+/** A script extracted from keyboardConfig, with its bound keys. */
 export interface ScriptEntry {
-  keyCode: string;
+  keyCodes: string[];
   script: GameScript;
 }
 
@@ -129,26 +129,35 @@ export function formatCode(code: string): string {
   }
 }
 
-/** All scripts extracted from keyboardConfig, with their bound key. */
+/** All scripts extracted from keyboardConfig, with their bound keys. */
 export function extractScripts(
   keyboardConfig: GamepadKeyboardConfig
 ): ScriptEntry[] {
-  const entries: ScriptEntry[] = [];
+  const map = new Map<GameScript, ScriptEntry>();
   for (const [code, actions] of Object.entries(keyboardConfig)) {
     for (const action of actions) {
       if (action.type === 'script') {
-        entries.push({ keyCode: code, script: action });
+        const existing = map.get(action);
+        if (existing) {
+          existing.keyCodes.push(code);
+        } else {
+          map.set(action, { keyCodes: [code], script: action });
+        }
       }
     }
   }
-  return entries;
+  const entries = [...map.values()];
+  for (const entry of entries) {
+    entry.keyCodes.sort((a, b) => a.localeCompare(b));
+  }
+  return entries.sort((a, b) => a.script.name.localeCompare(b.script.name));
 }
 
-/** Replace a script object by reference, optionally moving it to a new key. */
+/** Replace a script, moving it to new keyCodes. */
 export function replaceScript(
   keyboardConfig: GamepadKeyboardConfig,
   oldEntry: ScriptEntry,
-  newKeyCode: string,
+  newKeyCodes: string[],
   newScript: GameScript
 ): GamepadKeyboardConfig {
   const result: GamepadKeyboardConfig = {};
@@ -158,8 +167,10 @@ export function replaceScript(
       result[code] = filtered;
     }
   }
-  const existing = result[newKeyCode] ?? [];
-  result[newKeyCode] = [...existing, newScript];
+  for (const code of newKeyCodes) {
+    const existing = result[code] ?? [];
+    result[code] = [...existing, newScript];
+  }
   return result;
 }
 

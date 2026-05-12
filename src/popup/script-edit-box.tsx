@@ -103,7 +103,6 @@ export default function ScriptEditBox({
       <ScriptActionList
         actions={script.actions}
         gamepadIndex={gamepadIndex}
-        indent={0}
         onChange={(actions) => {
           onChange({ ...script, actions });
         }}

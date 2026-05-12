@@ -1,28 +1,34 @@
-import { StyleSheet, Text, View } from '@/components/base_components';
-import IconButton from '@/components/buttons/icon_button';
-import type { ScriptAction } from '@/types/gamepad';
+import { StyleSheet, View } from '@/components/base_components';
+import TextButton from '@/components/buttons/text_button';
+import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
 import ScriptActionRow from './script-action-row';
-import { indentStyle } from './script-constants';
-
-import plusIcon from '@/assets/img/plus.svg';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column' },
-  addRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
-  addLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+    borderBottomStyle: 'solid',
+  },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: '0.5rem',
+    paddingBottom: '0.5rem',
+  },
 });
 
 interface Props {
   actions: ScriptAction[];
   gamepadIndex: 0 | 1 | 2 | 3;
-  indent: number;
+  parentPressedKeys?: Set<GamepadActionName>;
   onChange: (actions: ScriptAction[]) => void;
 }
 
 export default function ScriptActionList({
   actions,
   gamepadIndex,
-  indent,
+  parentPressedKeys,
   onChange,
 }: Props) {
   function handleChange(i: number, action: ScriptAction) {
@@ -34,39 +40,51 @@ export default function ScriptActionList({
   }
 
   function handleAdd() {
-    onChange([
-      ...actions,
-      {
-        type: 'down',
-        buttons: [{ type: 'action', gamepadIndex, action: 'a' }],
-      },
-    ]);
+    onChange([...actions, { type: 'down', buttons: [] }]);
   }
 
   return (
     <View style={styles.container}>
-      {actions.map((action, i) => (
-        <ScriptActionRow
-          key={i}
-          action={action}
-          index={i}
-          gamepadIndex={gamepadIndex}
-          indent={indent}
-          onChange={handleChange}
-          onRemove={handleRemove}
-          renderActionList={(nested, nestedIndent, nestedOnChange) => (
-            <ScriptActionList
-              actions={nested}
+      {actions.map((action, i) => {
+        const pressed = new Set<GamepadActionName>(parentPressedKeys);
+        for (let j = 0; j < i; j++) {
+          const a = actions[j];
+          if (a?.type === 'down') {
+            for (const b of a.buttons) {
+              pressed.add(b.action);
+            }
+          } else if (a?.type === 'up') {
+            for (const b of a.buttons) {
+              pressed.delete(b.action);
+            }
+          }
+        }
+        return (
+          <View
+            key={i}
+            style={action.type !== 'loop' ? styles.rowBorder : undefined}
+          >
+            <ScriptActionRow
+              action={action}
+              index={i}
               gamepadIndex={gamepadIndex}
-              indent={nestedIndent}
-              onChange={nestedOnChange}
+              pressedKeys={pressed}
+              onChange={handleChange}
+              onRemove={handleRemove}
+              renderActionList={(nested, nestedPressed, nestedOnChange) => (
+                <ScriptActionList
+                  actions={nested}
+                  gamepadIndex={gamepadIndex}
+                  parentPressedKeys={nestedPressed}
+                  onChange={nestedOnChange}
+                />
+              )}
             />
-          )}
-        />
-      ))}
-      <View style={[styles.addRow, indentStyle(indent)]}>
-        <IconButton source={plusIcon} type='green' onPress={handleAdd} />
-        <Text style={styles.addLabel}>Add action</Text>
+          </View>
+        );
+      })}
+      <View style={styles.addRow}>
+        <TextButton text='Add Action' type='green' onPress={handleAdd} />
       </View>
     </View>
   );

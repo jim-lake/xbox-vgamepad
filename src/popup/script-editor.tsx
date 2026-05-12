@@ -9,6 +9,7 @@ import {
   addScript,
   freeSentinel,
   copyScriptForSlot,
+  isSentinelKey,
 } from './script-helpers';
 import ScriptRow from './script-row';
 import ScriptEditBox from './script-edit-box';
@@ -43,10 +44,22 @@ export default function ScriptEditor({
   onListeningEntryChange,
   onChange,
 }: Props) {
-  const entries = React.useMemo(
-    () => extractScripts(keyboardConfig),
-    [keyboardConfig]
-  );
+  const [prevConfig, setPrevConfig] =
+    React.useState<GamepadKeyboardConfig>(keyboardConfig);
+  const [entries, setEntries] = React.useState<
+    ReturnType<typeof extractScripts>
+  >(() => extractScripts(keyboardConfig));
+  if (keyboardConfig !== prevConfig) {
+    setPrevConfig(keyboardConfig);
+    const extracted = extractScripts(keyboardConfig);
+    if (editingKeyCode !== null) {
+      const orderMap = new Map(entries.map((e, i) => [e.script, i]));
+      extracted.sort(
+        (a, b) => (orderMap.get(a.script) ?? 0) - (orderMap.get(b.script) ?? 0)
+      );
+    }
+    setEntries(extracted);
+  }
 
   React.useEffect(() => {
     if (listeningEntry === null) {
@@ -61,11 +74,15 @@ export default function ScriptEditor({
         onListeningEntryChange(null);
         return;
       }
+      const newKeyCodes = [
+        ...entry.keyCodes.filter((c) => !isSentinelKey(c)),
+        e.code,
+      ];
       onChange(
         replaceScript(
           keyboardConfig,
           entry,
-          e.code,
+          newKeyCodes,
           copyScriptForSlot(entry.script, gamepadIndex)
         )
       );
@@ -76,11 +93,15 @@ export default function ScriptEditor({
       e.preventDefault();
       e.stopPropagation();
       const code = e.button === 2 ? 'RightClick' : 'Click';
+      const newKeyCodes = [
+        ...entry.keyCodes.filter((c) => !isSentinelKey(c)),
+        code,
+      ];
       onChange(
         replaceScript(
           keyboardConfig,
           entry,
-          code,
+          newKeyCodes,
           copyScriptForSlot(entry.script, gamepadIndex)
         )
       );
@@ -120,26 +141,35 @@ export default function ScriptEditor({
   }
 
   function handleScriptChange(entry: ScriptEntry, newScript: GameScript) {
-    onChange(replaceScript(keyboardConfig, entry, entry.keyCode, newScript));
+    onChange(replaceScript(keyboardConfig, entry, entry.keyCodes, newScript));
   }
 
   function handleDelete(entry: ScriptEntry) {
+    if (!window.confirm('Delete this script?')) {
+      return;
+    }
     onChange(removeScript(keyboardConfig, entry));
     onEditingKeyCodeChange(null);
   }
 
-  function handleRemoveBinding(entry: ScriptEntry) {
-    const sentinel = freeSentinel(keyboardConfig, entry.keyCode);
-    onChange(replaceScript(keyboardConfig, entry, sentinel, entry.script));
+  function handleRemoveBinding(entry: ScriptEntry, code: string) {
+    const remaining = entry.keyCodes.filter((c) => c !== code);
+    if (remaining.length === 0) {
+      const sentinel = freeSentinel(keyboardConfig, code);
+      onChange(replaceScript(keyboardConfig, entry, [sentinel], entry.script));
+    } else {
+      onChange(replaceScript(keyboardConfig, entry, remaining, entry.script));
+    }
   }
 
   return (
     <View style={styles.container}>
       {entries.map((entry) => {
-        if (entry.keyCode === editingKeyCode) {
+        const entryKey = entry.keyCodes[0] ?? '';
+        if (entryKey === editingKeyCode) {
           return (
             <ScriptEditBox
-              key={entry.keyCode}
+              key={entryKey}
               script={entry.script}
               gamepadIndex={gamepadIndex}
               onChange={(s) => {
@@ -156,16 +186,16 @@ export default function ScriptEditor({
         }
         return (
           <ScriptRow
-            key={entry.keyCode}
+            key={entryKey}
             entry={entry}
             onEdit={() => {
-              onEditingKeyCodeChange(entry.keyCode);
+              onEditingKeyCodeChange(entryKey);
             }}
             onAddBinding={() => {
               onListeningEntryChange(entry);
             }}
-            onRemoveBinding={() => {
-              handleRemoveBinding(entry);
+            onRemoveBinding={(code) => {
+              handleRemoveBinding(entry, code);
             }}
           />
         );

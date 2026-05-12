@@ -137,7 +137,6 @@ export default function GamepadConfigSection({
               text='Remove Gamepad'
               type='danger'
               onPress={() => {
-                // eslint-disable-next-line no-alert
                 if (window.confirm('Remove this gamepad?')) {
                   onRemove();
                 }
