@@ -325,6 +325,10 @@ export async function renamePopupConfig(
   await setActiveConfig(newName);
 }
 
+export async function deletePopupConfig(name: string): Promise<void> {
+  await deleteConfig(name);
+}
+
 export function parseImportedConfig(raw: unknown): PopupConfig | null {
   if (!validateConfig(raw)) {
     return null;

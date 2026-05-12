@@ -14,12 +14,7 @@ const styles = StyleSheet.create({
 
 interface NormalProps {
   renaming: false;
-  onNew: () => void;
-  onCopy: () => void;
-  onImport: () => void;
-  onExport: () => void;
   onRename: () => void;
-  onWipe?: () => void;
 }
 
 interface RenamingProps {
@@ -48,32 +43,11 @@ export default function Toolbar(props: Props) {
           />
         </>
       ) : (
-        <>
-          <TextButton style={styles.toolBtn} text='New' onPress={props.onNew} />
-          <TextButton
-            style={styles.toolBtn}
-            text='Copy'
-            onPress={props.onCopy}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Import'
-            onPress={props.onImport}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Export'
-            onPress={props.onExport}
-          />
-          <TextButton
-            style={styles.toolBtn}
-            text='Rename'
-            onPress={props.onRename}
-          />
-          {props.onWipe !== undefined && (
-            <TextButton type='danger' text='Wipe' onPress={props.onWipe} />
-          )}
-        </>
+        <TextButton
+          style={styles.toolBtn}
+          text='Rename'
+          onPress={props.onRename}
+        />
       )}
     </View>
   );

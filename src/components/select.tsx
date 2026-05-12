@@ -28,6 +28,7 @@ const styles = StyleSheet.create({
 
 export interface Props {
   style?: StyleInput;
+  textStyle?: StyleInput;
   value: string;
   options: (string | SelectOption)[];
   placeholder?: string;
@@ -38,6 +39,7 @@ export interface Props {
 export default function Select(props: Props) {
   const {
     style,
+    textStyle,
     value,
     options,
     placeholder,
@@ -63,11 +65,11 @@ export default function Select(props: Props) {
   }
 
   const { className, inlineStyle } = resolveStyle(
-    [styles.select, style],
+    [styles.select, textStyle],
     extraClass
   );
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, style]}>
       <select
         className={'base-component-text-input ' + className}
         style={inlineStyle}

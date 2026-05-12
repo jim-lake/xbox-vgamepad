@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: '0.4rem',
     padding: '0.4rem 0.5rem',
-    backgroundColor: 'var(--app-bg)',
+    backgroundColor: 'var(--input-bg)',
   },
   doneRow: {
     flexDirection: 'row',
