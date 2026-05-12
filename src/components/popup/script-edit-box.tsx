@@ -6,6 +6,7 @@ import {
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import Select from '@/components/select';
+import BindingBadges from './binding-badges';
 import type { GameScript } from '@/types/gamepad';
 import ScriptActionList from './script-action-list';
 
@@ -23,14 +24,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'var(--row-border)',
     paddingTop: '0.5rem',
     paddingBottom: '0.8rem',
-    gap: '0.5rem',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: '0.5rem',
-    paddingTop: '0.2rem',
-    paddingBottom: '0.2rem',
+    paddingTop: '1rem',
+    paddingBottom: '1rem',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
   },
   label: { width: '8rem', color: 'var(--text-muted)', fontSize: '1.3rem' },
   nameInput: {
@@ -39,17 +41,8 @@ const styles = StyleSheet.create({
     fontSize: '1.4rem',
     borderWidth: 1,
     borderRadius: '0.4rem',
-    padding: '0.2rem 0.5rem',
+    padding: '0.4rem 0.5rem',
     backgroundColor: 'var(--app-bg)',
-  },
-  select: {
-    padding: '2px 4px 2px 6px',
-    color: 'var(--text-primary)',
-    fontSize: '1.3rem',
-    appearance: 'auto',
-    borderWidth: 1,
-    borderRadius: 6,
-    backgroundColor: 'var(--input-bg)',
   },
   doneRow: {
     flexDirection: 'row',
@@ -57,20 +50,34 @@ const styles = StyleSheet.create({
     gap: '0.5rem',
     paddingTop: '0.4rem',
   },
+  actionList: {
+    borderLeftWidth: 1,
+    borderLeftColor: 'var(--row-border)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'var(--row-border)',
+    paddingLeft: '1rem',
+    paddingBottom: '1rem',
+  },
 });
 
 interface Props {
   script: GameScript;
+  boundKeys: string[];
   gamepadIndex: 0 | 1 | 2 | 3;
   onChange: (script: GameScript) => void;
+  onAddBinding: () => void;
+  onRemoveBinding: (code: string) => void;
   onDone: () => void;
   onDelete: () => void;
 }
 
 export default function ScriptEditBox({
   script,
+  boundKeys,
   gamepadIndex,
   onChange,
+  onAddBinding,
+  onRemoveBinding,
   onDone,
   onDelete,
 }: Props) {
@@ -87,9 +94,16 @@ export default function ScriptEditBox({
         />
       </View>
       <View style={styles.row}>
+        <Text style={styles.label}>Buttons</Text>
+        <BindingBadges
+          codes={boundKeys}
+          onAdd={onAddBinding}
+          onRemove={onRemoveBinding}
+        />
+      </View>
+      <View style={styles.row}>
         <Text style={styles.label}>Activation</Text>
         <Select
-          style={styles.select}
           value={script.activationType}
           options={[...ACTIVATION_OPTIONS]}
           onChange={(v) => {
@@ -100,13 +114,15 @@ export default function ScriptEditBox({
           }}
         />
       </View>
-      <ScriptActionList
-        actions={script.actions}
-        gamepadIndex={gamepadIndex}
-        onChange={(actions) => {
-          onChange({ ...script, actions });
-        }}
-      />
+      <View style={styles.actionList}>
+        <ScriptActionList
+          actions={script.actions}
+          gamepadIndex={gamepadIndex}
+          onChange={(actions) => {
+            onChange({ ...script, actions });
+          }}
+        />
+      </View>
       <View style={styles.doneRow}>
         <TextButton text='Delete' type='danger' onPress={onDelete} />
         <TextButton text='Done' type='blue' onPress={onDone} />

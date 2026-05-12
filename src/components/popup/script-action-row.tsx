@@ -38,31 +38,26 @@ const styles = StyleSheet.create({
     paddingLeft: '10px',
     marginLeft: '10px',
   },
-  select: {
-    padding: '2px 4px 2px 6px',
-    color: 'var(--text-primary)',
-    fontSize: '1.3rem',
-    appearance: 'auto',
-    borderWidth: 1,
-    borderRadius: 6,
-    backgroundColor: 'var(--input-bg)',
-  },
   delayInput: {
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
     borderWidth: 1,
     borderRadius: '0.4rem',
-    padding: '0.2rem 0.5rem',
+    padding: '0.4rem 0.5rem',
     backgroundColor: 'var(--input-bg)',
     width: '5rem',
   },
-  paramLabel: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  paramLabel: {
+    color: 'var(--text-muted)',
+    fontSize: '1.3rem',
+    marginRight: '1rem',
+  },
   loopCountInput: {
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
     borderWidth: 1,
     borderRadius: '0.4rem',
-    padding: '0.2rem 0.5rem',
+    padding: '0.4rem 0.5rem',
     backgroundColor: 'var(--input-bg)',
     width: '5rem',
   },
@@ -136,7 +131,6 @@ export default function ScriptActionRow({
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <Select
-            style={styles.select}
             value={action.type}
             options={TYPE_OPTIONS}
             onChange={handleTypeChange}
@@ -151,7 +145,7 @@ export default function ScriptActionRow({
           />
         </View>
         <View style={styles.params}>
-          <Text style={styles.paramLabel}>Milliseconds:</Text>
+          <Text style={styles.paramLabel}>Milliseconds</Text>
           <TextInput
             style={styles.delayInput}
             value={String(action.durationMs)}
@@ -173,7 +167,6 @@ export default function ScriptActionRow({
       <View style={styles.loopContainer}>
         <View style={styles.loopHeaderRow}>
           <Select
-            style={styles.select}
             value={isForever ? 'loop_forever' : 'loop'}
             options={TYPE_OPTIONS}
             onChange={handleTypeChange}
@@ -189,7 +182,7 @@ export default function ScriptActionRow({
         </View>
         {!isForever && (
           <View style={styles.params}>
-            <Text style={styles.paramLabel}>Times:</Text>
+            <Text style={styles.paramLabel}>Times</Text>
             <TextInput
               style={styles.loopCountInput}
               value={String(action.count)}
@@ -224,7 +217,6 @@ export default function ScriptActionRow({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Select
-          style={styles.select}
           value={action.type}
           options={TYPE_OPTIONS}
           onChange={handleTypeChange}
@@ -239,7 +231,7 @@ export default function ScriptActionRow({
         />
       </View>
       <View style={styles.params}>
-        <Text style={styles.paramLabel}>Keys:</Text>
+        <Text style={styles.paramLabel}>Keys</Text>
         <View style={styles.buttonList}>
           {buttons.map((btn, bi) => (
             <View key={bi} style={styles.badge}>
@@ -259,7 +251,6 @@ export default function ScriptActionRow({
             </View>
           ))}
           <Select
-            style={styles.select}
             value=''
             placeholder='Pick Key'
             options={addOptions}

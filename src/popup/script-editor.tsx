@@ -171,9 +171,16 @@ export default function ScriptEditor({
             <ScriptEditBox
               key={entryKey}
               script={entry.script}
+              boundKeys={entry.keyCodes.filter((c) => !isSentinelKey(c))}
               gamepadIndex={gamepadIndex}
               onChange={(s) => {
                 handleScriptChange(entry, s);
+              }}
+              onAddBinding={() => {
+                onListeningEntryChange(entry);
+              }}
+              onRemoveBinding={(code) => {
+                handleRemoveBinding(entry, code);
               }}
               onDone={() => {
                 onEditingKeyCodeChange(null);

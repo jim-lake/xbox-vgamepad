@@ -38,16 +38,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'var(--row-border)',
   },
-  select: {
-    padding: '2px 4px 2px 6px',
-    width: '6rem',
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    appearance: 'auto',
-    borderWidth: 1,
-    borderRadius: 6,
-    backgroundColor: '#fefefe',
-  },
+  select: { width: '6rem' },
 });
 
 interface Props {
