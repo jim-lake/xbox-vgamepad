@@ -13,7 +13,6 @@ import type {
   PopupScript,
   ScriptBinding,
 } from '@/types/popup';
-import { SENTINEL_PREFIX } from './script-helpers';
 import {
   loadStorage,
   saveConfig,
@@ -21,6 +20,8 @@ import {
   setActiveConfig,
 } from './storage';
 import { validateConfig } from './validate';
+import { deepEqual } from '@/tools/deep_equal';
+import { copyScriptForSlot } from './script-helpers';
 import { sendActivateConfig, sendConfigChanged } from './messaging';
 
 const GLOBAL_ACTIONS = new Set<GamepadActionName>([
@@ -65,17 +66,44 @@ function emptyBindings(): SlotBindings {
   ) as unknown as SlotBindings;
 }
 
+function getScriptSlot(script: GameScript): 0 | 1 | 2 | 3 {
+  for (const a of script.actions) {
+    if ((a.type === 'down' || a.type === 'up') && a.buttons[0]) {
+      return a.buttons[0].gamepadIndex;
+    }
+  }
+  return 0;
+}
+
 function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
   const slotBindings: [SlotBindings, SlotBindings, SlotBindings, SlotBindings] =
     [emptyBindings(), emptyBindings(), emptyBindings(), emptyBindings()];
   const globalBindings: GlobalBindings = emptyBindings();
 
-  // Track scripts: script object → { scriptId, keyCodes per slot }
+  // Track scripts: normalized (slot-0) script → { scriptId, keyCodes per slot }
   const scriptMap = new Map<
     GameScript,
-    { scriptId: string; keyCodes: string[] }
+    { scriptId: string; keyCodesBySlot: Map<0 | 1 | 2 | 3, string[]> }
   >();
   let scriptCounter = 0;
+
+  function findOrAddScript(script: GameScript): {
+    scriptId: string;
+    keyCodesBySlot: Map<0 | 1 | 2 | 3, string[]>;
+  } {
+    const normalized = copyScriptForSlot(script, 0);
+    for (const [key, entry] of scriptMap) {
+      if (deepEqual(key, normalized)) {
+        return entry;
+      }
+    }
+    const entry = {
+      scriptId: `script_${String(scriptCounter++)}`,
+      keyCodesBySlot: new Map(),
+    };
+    scriptMap.set(normalized, entry);
+    return entry;
+  }
 
   for (const [code, actions] of Object.entries(cfg.keyboardConfig)) {
     for (const action of actions) {
@@ -86,35 +114,25 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
           slotBindings[action.gamepadIndex][action.action].push(code);
         }
       } else {
-        const existing = scriptMap.get(action);
-        if (existing) {
-          if (!code.startsWith(SENTINEL_PREFIX)) {
-            existing.keyCodes.push(code);
-          }
-        } else {
-          const scriptId = `script_${String(scriptCounter++)}`;
-          scriptMap.set(action, {
-            scriptId,
-            keyCodes: code.startsWith(SENTINEL_PREFIX) ? [] : [code],
-          });
-        }
+        const slotIndex = getScriptSlot(action);
+        const entry = findOrAddScript(action);
+        const existing = entry.keyCodesBySlot.get(slotIndex) ?? [];
+        entry.keyCodesBySlot.set(slotIndex, [...existing, code]);
       }
     }
   }
 
   const scripts: PopupScript[] = [];
-  const scriptBindingsPerSlot: [
-    ScriptBinding[],
-    ScriptBinding[],
-    ScriptBinding[],
-    ScriptBinding[],
-  ] = [[], [], [], []];
+  const scriptKeyCodes = new Map<string, Map<0 | 1 | 2 | 3, string[]>>();
 
-  for (const [script, { scriptId, keyCodes }] of scriptMap) {
-    scripts.push({ scriptId, script });
-    // Determine which slot this script targets from its first action
-    const slotIndex = findScriptSlot(script);
-    scriptBindingsPerSlot[slotIndex].push({ scriptId, keyCodes });
+  for (const [normalizedScript, { scriptId, keyCodesBySlot }] of scriptMap) {
+    scripts.push({ scriptId, script: normalizedScript });
+    scriptKeyCodes.set(scriptId, keyCodesBySlot);
+  }
+
+  for (const script of cfg.unboundScripts ?? []) {
+    const scriptId = `script_${String(scriptCounter++)}`;
+    scripts.push({ scriptId, script: copyScriptForSlot(script, 0) });
   }
 
   const slots: [PopupSlot, PopupSlot, PopupSlot, PopupSlot] = [0, 1, 2, 3].map(
@@ -123,10 +141,14 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
       const mouseControl = cfg.mouseConfig.mouseControls.find(
         (m) => m.gamepadIndex === idx
       );
+      const scriptBindings: ScriptBinding[] = scripts.map(({ scriptId }) => ({
+        scriptId,
+        keyCodes: scriptKeyCodes.get(scriptId)?.get(idx) ?? [],
+      }));
       const hasBindings =
         Object.values(slotBindings[idx]).some((codes) => codes.length > 0) ||
         mouseControl !== undefined ||
-        scriptBindingsPerSlot[idx].length > 0;
+        scriptBindings.some((b) => b.keyCodes.length > 0);
       return {
         gamepadIndex: idx,
         active: hasBindings,
@@ -135,7 +157,7 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
           stick: mouseControl?.stick,
           sensitivity: mouseControl?.sensitivity ?? DEFAULT_SENSITIVITY,
         },
-        scriptBindings: scriptBindingsPerSlot[idx],
+        scriptBindings,
       };
     }
   ) as [PopupSlot, PopupSlot, PopupSlot, PopupSlot];
@@ -146,42 +168,6 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
     globalBindings,
     otherGamepadMode: cfg.otherGamepadMode ?? 'separate',
   };
-}
-
-function findScriptSlot(script: GameScript): 0 | 1 | 2 | 3 {
-  for (const action of script.actions) {
-    if (action.type === 'down' || action.type === 'up') {
-      const btn = action.buttons[0];
-      if (btn) {
-        return btn.gamepadIndex;
-      }
-    }
-    if (action.type === 'loop') {
-      const inner = findLoopSlot(action.actions);
-      if (inner !== null) {
-        return inner;
-      }
-    }
-  }
-  return 0;
-}
-
-function findLoopSlot(actions: GameScript['actions']): 0 | 1 | 2 | 3 | null {
-  for (const action of actions) {
-    if (action.type === 'down' || action.type === 'up') {
-      const btn = action.buttons[0];
-      if (btn) {
-        return btn.gamepadIndex;
-      }
-    }
-    if (action.type === 'loop') {
-      const inner = findLoopSlot(action.actions);
-      if (inner !== null) {
-        return inner;
-      }
-    }
-  }
-  return null;
 }
 
 function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
@@ -227,29 +213,25 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
 
   // Scripts
   const scriptById = new Map(popup.scripts.map((s) => [s.scriptId, s.script]));
-  let sentinelCounter = 0;
+  const boundScriptIds = new Set<string>();
 
   for (const slot of popup.slots) {
     for (const binding of slot.scriptBindings) {
       const script = scriptById.get(binding.scriptId);
-      if (!script) {
+      if (!script || binding.keyCodes.length === 0) {
         continue;
       }
-      if (binding.keyCodes.length === 0) {
-        // Unbound — use a sentinel key
-        let sentinel = SENTINEL_PREFIX;
-        while (sentinel in keyboardConfig) {
-          sentinelCounter++;
-          sentinel = `${SENTINEL_PREFIX}${String(sentinelCounter)}`;
-        }
-        keyboardConfig[sentinel] = [script];
-      } else {
-        for (const code of binding.keyCodes) {
-          addBinding(code, script);
-        }
+      boundScriptIds.add(binding.scriptId);
+      const slotScript = copyScriptForSlot(script, slot.gamepadIndex);
+      for (const code of binding.keyCodes) {
+        addBinding(code, slotScript);
       }
     }
   }
+
+  const unboundScripts = popup.scripts
+    .filter((s) => !boundScriptIds.has(s.scriptId))
+    .map((s) => s.script);
 
   const mouseControls = popup.slots
     .filter((s) => s.mouse.stick !== undefined)
@@ -263,6 +245,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
     keyboardConfig,
     mouseConfig: { mouseControls },
     otherGamepadMode: popup.otherGamepadMode,
+    ...(unboundScripts.length > 0 ? { unboundScripts } : {}),
   };
 }
 

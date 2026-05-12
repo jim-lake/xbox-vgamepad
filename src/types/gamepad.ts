@@ -67,6 +67,7 @@ export interface GamepadConfig {
   keyboardConfig: GamepadKeyboardConfig;
   mouseConfig: GamepadMouseConfig;
   otherGamepadMode?: OtherGamepadMode;
+  unboundScripts?: GameScript[];
 }
 
 export interface StorageData {
