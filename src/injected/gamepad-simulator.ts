@@ -1,3 +1,5 @@
+import { debugLog } from '@/tools/log';
+
 const GAMEPAD_ID = 'Xbox 360 Controller (XInput STANDARD GAMEPAD)';
 
 interface FakeButton {
@@ -103,6 +105,7 @@ export class GamepadSimulator {
     this.enabled = true;
     this.connected = true;
     this.timestamp = performance.now();
+    debugLog('[gamepad] connected', index);
     const evt = new Event('gamepadconnected');
     (evt as unknown as Record<string, unknown>)['gamepad'] =
       this.snapshot(index);
@@ -115,6 +118,7 @@ export class GamepadSimulator {
     }
     this.connected = false;
     this.timestamp = performance.now();
+    debugLog('[gamepad] disconnected', index);
     const evt = new Event('gamepaddisconnected');
     (evt as unknown as Record<string, unknown>)['gamepad'] =
       this.snapshot(index);
@@ -140,6 +144,7 @@ export class GamepadSimulator {
       btn.touched = true;
       btn.value = 1;
       this.timestamp = performance.now();
+      debugLog('[gamepad] button down', index);
     }
   }
 
@@ -153,6 +158,7 @@ export class GamepadSimulator {
         btn.touched = false;
         btn.value = 0;
         this.timestamp = performance.now();
+        debugLog('[gamepad] button up', index);
       }
     }
   }
@@ -170,6 +176,16 @@ export class GamepadSimulator {
       meta.value + ((dirArr[meta.opposite] ?? 0) > 0 ? oppMeta.value : 0);
     this.axes[axisIndex] = value;
     this.timestamp = performance.now();
+    debugLog(
+      '[gamepad] axis down stick',
+      stick,
+      'dir',
+      direction,
+      'axis',
+      axisIndex,
+      '=',
+      value
+    );
   }
 
   unpressDirection(stick: number, direction: AxisDirection): void {
@@ -192,12 +208,23 @@ export class GamepadSimulator {
       this.axes[axisIndex] = 0;
     }
     this.timestamp = performance.now();
+    debugLog(
+      '[gamepad] axis up stick',
+      stick,
+      'dir',
+      direction,
+      'axis',
+      axisIndex,
+      '=',
+      this.axes[axisIndex]
+    );
   }
 
   moveStick(stick: number, x: number, y: number): void {
     this.axes[stick * 2] = x;
     this.axes[stick * 2 + 1] = y;
     this.timestamp = performance.now();
+    debugLog('[gamepad] axis move stick', stick, 'x =', x, 'y =', y);
   }
 }
 
