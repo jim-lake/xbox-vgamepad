@@ -17,7 +17,7 @@ export interface ScriptBinding {
 }
 
 export interface PopupSlot {
-  gamepadIndex: 0 | 1 | 2 | 3;
+  readonly gamepadIndex: 0 | 1 | 2 | 3;
   active: boolean;
   bindings: SlotBindings;
   mouse: SlotMouse;

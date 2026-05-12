@@ -6,6 +6,7 @@ import {
 } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import plusIcon from '@/assets/img/plus.svg';
+import type { PopupConfig } from '@/types/popup';
 
 import '@/css/colors.css';
 
@@ -47,9 +48,9 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  slots: (0 | 1 | 2 | 3)[];
-  activeIndex: number;
-  onSelect: (i: number) => void;
+  slots: PopupConfig['slots'];
+  activeIndex: 0 | 1 | 2 | 3;
+  onSelect: (i: 0 | 1 | 2 | 3) => void;
   onAdd: () => void;
 }
 
@@ -59,17 +60,19 @@ export default function GamepadTabs({
   onSelect,
   onAdd,
 }: Props) {
+  const activeCount = slots.filter((s) => s.active).length;
   return (
     <View style={styles.container}>
-      {Array.from({ length: 4 }, (_, i) => {
-        if (i < slots.length) {
-          const active = i === activeIndex;
+      {slots.map((slot, i) => {
+        const idx = i as 0 | 1 | 2 | 3;
+        if (slot.active) {
+          const active = idx === activeIndex;
           return (
             <View key={i} style={styles.slot}>
               <TouchableWithoutFeedback
                 style={active ? [styles.tab, styles.tabActive] : styles.tab}
                 onPress={() => {
-                  onSelect(i);
+                  onSelect(idx);
                 }}
               >
                 <Text
@@ -79,18 +82,27 @@ export default function GamepadTabs({
                       : styles.tabText
                   }
                 >
-                  {`GAMEPAD ${String((slots[i] ?? 0) + 1)}`}
+                  {`GAMEPAD ${String(idx + 1)}`}
                 </Text>
               </TouchableWithoutFeedback>
             </View>
           );
         }
-        if (i === slots.length) {
-          return (
-            <View key={i} style={styles.slot}>
-              <IconButton source={plusIcon} type='green' onPress={onAdd} />
-            </View>
-          );
+        if (
+          activeCount < 4 &&
+          slots
+            .slice(0, i)
+            .every((s) => s.active || slots.findIndex((x) => !x.active) === i)
+        ) {
+          // Show add button in the first inactive slot position after all active tabs
+          const firstInactive = slots.findIndex((s) => !s.active);
+          if (firstInactive === i) {
+            return (
+              <View key={i} style={styles.slot}>
+                <IconButton source={plusIcon} type='green' onPress={onAdd} />
+              </View>
+            );
+          }
         }
         return <View key={i} style={styles.slot} />;
       })}

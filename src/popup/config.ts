@@ -330,6 +330,122 @@ export function exportPopupConfig(popup: PopupConfig): string {
   return JSON.stringify(popupConfigToGamepadConfig(popup), null, 2);
 }
 
+// ── PopupConfig mutation helpers ─────────────────────────────────────────────
+
+function patchSlot(
+  popup: PopupConfig,
+  idx: 0 | 1 | 2 | 3,
+  patch: Partial<Omit<PopupSlot, 'gamepadIndex'>>
+): PopupConfig {
+  const slots = [...popup.slots] as PopupConfig['slots'];
+  slots[idx] = { ...slots[idx], ...patch };
+  return { ...popup, slots };
+}
+
+function emptySlot(idx: 0 | 1 | 2 | 3, sensitivity: number): PopupSlot {
+  return {
+    gamepadIndex: idx,
+    active: false,
+    bindings: emptyBindings(),
+    mouse: { stick: undefined, sensitivity },
+    scriptBindings: [],
+  };
+}
+
+function applyCodeOp(
+  codes: string[],
+  code: string,
+  op: 'add' | 'remove'
+): string[] {
+  return op === 'add'
+    ? [...codes.filter((c) => c !== code), code]
+    : codes.filter((c) => c !== code);
+}
+
+export function popupAddSlot(popup: PopupConfig): PopupConfig {
+  const next = ([0, 1, 2, 3] as const).find((i) => !popup.slots[i].active);
+  return next !== undefined ? patchSlot(popup, next, { active: true }) : popup;
+}
+
+export function popupRemoveSlot(
+  popup: PopupConfig,
+  idx: 0 | 1 | 2 | 3
+): PopupConfig {
+  const removedIds = new Set(
+    popup.slots[idx].scriptBindings.map((b) => b.scriptId)
+  );
+  return {
+    ...patchSlot(
+      popup,
+      idx,
+      emptySlot(idx, popup.slots[idx].mouse.sensitivity)
+    ),
+    scripts: popup.scripts.filter((s) => !removedIds.has(s.scriptId)),
+  };
+}
+
+export function popupMoveSlot(
+  popup: PopupConfig,
+  fromIdx: 0 | 1 | 2 | 3,
+  toIdx: 0 | 1 | 2 | 3
+): PopupConfig {
+  const src = popup.slots[fromIdx];
+  const slots = [...popup.slots] as PopupConfig['slots'];
+  slots[toIdx] = { ...src, gamepadIndex: toIdx };
+  slots[fromIdx] = emptySlot(fromIdx, src.mouse.sensitivity);
+  return { ...popup, slots };
+}
+
+export function popupSetBinding(
+  popup: PopupConfig,
+  slotIdx: 0 | 1 | 2 | 3,
+  action: GamepadActionName,
+  code: string,
+  op: 'add' | 'remove'
+): PopupConfig {
+  const slot = popup.slots[slotIdx];
+  return patchSlot(popup, slotIdx, {
+    bindings: {
+      ...slot.bindings,
+      [action]: applyCodeOp(slot.bindings[action], code, op),
+    },
+  });
+}
+
+export function popupSetScripts(
+  popup: PopupConfig,
+  slotIdx: 0 | 1 | 2 | 3,
+  scriptBindings: ScriptBinding[],
+  scripts: PopupScript[]
+): PopupConfig {
+  return { ...patchSlot(popup, slotIdx, { scriptBindings }), scripts };
+}
+
+export function popupSetMouse(
+  popup: PopupConfig,
+  slotIdx: 0 | 1 | 2 | 3,
+  patch: Partial<PopupSlot['mouse']>
+): PopupConfig {
+  return patchSlot(popup, slotIdx, {
+    mouse: { ...popup.slots[slotIdx].mouse, ...patch },
+  });
+}
+
+export function popupSetGlobalBinding(
+  popup: PopupConfig,
+  action: GamepadActionName,
+  code: string,
+  op: 'add' | 'remove'
+): PopupConfig {
+  return {
+    ...popup,
+    globalBindings: {
+      ...popup.globalBindings,
+      [action]: applyCodeOp(popup.globalBindings[action], code, op),
+    },
+  };
+}
+
 export {
   setActiveConfig,
   setEnabled,

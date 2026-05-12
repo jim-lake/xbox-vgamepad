@@ -19,6 +19,13 @@ import {
   clearStorage,
   MAX_PRESETS,
   DEFAULT_POPUP,
+  popupAddSlot,
+  popupRemoveSlot,
+  popupMoveSlot,
+  popupSetBinding,
+  popupSetScripts,
+  popupSetMouse,
+  popupSetGlobalBinding,
 } from './config';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
@@ -85,16 +92,6 @@ const styles = StyleSheet.create({
   },
 });
 
-function updateSlot(
-  popup: PopupConfig,
-  idx: 0 | 1 | 2 | 3,
-  patch: Partial<PopupConfig['slots'][number]>
-): PopupConfig {
-  const slots = [...popup.slots] as PopupConfig['slots'];
-  slots[idx] = { ...slots[idx], ...patch };
-  return { ...popup, slots };
-}
-
 export default function App() {
   const [loading, setLoading] = React.useState(true);
   const [isEnabled, setIsEnabled] = React.useState(true);
@@ -108,7 +105,7 @@ export default function App() {
   const [dirty, setDirty] = React.useState(false);
   const [savedConfig, setSavedConfig] =
     React.useState<PopupConfig>(DEFAULT_POPUP);
-  const [activeSlotTab, setActiveSlotTab] = React.useState(0);
+  const [activeSlotTab, setActiveSlotTab] = React.useState<0 | 1 | 2 | 3>(0);
   const [editingScriptId, setEditingScriptId] = React.useState<string | null>(
     null
   );
@@ -147,7 +144,9 @@ export default function App() {
   const activeSlots = activePopup.slots
     .filter((s) => s.active)
     .map((s) => s.gamepadIndex);
-  const activeSlotIndex = activeSlots[activeSlotTab] ?? 0;
+  const activeSlotIndex: 0 | 1 | 2 | 3 = activePopup.slots[activeSlotTab].active
+    ? activeSlotTab
+    : (activeSlots[0] ?? 0);
   const activeSlot = activePopup.slots[activeSlotIndex];
 
   const persist = React.useCallback(
@@ -328,29 +327,18 @@ export default function App() {
 
   const handleChangeBinding = React.useCallback(
     (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
-      updateActivePopup((popup) => {
-        const slot = popup.slots[activeSlotIndex];
-        const codes = slot.bindings[action];
-        return updateSlot(popup, activeSlotIndex, {
-          bindings: {
-            ...slot.bindings,
-            [action]:
-              op === 'add'
-                ? [...codes.filter((c) => c !== code), code]
-                : codes.filter((c) => c !== code),
-          },
-        });
-      });
+      updateActivePopup((popup) =>
+        popupSetBinding(popup, activeSlotIndex, action, code, op)
+      );
     },
     [activeSlotIndex, updateActivePopup]
   );
 
   const handleChangeScripts = React.useCallback(
     (scriptBindings: ScriptBinding[], scripts: PopupScript[]) => {
-      updateActivePopup((popup) => ({
-        ...updateSlot(popup, activeSlotIndex, { scriptBindings }),
-        scripts,
-      }));
+      updateActivePopup((popup) =>
+        popupSetScripts(popup, activeSlotIndex, scriptBindings, scripts)
+      );
     },
     [activeSlotIndex, updateActivePopup]
   );
@@ -358,9 +346,7 @@ export default function App() {
   const handleChangeMouseStick = React.useCallback(
     (val: 'left' | 'right' | undefined) => {
       updateActivePopup((popup) =>
-        updateSlot(popup, activeSlotIndex, {
-          mouse: { ...popup.slots[activeSlotIndex].mouse, stick: val },
-        })
+        popupSetMouse(popup, activeSlotIndex, { stick: val })
       );
     },
     [activeSlotIndex, updateActivePopup]
@@ -369,9 +355,7 @@ export default function App() {
   const handleChangeMouseSensitivity = React.useCallback(
     (val: number) => {
       updateActivePopup((popup) =>
-        updateSlot(popup, activeSlotIndex, {
-          mouse: { ...popup.slots[activeSlotIndex].mouse, sensitivity: val },
-        })
+        popupSetMouse(popup, activeSlotIndex, { sensitivity: val })
       );
     },
     [activeSlotIndex, updateActivePopup]
@@ -379,80 +363,40 @@ export default function App() {
 
   const handleChangeGlobalBinding = React.useCallback(
     (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
-      updateActivePopup((popup) => {
-        const codes = popup.globalBindings[action];
-        return {
-          ...popup,
-          globalBindings: {
-            ...popup.globalBindings,
-            [action]:
-              op === 'add'
-                ? [...codes.filter((c) => c !== code), code]
-                : codes.filter((c) => c !== code),
-          },
-        };
-      });
+      updateActivePopup((popup) =>
+        popupSetGlobalBinding(popup, action, code, op)
+      );
     },
     [updateActivePopup]
   );
 
   const handleChangeSlotIndex = React.useCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
-      const newActiveSlots = activeSlots
-        .map((i) => (i === oldIndex ? newIndex : i))
-        .sort((a, b) => a - b);
-      setActiveSlotTab(newActiveSlots.indexOf(newIndex));
-      updateActivePopup((popup) =>
-        updateSlot(popup, oldIndex, { gamepadIndex: newIndex })
-      );
+      setActiveSlotTab(newIndex);
+      updateActivePopup((popup) => popupMoveSlot(popup, oldIndex, newIndex));
     },
-    [activeSlots, updateActivePopup]
+    [updateActivePopup]
   );
 
   const handleAddSlot = React.useCallback(() => {
-    if (activeSlots.length >= 4) {
-      return;
-    }
-    const next = ([0, 1, 2, 3] as const).find((i) => !activeSlots.includes(i));
+    const next = ([0, 1, 2, 3] as const).find(
+      (i) => !activePopup.slots[i].active
+    );
     if (next === undefined) {
       return;
     }
-    setActiveSlotTab(
-      [...activeSlots, next].sort((a, b) => a - b).indexOf(next)
-    );
-    updateActivePopup((popup) => updateSlot(popup, next, { active: true }));
-  }, [activeSlots, updateActivePopup]);
+    setActiveSlotTab(next);
+    updateActivePopup(popupAddSlot);
+  }, [activePopup.slots, updateActivePopup]);
 
   const handleRemoveSlot = React.useCallback(
-    (tabI: number) => {
+    (slotIndex: 0 | 1 | 2 | 3) => {
       if (activeSlots.length <= 1) {
         return;
       }
-      const slotIndex = activeSlots[tabI];
-      if (slotIndex === undefined) {
-        return;
-      }
-      setActiveSlotTab((prev) => Math.min(prev, activeSlots.length - 2));
-      updateActivePopup((popup) => {
-        const removedIds = new Set(
-          popup.slots[slotIndex].scriptBindings.map((b) => b.scriptId)
-        );
-        return {
-          ...updateSlot(popup, slotIndex, {
-            active: false,
-            bindings: Object.fromEntries(
-              Object.keys(popup.slots[slotIndex].bindings).map((k) => [k, []])
-            ) as unknown as PopupConfig['slots'][number]['bindings'],
-            mouse: {
-              stick: undefined,
-              sensitivity: popup.slots[slotIndex].mouse.sensitivity,
-            },
-            scriptBindings: [],
-          }),
-          scripts: popup.scripts.filter((s) => !removedIds.has(s.scriptId)),
-        };
-      });
-      setDirty(true);
+      const remaining = activeSlots.filter((i) => i !== slotIndex);
+      setActiveSlotTab(remaining[0] ?? 0);
+      updateActivePopup((popup) => popupRemoveSlot(popup, slotIndex));
     },
     [activeSlots, updateActivePopup]
   );
@@ -515,8 +459,8 @@ export default function App() {
 
       <View style={styles.body}>
         <GamepadTabs
-          slots={activeSlots}
-          activeIndex={activeSlotTab}
+          slots={activePopup.slots}
+          activeIndex={activeSlotIndex}
           onSelect={(i) => {
             setActiveSlotTab(i);
             clearScriptEditState();
@@ -540,7 +484,7 @@ export default function App() {
           onChangeMouseStick={handleChangeMouseStick}
           onChangeMouseSensitivity={handleChangeMouseSensitivity}
           onRemove={() => {
-            handleRemoveSlot(activeSlotTab);
+            handleRemoveSlot(activeSlotIndex);
           }}
         />
 

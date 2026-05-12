@@ -11,7 +11,7 @@
     "pretty": "prettier --write .",
     "preview": "vite preview",
     "test": "vite build --mode test && node test/gamepad.test.cjs",
-    "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test test/unit/config.test.ts"
+    "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'"
   },
   "dependencies": {
     "aphrodite": "^2.4.0",
