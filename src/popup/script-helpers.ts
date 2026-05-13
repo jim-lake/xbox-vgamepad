@@ -7,6 +7,7 @@ import type {
   PopupGameScript,
   PopupScriptAction,
   TapAction,
+  TurboAction,
 } from '@/types/popup';
 
 /** A script extracted from keyboardConfig, with its bound keys. */
@@ -231,6 +232,9 @@ export function freeSentinel(
  */
 export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
   for (const a of actions) {
+    if (a.type === 'turbo') {
+      return true;
+    }
     if (a.type === 'loop') {
       if (a.count === 'infinite' || isInfiniteActions(a.actions)) {
         return true;
@@ -247,6 +251,9 @@ export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
 export function firstInfiniteIndex(actions: PopupScriptAction[]): number {
   for (let i = 0; i < actions.length; i++) {
     const a = actions[i];
+    if (a?.type === 'turbo') {
+      return i;
+    }
     if (
       a?.type === 'loop' &&
       (a.count === 'infinite' || isInfiniteActions(a.actions))
@@ -274,6 +281,12 @@ function remapActions(
         buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
       };
     }
+    if (a.type === 'turbo') {
+      return {
+        ...a,
+        buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
+      };
+    }
     if (a.type === 'loop') {
       return { ...a, actions: remapActions(a.actions, slotIndex) };
     }
@@ -289,7 +302,7 @@ export function copyScriptForSlot(
   return { ...script, actions: remapActions(script.actions, slotIndex) };
 }
 
-/** Expand PopupScriptAction[] to ScriptAction[], flattening tap nodes. */
+/** Expand PopupScriptAction[] to ScriptAction[], flattening tap and turbo nodes. */
 export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
   const result: ScriptAction[] = [];
   for (const a of actions) {
@@ -299,6 +312,18 @@ export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
         { type: 'delay', durationMs: a.durationMs },
         { type: 'up', buttons: a.buttons }
       );
+    } else if (a.type === 'turbo') {
+      const half = Math.round(a.speed / 2);
+      result.push({
+        type: 'loop',
+        count: 'infinite',
+        actions: [
+          { type: 'down', buttons: a.buttons },
+          { type: 'delay', durationMs: half },
+          { type: 'up', buttons: a.buttons },
+          { type: 'delay', durationMs: half },
+        ],
+      });
     } else if (a.type === 'loop') {
       result.push({ ...a, actions: flattenActions(a.actions) });
     } else {
@@ -308,7 +333,7 @@ export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
   return result;
 }
 
-/** Collapse ScriptAction[] to PopupScriptAction[], lifting tap sequences. */
+/** Collapse ScriptAction[] to PopupScriptAction[], lifting tap and turbo sequences. */
 export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
   const result: PopupScriptAction[] = [];
   let i = 0;
@@ -339,6 +364,36 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
       result.push(tap);
       i += 3;
     } else if (a?.type === 'loop') {
+      // Detect turbo pattern: infinite loop with [down, delay, up, delay]
+      if (a.count === 'infinite' && a.actions.length === 4) {
+        const [la, lb, lc, ld] = a.actions;
+        if (
+          la?.type === 'down' &&
+          lb?.type === 'delay' &&
+          lc?.type === 'up' &&
+          ld?.type === 'delay' &&
+          lb.durationMs === ld.durationMs &&
+          la.buttons.length > 0 &&
+          la.buttons.length === lc.buttons.length &&
+          la.buttons.every((btn, j) => {
+            const cBtn = lc.buttons[j];
+            return (
+              cBtn !== undefined &&
+              btn.action === cBtn.action &&
+              btn.gamepadIndex === cBtn.gamepadIndex
+            );
+          })
+        ) {
+          const turbo: TurboAction = {
+            type: 'turbo',
+            buttons: la.buttons,
+            speed: lb.durationMs * 2,
+          };
+          result.push(turbo);
+          i++;
+          continue;
+        }
+      }
       result.push({ ...a, actions: liftActions(a.actions) });
       i++;
     } else if (a !== undefined) {

@@ -61,6 +61,7 @@ export const ACTION_LABEL: Record<GamepadActionName, string> = {
 
 export const TYPE_OPTIONS = [
   { value: 'tap', text: 'Tap' },
+  { value: 'turbo', text: 'Turbo' },
   { value: 'loop', text: 'Repeat' },
   { value: 'loop_forever', text: 'Forever' },
   { value: 'delay', text: 'Delay' },

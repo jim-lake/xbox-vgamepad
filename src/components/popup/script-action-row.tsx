@@ -122,6 +122,15 @@ export default function ScriptActionRow({
         buttons: existingButtons,
         durationMs: 100,
       });
+    } else if (val === 'turbo') {
+      const existingButtons =
+        action.type === 'down' ||
+        action.type === 'up' ||
+        action.type === 'tap' ||
+        action.type === 'turbo'
+          ? action.buttons
+          : [];
+      onChange(index, { type: 'turbo', buttons: existingButtons, speed: 100 });
     } else if (val === 'delay') {
       onChange(index, { type: 'delay', durationMs: 100 });
     } else if (val === 'down' || val === 'up') {
@@ -170,6 +179,91 @@ export default function ScriptActionRow({
               const n = parseInt(v, 10);
               if (!isNaN(n) && n >= 0) {
                 onChange(index, { ...action, durationMs: n });
+              }
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Buttons</Text>
+          <View style={styles.buttonList}>
+            {buttons.map((btn, bi) => (
+              <View key={bi} style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
+                    btn.action}
+                </Text>
+                <IconButton
+                  style={styles.badgeDelete}
+                  source={closeIcon}
+                  type='danger'
+                  onPress={() => {
+                    onChange(index, {
+                      ...action,
+                      buttons: buttons.filter((_, j) => j !== bi),
+                    });
+                  }}
+                />
+              </View>
+            ))}
+            <Select
+              value=''
+              placeholder='Pick Key'
+              options={ACTION_OPTIONS.map((o) => ({
+                ...o,
+                disabled: usedActions.has(o.value),
+              }))}
+              onChange={(v) => {
+                if (usedActions.has(v as GamepadActionName)) {
+                  return;
+                }
+                onChange(index, {
+                  ...action,
+                  buttons: [
+                    ...buttons,
+                    {
+                      type: 'action',
+                      gamepadIndex,
+                      action: v as GamepadActionName,
+                    },
+                  ],
+                });
+              }}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (action.type === 'turbo') {
+    const { buttons } = action;
+    const usedActions = new Set(buttons.map((b) => b.action));
+    return (
+      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
+        <View style={styles.headerRow}>
+          <Select
+            value='turbo'
+            options={TYPE_OPTIONS}
+            onChange={handleTypeChange}
+          />
+          <View style={styles.spacer} />
+          <IconButton
+            source={closeIcon}
+            type='danger'
+            onPress={() => {
+              onRemove(index);
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Speed (ms)</Text>
+          <TextInput
+            style={styles.delayInput}
+            value={String(action.speed)}
+            onChangeText={(v) => {
+              const n = parseInt(v, 10);
+              if (!isNaN(n) && n >= 64 && n <= 150) {
+                onChange(index, { ...action, speed: n });
               }
             }}
           />

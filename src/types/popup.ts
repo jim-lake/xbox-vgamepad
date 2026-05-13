@@ -12,7 +12,14 @@ export type TapAction = {
   durationMs: number;
 };
 
-export type PopupScriptAction = ScriptAction<TapAction>;
+export type TurboAction = {
+  type: 'turbo';
+  buttons: GamepadAction[];
+  /** Interval in ms (64–150). Press and release each take speed/2. */
+  speed: number;
+};
+
+export type PopupScriptAction = ScriptAction<TapAction | TurboAction>;
 export type PopupGameScript = GameScript<PopupScriptAction>;
 
 export type SlotBindings = Record<GamepadActionName, string[]>;
