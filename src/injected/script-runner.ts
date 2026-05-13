@@ -27,6 +27,10 @@ export function runScript(script: GameScript): ScriptHandle {
   const state: RunState = { cancelled: false };
   // Track every button this instance has pressed so we can release on cancel.
   const held: GamepadAction[] = [];
+  // Absolute start time for drift-free delay scheduling.
+  const startTime = Date.now();
+  // Cumulative scheduled elapsed time (ms); advanced by each delay step.
+  let scheduledMs = 0;
 
   function pressAction(action: GamepadAction): void {
     executePress(action);
@@ -69,9 +73,14 @@ export function runScript(script: GameScript): ScriptHandle {
             releaseAction(btn);
           }
           break;
-        case 'delay':
-          await delay(step.durationMs);
+        case 'delay': {
+          scheduledMs += step.durationMs;
+          const remaining = startTime + scheduledMs - Date.now();
+          if (remaining > 0) {
+            await delay(remaining);
+          }
           break;
+        }
         case 'loop':
           if (step.count === 'infinite') {
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
