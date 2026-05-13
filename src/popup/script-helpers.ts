@@ -3,11 +3,16 @@ import type {
   GameScript,
   ScriptAction,
 } from '@/types/gamepad';
+import type {
+  PopupGameScript,
+  PopupScriptAction,
+  TapAction,
+} from '@/types/popup';
 
 /** A script extracted from keyboardConfig, with its bound keys. */
 export interface ScriptEntry {
   keyCodes: string[];
-  script: GameScript;
+  script: PopupGameScript;
 }
 
 export const SENTINEL_PREFIX = '__script__';
@@ -224,7 +229,7 @@ export function freeSentinel(
  * Returns true if the action list is effectively infinite — i.e. it contains
  * a forever loop, or a finite loop whose child actions are themselves infinite.
  */
-export function isInfiniteActions(actions: ScriptAction[]): boolean {
+export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
   for (const a of actions) {
     if (a.type === 'loop') {
       if (a.count === 'infinite' || isInfiniteActions(a.actions)) {
@@ -239,7 +244,7 @@ export function isInfiniteActions(actions: ScriptAction[]): boolean {
  * Returns the index of the first action that makes the list infinite
  * (a forever loop, or a finite loop with infinite children), or -1 if none.
  */
-export function firstInfiniteIndex(actions: ScriptAction[]): number {
+export function firstInfiniteIndex(actions: PopupScriptAction[]): number {
   for (let i = 0; i < actions.length; i++) {
     const a = actions[i];
     if (
@@ -253,11 +258,17 @@ export function firstInfiniteIndex(actions: ScriptAction[]): number {
 }
 
 function remapActions(
-  actions: ScriptAction[],
+  actions: PopupScriptAction[],
   slotIndex: 0 | 1 | 2 | 3
-): ScriptAction[] {
+): PopupScriptAction[] {
   return actions.map((a) => {
     if (a.type === 'down' || a.type === 'up') {
+      return {
+        ...a,
+        buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
+      };
+    }
+    if (a.type === 'tap') {
       return {
         ...a,
         buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
@@ -272,8 +283,80 @@ function remapActions(
 
 /** Return a copy of the script with all gamepadIndex values set to slotIndex. */
 export function copyScriptForSlot(
-  script: GameScript,
+  script: PopupGameScript,
   slotIndex: 0 | 1 | 2 | 3
-): GameScript {
+): PopupGameScript {
   return { ...script, actions: remapActions(script.actions, slotIndex) };
+}
+
+/** Expand PopupScriptAction[] to ScriptAction[], flattening tap nodes. */
+export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
+  const result: ScriptAction[] = [];
+  for (const a of actions) {
+    if (a.type === 'tap') {
+      result.push(
+        { type: 'down', buttons: a.buttons },
+        { type: 'delay', durationMs: a.durationMs },
+        { type: 'up', buttons: a.buttons }
+      );
+    } else if (a.type === 'loop') {
+      result.push({ ...a, actions: flattenActions(a.actions) });
+    } else {
+      result.push(a);
+    }
+  }
+  return result;
+}
+
+/** Collapse ScriptAction[] to PopupScriptAction[], lifting tap sequences. */
+export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
+  const result: PopupScriptAction[] = [];
+  let i = 0;
+  while (i < actions.length) {
+    const a = actions[i];
+    const b = actions[i + 1];
+    const c = actions[i + 2];
+    if (
+      a?.type === 'down' &&
+      a.buttons.length > 0 &&
+      b?.type === 'delay' &&
+      c?.type === 'up' &&
+      a.buttons.length === c.buttons.length &&
+      a.buttons.every((btn, j) => {
+        const cBtn = c.buttons[j];
+        return (
+          cBtn !== undefined &&
+          btn.action === cBtn.action &&
+          btn.gamepadIndex === cBtn.gamepadIndex
+        );
+      })
+    ) {
+      const tap: TapAction = {
+        type: 'tap',
+        buttons: a.buttons,
+        durationMs: b.durationMs,
+      };
+      result.push(tap);
+      i += 3;
+    } else if (a?.type === 'loop') {
+      result.push({ ...a, actions: liftActions(a.actions) });
+      i++;
+    } else if (a !== undefined) {
+      result.push(a);
+      i++;
+    } else {
+      i++;
+    }
+  }
+  return result;
+}
+
+/** Flatten a PopupGameScript to a plain GameScript for storage. */
+export function flattenScript(script: PopupGameScript): GameScript {
+  return { ...script, actions: flattenActions(script.actions) };
+}
+
+/** Lift a plain GameScript to a PopupGameScript for the UI. */
+export function liftScript(script: GameScript): PopupGameScript {
+  return { ...script, actions: liftActions(script.actions) };
 }

@@ -34,17 +34,18 @@ export interface GamepadAction {
   action: GamepadActionName;
 }
 
-export type ScriptAction =
+export type ScriptAction<T = never> =
   | { type: 'down'; buttons: GamepadAction[] }
   | { type: 'up'; buttons: GamepadAction[] }
   | { type: 'delay'; durationMs: number }
-  | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction[] };
+  | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction<T>[] }
+  | T;
 
-export type GameScript = {
+export type GameScript<T = ScriptAction> = {
   type: 'script';
   name: string;
   activationType: 'on_down' | 'on_up' | 'toggle' | 'held';
-  actions: ScriptAction[];
+  actions: T[];
 };
 
 export type ActionMap = (GamepadAction | GameScript)[];

@@ -7,7 +7,8 @@ import {
 } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
-import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import type { PopupScriptAction } from '@/types/popup';
 import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
 
 import closeIcon from '@/assets/img/close.svg';
@@ -85,17 +86,17 @@ const styles = StyleSheet.create({
 });
 
 export interface ScriptActionRowProps {
-  action: ScriptAction;
+  action: PopupScriptAction;
   index: number;
   gamepadIndex: 0 | 1 | 2 | 3;
   pressedKeys: Set<GamepadActionName>;
   disabled?: boolean;
-  onChange: (index: number, action: ScriptAction) => void;
+  onChange: (index: number, action: PopupScriptAction) => void;
   onRemove: (index: number) => void;
   renderActionList: (
-    actions: ScriptAction[],
+    actions: PopupScriptAction[],
     pressedKeys: Set<GamepadActionName>,
-    onChange: (actions: ScriptAction[]) => void
+    onChange: (actions: PopupScriptAction[]) => void
   ) => React.ReactNode;
 }
 
@@ -110,7 +111,21 @@ export default function ScriptActionRow({
   renderActionList,
 }: ScriptActionRowProps) {
   function handleTypeChange(val: string) {
-    if (val === 'delay') {
+    if (val === 'tap') {
+      const existingButton =
+        action.type === 'down' || action.type === 'up'
+          ? action.buttons[0]
+          : action.type === 'tap'
+            ? action.buttons[0]
+            : undefined;
+      onChange(index, {
+        type: 'tap',
+        buttons: existingButton
+          ? [existingButton]
+          : [{ type: 'action', gamepadIndex, action: 'a' }],
+        durationMs: 100,
+      });
+    } else if (val === 'delay') {
       onChange(index, { type: 'delay', durationMs: 100 });
     } else if (val === 'down' || val === 'up') {
       onChange(index, { type: val, buttons: [] });
@@ -127,6 +142,91 @@ export default function ScriptActionRow({
         actions: action.type === 'loop' ? action.actions : [],
       });
     }
+  }
+
+  if (action.type === 'tap') {
+    const { buttons } = action;
+    const usedActions = new Set(buttons.map((b) => b.action));
+    return (
+      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
+        <View style={styles.headerRow}>
+          <Select
+            value='tap'
+            options={TYPE_OPTIONS}
+            onChange={handleTypeChange}
+          />
+          <View style={styles.spacer} />
+          <IconButton
+            source={closeIcon}
+            type='danger'
+            onPress={() => {
+              onRemove(index);
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Tap Time</Text>
+          <TextInput
+            style={styles.delayInput}
+            value={String(action.durationMs)}
+            onChangeText={(v) => {
+              const n = parseInt(v, 10);
+              if (!isNaN(n) && n >= 0) {
+                onChange(index, { ...action, durationMs: n });
+              }
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Buttons</Text>
+          <View style={styles.buttonList}>
+            {buttons.map((btn, bi) => (
+              <View key={bi} style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
+                    btn.action}
+                </Text>
+                <IconButton
+                  style={styles.badgeDelete}
+                  source={closeIcon}
+                  type='danger'
+                  onPress={() => {
+                    onChange(index, {
+                      ...action,
+                      buttons: buttons.filter((_, j) => j !== bi),
+                    });
+                  }}
+                />
+              </View>
+            ))}
+            <Select
+              value=''
+              placeholder='Pick Key'
+              options={ACTION_OPTIONS.map((o) => ({
+                ...o,
+                disabled: usedActions.has(o.value),
+              }))}
+              onChange={(v) => {
+                if (usedActions.has(v as GamepadActionName)) {
+                  return;
+                }
+                onChange(index, {
+                  ...action,
+                  buttons: [
+                    ...buttons,
+                    {
+                      type: 'action',
+                      gamepadIndex,
+                      action: v as GamepadActionName,
+                    },
+                  ],
+                });
+              }}
+            />
+          </View>
+        </View>
+      </View>
+    );
   }
 
   if (action.type === 'delay') {

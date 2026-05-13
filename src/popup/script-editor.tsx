@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GameScript } from '@/types/gamepad';
+import type { PopupGameScript } from '@/types/popup';
 import type { ScriptBinding, PopupScript } from '@/types/popup';
 import ScriptRow from '@/components/popup/script-row';
 import ScriptEditBox from '@/components/popup/script-edit-box';
@@ -103,7 +103,7 @@ export default function ScriptEditor({
   ]);
 
   function handleAdd() {
-    const script: GameScript = {
+    const script: PopupGameScript = {
       type: 'script',
       name: 'New Script',
       activationType: 'on_down',
@@ -117,7 +117,7 @@ export default function ScriptEditor({
     onEditingScriptIdChange(scriptId);
   }
 
-  function handleScriptChange(scriptId: string, newScript: GameScript) {
+  function handleScriptChange(scriptId: string, newScript: PopupGameScript) {
     onChangeBindings(
       scriptBindings,
       scripts.map((s) =>

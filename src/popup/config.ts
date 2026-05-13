@@ -22,7 +22,7 @@ import {
 } from './storage';
 import { validateConfig } from './validate';
 import { deepEqual } from '@/tools/deep_equal';
-import { copyScriptForSlot } from './script-helpers';
+import { copyScriptForSlot, flattenScript, liftScript } from './script-helpers';
 import { sendActivateConfig, sendConfigChanged } from './messaging';
 
 const GLOBAL_ACTIONS = new Set<GamepadActionName>([
@@ -101,7 +101,7 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
     scriptId: string;
     keyCodesBySlot: Map<0 | 1 | 2 | 3, string[]>;
   } {
-    const normalized = copyScriptForSlot(script, 0);
+    const normalized = flattenScript(copyScriptForSlot(liftScript(script), 0));
     for (const [key, entry] of scriptMap) {
       if (deepEqual(key, normalized)) {
         return entry;
@@ -136,13 +136,16 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
   const scriptKeyCodes = new Map<string, Map<0 | 1 | 2 | 3, string[]>>();
 
   for (const [normalizedScript, { scriptId, keyCodesBySlot }] of scriptMap) {
-    scripts.push({ scriptId, script: normalizedScript });
+    scripts.push({ scriptId, script: liftScript(normalizedScript) });
     scriptKeyCodes.set(scriptId, keyCodesBySlot);
   }
 
   for (const script of cfg.unboundScripts ?? []) {
     const scriptId = `script_${String(scriptCounter++)}`;
-    scripts.push({ scriptId, script: copyScriptForSlot(script, 0) });
+    scripts.push({
+      scriptId,
+      script: copyScriptForSlot(liftScript(script), 0),
+    });
   }
 
   const slots: [PopupSlot, PopupSlot, PopupSlot, PopupSlot] = [0, 1, 2, 3].map(
@@ -232,7 +235,9 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
         continue;
       }
       boundScriptIds.add(binding.scriptId);
-      const slotScript = copyScriptForSlot(script, slot.gamepadIndex);
+      const slotScript = flattenScript(
+        copyScriptForSlot(script, slot.gamepadIndex)
+      );
       for (const code of binding.keyCodes) {
         addBinding(code, slotScript);
       }
@@ -241,7 +246,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
 
   const unboundScripts = popup.scripts
     .filter((s) => !boundScriptIds.has(s.scriptId))
-    .map((s) => s.script);
+    .map((s) => flattenScript(s.script));
 
   const mouseControls = popup.slots
     .filter((s) => s.mouse.stick !== undefined)

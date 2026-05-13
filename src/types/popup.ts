@@ -1,8 +1,19 @@
 import type {
+  GamepadAction,
   GamepadActionName,
   GameScript,
   OtherGamepadMode,
+  ScriptAction,
 } from './gamepad';
+
+export type TapAction = {
+  type: 'tap';
+  buttons: GamepadAction[];
+  durationMs: number;
+};
+
+export type PopupScriptAction = ScriptAction<TapAction>;
+export type PopupGameScript = GameScript<PopupScriptAction>;
 
 export type SlotBindings = Record<GamepadActionName, string[]>;
 
@@ -26,7 +37,7 @@ export interface PopupSlot {
 
 export interface PopupScript {
   scriptId: string;
-  script: GameScript;
+  script: PopupGameScript;
 }
 
 export type GlobalBindings = Record<GamepadActionName, string[]>;

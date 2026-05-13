@@ -1,6 +1,7 @@
 import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
+import type { GamepadActionName } from '@/types/gamepad';
+import type { PopupScriptAction } from '@/types/popup';
 import { firstInfiniteIndex } from '@/popup/script-helpers';
 import ScriptActionRow from './script-action-row';
 
@@ -20,11 +21,11 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  actions: ScriptAction[];
+  actions: PopupScriptAction[];
   gamepadIndex: 0 | 1 | 2 | 3;
   parentPressedKeys?: Set<GamepadActionName>;
   disabled?: boolean;
-  onChange: (actions: ScriptAction[]) => void;
+  onChange: (actions: PopupScriptAction[]) => void;
 }
 
 export default function ScriptActionList({
@@ -34,7 +35,7 @@ export default function ScriptActionList({
   disabled = false,
   onChange,
 }: Props) {
-  function handleChange(i: number, action: ScriptAction) {
+  function handleChange(i: number, action: PopupScriptAction) {
     onChange(actions.map((a, idx) => (idx === i ? action : a)));
   }
 

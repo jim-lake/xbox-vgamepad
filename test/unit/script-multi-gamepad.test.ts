@@ -4,7 +4,10 @@ import {
   exportPopupConfig,
   parseImportedConfig,
 } from '../../src/popup/config.ts';
-import { copyScriptForSlot } from '../../src/popup/script-helpers.ts';
+import {
+  copyScriptForSlot,
+  flattenScript,
+} from '../../src/popup/script-helpers.ts';
 import type { GamepadConfig, GameScript } from '../../src/types/gamepad.ts';
 import type { PopupConfig, ScriptBinding } from '../../src/types/popup.ts';
 
@@ -26,8 +29,8 @@ const BASE_SCRIPT: GameScript = {
 function makeGameConfig(slot0Key: string, slot1Key: string): GamepadConfig {
   return {
     keyboardConfig: {
-      [slot0Key]: [copyScriptForSlot(BASE_SCRIPT, 0)],
-      [slot1Key]: [copyScriptForSlot(BASE_SCRIPT, 1)],
+      [slot0Key]: [flattenScript(copyScriptForSlot(BASE_SCRIPT, 0))],
+      [slot1Key]: [flattenScript(copyScriptForSlot(BASE_SCRIPT, 1))],
     },
     mouseConfig: { mouseControls: [] },
   };
@@ -237,7 +240,9 @@ const LOOP_SCRIPT_SLOT0: GameScript = {
   ],
 };
 
-const LOOP_SCRIPT_SLOT1: GameScript = copyScriptForSlot(LOOP_SCRIPT_SLOT0, 1);
+const LOOP_SCRIPT_SLOT1: GameScript = flattenScript(
+  copyScriptForSlot(LOOP_SCRIPT_SLOT0, 1)
+);
 
 void test('reload: loop-script on slot 0 (KeyI) and slot 1 (KeyO) — slot 0 key preserved', () => {
   const cfg: GamepadConfig = {

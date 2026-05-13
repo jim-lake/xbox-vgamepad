@@ -7,7 +7,7 @@ import {
 import TextButton from '@/components/buttons/text_button';
 import Select from '@/components/select';
 import BindingBadges from './binding-badges';
-import type { GameScript } from '@/types/gamepad';
+import type { PopupGameScript } from '@/types/popup';
 import ScriptActionList from './script-action-list';
 
 const ACTIVATION_OPTIONS = [
@@ -61,10 +61,10 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  script: GameScript;
+  script: PopupGameScript;
   boundKeys: string[];
   gamepadIndex: 0 | 1 | 2 | 3;
-  onChange: (script: GameScript) => void;
+  onChange: (script: PopupGameScript) => void;
   onAddBinding: () => void;
   onRemoveBinding: (code: string) => void;
   onDone: () => void;
@@ -109,7 +109,7 @@ export default function ScriptEditBox({
           onChange={(v) => {
             onChange({
               ...script,
-              activationType: v as GameScript['activationType'],
+              activationType: v as PopupGameScript['activationType'],
             });
           }}
         />
