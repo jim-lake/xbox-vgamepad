@@ -220,6 +220,38 @@ export function freeSentinel(
   return sentinel;
 }
 
+/**
+ * Returns true if the action list is effectively infinite — i.e. it contains
+ * a forever loop, or a finite loop whose child actions are themselves infinite.
+ */
+export function isInfiniteActions(actions: ScriptAction[]): boolean {
+  for (const a of actions) {
+    if (a.type === 'loop') {
+      if (a.count === 'infinite' || isInfiniteActions(a.actions)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns the index of the first action that makes the list infinite
+ * (a forever loop, or a finite loop with infinite children), or -1 if none.
+ */
+export function firstInfiniteIndex(actions: ScriptAction[]): number {
+  for (let i = 0; i < actions.length; i++) {
+    const a = actions[i];
+    if (
+      a?.type === 'loop' &&
+      (a.count === 'infinite' || isInfiniteActions(a.actions))
+    ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function remapActions(
   actions: ScriptAction[],
   slotIndex: 0 | 1 | 2 | 3

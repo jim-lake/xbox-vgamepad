@@ -1,6 +1,7 @@
 import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import type { ScriptAction, GamepadActionName } from '@/types/gamepad';
+import { firstInfiniteIndex } from '@/popup/script-helpers';
 import ScriptActionRow from './script-action-row';
 
 const styles = StyleSheet.create({
@@ -22,6 +23,7 @@ interface Props {
   actions: ScriptAction[];
   gamepadIndex: 0 | 1 | 2 | 3;
   parentPressedKeys?: Set<GamepadActionName>;
+  disabled?: boolean;
   onChange: (actions: ScriptAction[]) => void;
 }
 
@@ -29,6 +31,7 @@ export default function ScriptActionList({
   actions,
   gamepadIndex,
   parentPressedKeys,
+  disabled = false,
   onChange,
 }: Props) {
   function handleChange(i: number, action: ScriptAction) {
@@ -42,6 +45,9 @@ export default function ScriptActionList({
   function handleAdd() {
     onChange([...actions, { type: 'down', buttons: [] }]);
   }
+
+  const infiniteAt = disabled ? -1 : firstInfiniteIndex(actions);
+  const addDisabled = disabled || infiniteAt !== -1;
 
   return (
     <View style={styles.container}>
@@ -59,6 +65,7 @@ export default function ScriptActionList({
             }
           }
         }
+        const rowDisabled = disabled || (infiniteAt !== -1 && i > infiniteAt);
         return (
           <View
             key={i}
@@ -69,6 +76,7 @@ export default function ScriptActionList({
               index={i}
               gamepadIndex={gamepadIndex}
               pressedKeys={pressed}
+              disabled={rowDisabled}
               onChange={handleChange}
               onRemove={handleRemove}
               renderActionList={(nested, nestedPressed, nestedOnChange) => (
@@ -76,6 +84,7 @@ export default function ScriptActionList({
                   actions={nested}
                   gamepadIndex={gamepadIndex}
                   parentPressedKeys={nestedPressed}
+                  disabled={rowDisabled}
                   onChange={nestedOnChange}
                 />
               )}
@@ -84,7 +93,12 @@ export default function ScriptActionList({
         );
       })}
       <View style={styles.addRow}>
-        <TextButton text='Add Action' type='green' onPress={handleAdd} />
+        <TextButton
+          text='Add Action'
+          type='green'
+          disabled={addDisabled}
+          onPress={handleAdd}
+        />
       </View>
     </View>
   );

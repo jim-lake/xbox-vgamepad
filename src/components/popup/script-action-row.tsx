@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   spacer: { flex: 1 },
+  disabled: { opacity: 0.4, pointerEvents: 'none' as const },
   badge: {
     backgroundColor: 'var(--chip-bg)',
     paddingLeft: '1rem',
@@ -88,6 +89,7 @@ export interface ScriptActionRowProps {
   index: number;
   gamepadIndex: 0 | 1 | 2 | 3;
   pressedKeys: Set<GamepadActionName>;
+  disabled?: boolean;
   onChange: (index: number, action: ScriptAction) => void;
   onRemove: (index: number) => void;
   renderActionList: (
@@ -102,6 +104,7 @@ export default function ScriptActionRow({
   index,
   gamepadIndex,
   pressedKeys,
+  disabled = false,
   onChange,
   onRemove,
   renderActionList,
@@ -128,7 +131,7 @@ export default function ScriptActionRow({
 
   if (action.type === 'delay') {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
         <View style={styles.headerRow}>
           <Select
             value={action.type}
@@ -164,7 +167,9 @@ export default function ScriptActionRow({
   if (action.type === 'loop') {
     const isForever = action.count === 'infinite';
     return (
-      <View style={styles.loopContainer}>
+      <View
+        style={[styles.loopContainer, disabled ? styles.disabled : undefined]}
+      >
         <View style={styles.loopHeaderRow}>
           <Select
             value={isForever ? 'loop_forever' : 'loop'}
@@ -214,7 +219,7 @@ export default function ScriptActionRow({
       (action.type === 'up' && !pressedKeys.has(o.value)),
   }));
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, disabled ? styles.disabled : undefined]}>
       <View style={styles.headerRow}>
         <Select
           value={action.type}
