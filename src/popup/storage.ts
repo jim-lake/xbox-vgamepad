@@ -48,6 +48,21 @@ export async function getGameName(): Promise<string | null> {
   return (data['gameName'] as string | null | undefined) ?? null;
 }
 
+export async function getGamePresets(): Promise<Record<string, string>> {
+  const data = await chrome.storage.local.get('gamePresets');
+  return (data['gamePresets'] as Record<string, string> | undefined) ?? {};
+}
+
+export async function setGamePreset(
+  gameName: string,
+  presetName: string
+): Promise<void> {
+  const existing = await getGamePresets();
+  await chrome.storage.local.set({
+    gamePresets: { ...existing, [gameName]: presetName },
+  });
+}
+
 export async function clearStorage(): Promise<void> {
   await Promise.all([
     chrome.storage.sync.clear(),

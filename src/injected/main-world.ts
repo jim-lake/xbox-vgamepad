@@ -147,7 +147,9 @@ function onGameDetected(): void {
   // Listen for responses from content script
   window.addEventListener('message', onWindowMessage);
 
-  // Poll for game exit
+  let currentGameName = gameName;
+
+  // Poll for game exit or game name change
   pollTimer = setInterval(() => {
     if (!detectGame()) {
       if (pollTimer !== null) {
@@ -158,6 +160,16 @@ function onGameDetected(): void {
       sendMessage({ source: MSG_SOURCE, type: 'GAME_CHANGED', gameName: null });
       window.removeEventListener('message', onWindowMessage);
       startWaitingForGame();
+    } else {
+      const newGameName = getGameName();
+      if (newGameName !== currentGameName) {
+        currentGameName = newGameName;
+        sendMessage({
+          source: MSG_SOURCE,
+          type: 'GAME_CHANGED',
+          gameName: newGameName,
+        });
+      }
     }
   }, POLL_INTERVAL);
 }

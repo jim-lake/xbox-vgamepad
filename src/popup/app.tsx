@@ -21,6 +21,7 @@ import {
   setActiveConfig,
   setEnabled,
   getGameName,
+  setGamePreset,
   clearStorage,
   MAX_PRESETS,
   DEFAULT_POPUP,
@@ -219,8 +220,11 @@ export default function App() {
       clearScriptEditState();
       await setActiveConfig(name);
       await broadcastPopupConfig(name, popup);
+      if (gameName !== null) {
+        await setGamePreset(gameName, name);
+      }
     },
-    [configs]
+    [configs, gameName]
   );
 
   const createPreset = React.useCallback(

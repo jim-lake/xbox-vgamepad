@@ -26,16 +26,30 @@ function updateIcon(enabled: boolean): void {
   });
 }
 
-function getActiveConfig(data: Record<string, unknown>): {
+function resolveConfig(
+  syncData: Record<string, unknown>,
+  presetName: string
+): GamepadConfig | undefined {
+  const raw = syncData[`${CONFIG_PREFIX}${presetName}`];
+  return (
+    (validateConfig(raw) ? raw : undefined) ??
+    (presetName === 'default' ? DEFAULT_CONFIG : undefined)
+  );
+}
+
+function getActiveConfig(syncData: Record<string, unknown>): {
   name: string;
   config: GamepadConfig | undefined;
 } {
-  const name = (data['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
-  const raw = data[`${CONFIG_PREFIX}${name}`];
-  const config =
-    (validateConfig(raw) ? raw : undefined) ??
-    (name === 'default' ? DEFAULT_CONFIG : undefined);
-  return { name, config };
+  const name = (syncData['ACTIVE_GP_CONF'] as string | undefined) ?? 'default';
+  return { name, config: resolveConfig(syncData, name) };
+}
+
+async function getGamePreset(gameName: string): Promise<string | undefined> {
+  const localData = await chrome.storage.local.get('gamePresets');
+  const gamePresets =
+    (localData['gamePresets'] as Record<string, string> | undefined) ?? {};
+  return gamePresets[gameName];
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -55,6 +69,86 @@ chrome.storage.sync.onChanged.addListener((changes) => {
   }
 });
 
+async function handleInitialized(
+  gameName: string | null,
+  sendResponse: (
+    msg: ActivateGamepadConfigMessage | DisableGamepadMessage
+  ) => void
+): Promise<void> {
+  const [syncData, gamePreset] = await Promise.all([
+    chrome.storage.sync.get(null),
+    gameName !== null ? getGamePreset(gameName) : Promise.resolve(undefined),
+  ]);
+
+  const isEnabled = (syncData['ENABLED'] as boolean | undefined) ?? true;
+
+  const { name, config } = gamePreset
+    ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
+    : getActiveConfig(syncData);
+
+  if (isEnabled && config) {
+    sendResponse({
+      source: MSG_SOURCE,
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name,
+      gamepadConfig: config,
+      overlayMinimized:
+        (syncData['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
+    });
+  } else {
+    sendResponse({ source: MSG_SOURCE, type: 'DISABLE_GAMEPAD' });
+  }
+}
+
+async function handleGameChanged(
+  gameName: string,
+  tabId: number
+): Promise<void> {
+  const presetName = await getGamePreset(gameName);
+  if (!presetName) {
+    return;
+  }
+  const syncData = await chrome.storage.sync.get(null);
+  const isEnabled = (syncData['ENABLED'] as boolean | undefined) ?? true;
+  if (!isEnabled) {
+    return;
+  }
+  const config = resolveConfig(syncData, presetName);
+  if (!config) {
+    return;
+  }
+  void chrome.tabs.sendMessage(tabId, {
+    source: MSG_SOURCE,
+    type: 'ACTIVATE_GAMEPAD_CONFIG',
+    name: presetName,
+    gamepadConfig: config,
+  } satisfies ActivateGamepadConfigMessage);
+}
+
+async function handleToggleEnabled(
+  enabled: boolean,
+  tabId: number
+): Promise<void> {
+  await chrome.storage.sync.set({ ENABLED: enabled });
+  if (enabled) {
+    const syncData = await chrome.storage.sync.get(null);
+    const { name, config } = getActiveConfig(syncData);
+    if (config) {
+      void chrome.tabs.sendMessage(tabId, {
+        source: MSG_SOURCE,
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name,
+        gamepadConfig: config,
+      } satisfies ActivateGamepadConfigMessage);
+    }
+  } else {
+    void chrome.tabs.sendMessage(tabId, {
+      source: MSG_SOURCE,
+      type: 'DISABLE_GAMEPAD',
+    } satisfies DisableGamepadMessage);
+  }
+}
+
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage, sender, sendResponse) => {
     if (!sender.tab) {
@@ -70,60 +164,24 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'INITIALIZED') {
       void chrome.storage.local.set({ gameName: message.gameName });
-      chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
-        const isEnabled = (data['ENABLED'] as boolean | undefined) ?? true;
-        const { name, config } = getActiveConfig(data);
-
-        if (isEnabled && config) {
-          const response: ActivateGamepadConfigMessage = {
-            source: MSG_SOURCE,
-            type: 'ACTIVATE_GAMEPAD_CONFIG',
-            name,
-            gamepadConfig: config,
-            overlayMinimized:
-              (data['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
-          };
-          sendResponse(response);
-        } else {
-          const response: DisableGamepadMessage = {
-            source: MSG_SOURCE,
-            type: 'DISABLE_GAMEPAD',
-          };
-          sendResponse(response);
-        }
-      });
+      void handleInitialized(message.gameName, sendResponse);
       return true;
     }
 
     if (message.type === 'GAME_CHANGED') {
       void chrome.storage.local.set({ gameName: message.gameName });
+      const { gameName } = message;
+      const tabId = sender.tab.id;
+      if (gameName !== null && tabId !== undefined) {
+        void handleGameChanged(gameName, tabId);
+      }
       return false;
     }
 
     if (message.type === 'TOGGLE_ENABLED') {
       const tabId = sender.tab.id;
-      void chrome.storage.sync.set({ ENABLED: message.enabled });
-      if (message.enabled) {
-        chrome.storage.sync.get(null, (data: Record<string, unknown>) => {
-          const { name, config } = getActiveConfig(data);
-          if (config && tabId !== undefined) {
-            const msg: ActivateGamepadConfigMessage = {
-              source: MSG_SOURCE,
-              type: 'ACTIVATE_GAMEPAD_CONFIG',
-              name,
-              gamepadConfig: config,
-            };
-            void chrome.tabs.sendMessage(tabId, msg);
-          }
-        });
-      } else {
-        if (tabId !== undefined) {
-          const msg: DisableGamepadMessage = {
-            source: MSG_SOURCE,
-            type: 'DISABLE_GAMEPAD',
-          };
-          void chrome.tabs.sendMessage(tabId, msg);
-        }
+      if (tabId !== undefined) {
+        void handleToggleEnabled(message.enabled, tabId);
       }
       return false;
     }

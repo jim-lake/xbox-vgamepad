@@ -460,6 +460,8 @@ export {
   setActiveConfig,
   setEnabled,
   getGameName,
+  getGamePresets,
+  setGamePreset,
   clearStorage,
 } from './storage';
 
