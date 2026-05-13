@@ -233,3 +233,13 @@ void test('round-trip: plain matching down+delay+up → lift → flatten = origi
   const original: ScriptAction[] = [down(btn('a')), delay(100), up(btn('a'))];
   assert.deepEqual(flattenActions(liftActions(original)), original);
 });
+
+void test('flatten: empty-button tap → down+delay+up with empty buttons', () => {
+  const t = tap();
+  const result = flattenActions([t]);
+  assert.deepEqual(result, [
+    { type: 'down', buttons: [] },
+    { type: 'delay', durationMs: 100 },
+    { type: 'up', buttons: [] },
+  ]);
+});

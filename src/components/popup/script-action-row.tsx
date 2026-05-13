@@ -52,6 +52,7 @@ const styles = StyleSheet.create({
     color: 'var(--text-muted)',
     fontSize: '1.3rem',
     marginRight: '1rem',
+    width: '8rem',
   },
   loopCountInput: {
     color: 'var(--text-primary)',
@@ -112,17 +113,13 @@ export default function ScriptActionRow({
 }: ScriptActionRowProps) {
   function handleTypeChange(val: string) {
     if (val === 'tap') {
-      const existingButton =
-        action.type === 'down' || action.type === 'up'
-          ? action.buttons[0]
-          : action.type === 'tap'
-            ? action.buttons[0]
-            : undefined;
+      const existingButtons =
+        action.type === 'down' || action.type === 'up' || action.type === 'tap'
+          ? action.buttons
+          : [];
       onChange(index, {
         type: 'tap',
-        buttons: existingButton
-          ? [existingButton]
-          : [{ type: 'action', gamepadIndex, action: 'a' }],
+        buttons: existingButtons,
         durationMs: 100,
       });
     } else if (val === 'delay') {
@@ -165,7 +162,7 @@ export default function ScriptActionRow({
           />
         </View>
         <View style={styles.params}>
-          <Text style={styles.paramLabel}>Tap Time</Text>
+          <Text style={styles.paramLabel}>Milliseconds</Text>
           <TextInput
             style={styles.delayInput}
             value={String(action.durationMs)}
