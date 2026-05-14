@@ -7,6 +7,7 @@ import {
 } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
+import { Badge } from '@/components/popup/binding-badges';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupScriptAction } from '@/types/popup';
 import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
@@ -25,7 +26,6 @@ const styles = StyleSheet.create({
     paddingBottom: '1rem',
   },
   loopContainer: { flexDirection: 'column', paddingTop: '0.5rem' },
-  loopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: '0.4rem' },
   loopBody: {
     borderLeftWidth: 1,
     borderLeftColor: 'var(--row-border)',
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     paddingLeft: '10px',
     marginLeft: '10px',
   },
-  delayInput: {
+  numInput: {
     color: 'var(--text-primary)',
     fontSize: '1.4rem',
     borderWidth: 1,
@@ -54,15 +54,6 @@ const styles = StyleSheet.create({
     marginRight: '1rem',
     width: '8rem',
   },
-  loopCountInput: {
-    color: 'var(--text-primary)',
-    fontSize: '1.4rem',
-    borderWidth: 1,
-    borderRadius: '0.4rem',
-    padding: '0.4rem 0.5rem',
-    backgroundColor: 'var(--input-bg)',
-    width: '5rem',
-  },
   buttonList: {
     flexDirection: 'row',
     gap: '0.4rem',
@@ -72,19 +63,71 @@ const styles = StyleSheet.create({
   },
   spacer: { flex: 1 },
   disabled: { opacity: 0.4, pointerEvents: 'none' as const },
-  badge: {
-    backgroundColor: 'var(--chip-bg)',
-    paddingLeft: '1rem',
-    paddingRight: '1rem',
-    paddingTop: '0.2rem',
-    paddingBottom: '0.2rem',
-    borderRadius: '1rem',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  badgeText: { color: 'var(--text-primary)', fontSize: '1.3rem' },
-  badgeDelete: { marginLeft: '0.5rem' },
 });
+
+// --- sub-components (file-private) ---
+
+interface ActionHeaderProps {
+  value: string;
+  onTypeChange: (val: string) => void;
+  onRemove: () => void;
+}
+
+function ActionHeader({ value, onTypeChange, onRemove }: ActionHeaderProps) {
+  return (
+    <View style={styles.headerRow}>
+      <Select value={value} options={TYPE_OPTIONS} onChange={onTypeChange} />
+      <View style={styles.spacer} />
+      <IconButton source={closeIcon} type='danger' onPress={onRemove} />
+    </View>
+  );
+}
+
+interface ButtonPickerProps {
+  buttons: { action: GamepadActionName }[];
+  gamepadIndex: 0 | 1 | 2 | 3;
+  addOptions: { value: string; text: string; disabled?: boolean }[];
+  onRemoveButton: (bi: number) => void;
+  onAddButton: (action: GamepadActionName) => void;
+}
+
+function ButtonPicker({
+  buttons,
+  addOptions,
+  gamepadIndex: _gamepadIndex,
+  onRemoveButton,
+  onAddButton,
+}: ButtonPickerProps) {
+  const usedActions = new Set(buttons.map((b) => b.action));
+  return (
+    <View style={styles.buttonList}>
+      {buttons.map((btn, bi) => (
+        <Badge
+          key={bi}
+          text={
+            ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
+            btn.action
+          }
+          onRemove={() => {
+            onRemoveButton(bi);
+          }}
+        />
+      ))}
+      <Select
+        value=''
+        placeholder='Pick Key'
+        options={addOptions}
+        onChange={(v) => {
+          if (!usedActions.has(v as GamepadActionName)) {
+            onAddButton(v as GamepadActionName);
+          }
+        }}
+      />
+    </View>
+  );
+}
+
+// --- main component ---
 
 export interface ScriptActionRowProps {
   action: PopupScriptAction;
@@ -150,30 +193,24 @@ export default function ScriptActionRow({
     }
   }
 
+  const wrap = disabled ? styles.disabled : undefined;
+
   if (action.type === 'tap') {
     const { buttons } = action;
     const usedActions = new Set(buttons.map((b) => b.action));
     return (
-      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
-        <View style={styles.headerRow}>
-          <Select
-            value='tap'
-            options={TYPE_OPTIONS}
-            onChange={handleTypeChange}
-          />
-          <View style={styles.spacer} />
-          <IconButton
-            source={closeIcon}
-            type='danger'
-            onPress={() => {
-              onRemove(index);
-            }}
-          />
-        </View>
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='tap'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
           <TextInput
-            style={styles.delayInput}
+            style={styles.numInput}
             value={String(action.durationMs)}
             onChangeText={(v) => {
               const n = parseInt(v, 10);
@@ -185,51 +222,29 @@ export default function ScriptActionRow({
         </View>
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Buttons</Text>
-          <View style={styles.buttonList}>
-            {buttons.map((btn, bi) => (
-              <View key={bi} style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
-                    btn.action}
-                </Text>
-                <IconButton
-                  style={styles.badgeDelete}
-                  source={closeIcon}
-                  type='danger'
-                  onPress={() => {
-                    onChange(index, {
-                      ...action,
-                      buttons: buttons.filter((_, j) => j !== bi),
-                    });
-                  }}
-                />
-              </View>
-            ))}
-            <Select
-              value=''
-              placeholder='Pick Key'
-              options={ACTION_OPTIONS.map((o) => ({
-                ...o,
-                disabled: usedActions.has(o.value),
-              }))}
-              onChange={(v) => {
-                if (usedActions.has(v as GamepadActionName)) {
-                  return;
-                }
-                onChange(index, {
-                  ...action,
-                  buttons: [
-                    ...buttons,
-                    {
-                      type: 'action',
-                      gamepadIndex,
-                      action: v as GamepadActionName,
-                    },
-                  ],
-                });
-              }}
-            />
-          </View>
+          <ButtonPicker
+            buttons={buttons}
+            gamepadIndex={gamepadIndex}
+            addOptions={ACTION_OPTIONS.map((o) => ({
+              ...o,
+              disabled: usedActions.has(o.value),
+            }))}
+            onRemoveButton={(bi) => {
+              onChange(index, {
+                ...action,
+                buttons: buttons.filter((_, j) => j !== bi),
+              });
+            }}
+            onAddButton={(a) => {
+              onChange(index, {
+                ...action,
+                buttons: [
+                  ...buttons,
+                  { type: 'action', gamepadIndex, action: a },
+                ],
+              });
+            }}
+          />
         </View>
       </View>
     );
@@ -239,26 +254,18 @@ export default function ScriptActionRow({
     const { buttons } = action;
     const usedActions = new Set(buttons.map((b) => b.action));
     return (
-      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
-        <View style={styles.headerRow}>
-          <Select
-            value='turbo'
-            options={TYPE_OPTIONS}
-            onChange={handleTypeChange}
-          />
-          <View style={styles.spacer} />
-          <IconButton
-            source={closeIcon}
-            type='danger'
-            onPress={() => {
-              onRemove(index);
-            }}
-          />
-        </View>
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='turbo'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Speed (ms)</Text>
           <TextInput
-            style={styles.delayInput}
+            style={styles.numInput}
             value={String(action.speed)}
             onChangeText={(v) => {
               const n = parseInt(v, 10);
@@ -270,51 +277,29 @@ export default function ScriptActionRow({
         </View>
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Buttons</Text>
-          <View style={styles.buttonList}>
-            {buttons.map((btn, bi) => (
-              <View key={bi} style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
-                    btn.action}
-                </Text>
-                <IconButton
-                  style={styles.badgeDelete}
-                  source={closeIcon}
-                  type='danger'
-                  onPress={() => {
-                    onChange(index, {
-                      ...action,
-                      buttons: buttons.filter((_, j) => j !== bi),
-                    });
-                  }}
-                />
-              </View>
-            ))}
-            <Select
-              value=''
-              placeholder='Pick Key'
-              options={ACTION_OPTIONS.map((o) => ({
-                ...o,
-                disabled: usedActions.has(o.value),
-              }))}
-              onChange={(v) => {
-                if (usedActions.has(v as GamepadActionName)) {
-                  return;
-                }
-                onChange(index, {
-                  ...action,
-                  buttons: [
-                    ...buttons,
-                    {
-                      type: 'action',
-                      gamepadIndex,
-                      action: v as GamepadActionName,
-                    },
-                  ],
-                });
-              }}
-            />
-          </View>
+          <ButtonPicker
+            buttons={buttons}
+            gamepadIndex={gamepadIndex}
+            addOptions={ACTION_OPTIONS.map((o) => ({
+              ...o,
+              disabled: usedActions.has(o.value),
+            }))}
+            onRemoveButton={(bi) => {
+              onChange(index, {
+                ...action,
+                buttons: buttons.filter((_, j) => j !== bi),
+              });
+            }}
+            onAddButton={(a) => {
+              onChange(index, {
+                ...action,
+                buttons: [
+                  ...buttons,
+                  { type: 'action', gamepadIndex, action: a },
+                ],
+              });
+            }}
+          />
         </View>
       </View>
     );
@@ -322,26 +307,18 @@ export default function ScriptActionRow({
 
   if (action.type === 'delay') {
     return (
-      <View style={[styles.container, disabled ? styles.disabled : undefined]}>
-        <View style={styles.headerRow}>
-          <Select
-            value={action.type}
-            options={TYPE_OPTIONS}
-            onChange={handleTypeChange}
-          />
-          <View style={styles.spacer} />
-          <IconButton
-            source={closeIcon}
-            type='danger'
-            onPress={() => {
-              onRemove(index);
-            }}
-          />
-        </View>
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='delay'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
           <TextInput
-            style={styles.delayInput}
+            style={styles.numInput}
             value={String(action.durationMs)}
             onChangeText={(v) => {
               const n = parseInt(v, 10);
@@ -358,29 +335,19 @@ export default function ScriptActionRow({
   if (action.type === 'loop') {
     const isForever = action.count === 'infinite';
     return (
-      <View
-        style={[styles.loopContainer, disabled ? styles.disabled : undefined]}
-      >
-        <View style={styles.loopHeaderRow}>
-          <Select
-            value={isForever ? 'loop_forever' : 'loop'}
-            options={TYPE_OPTIONS}
-            onChange={handleTypeChange}
-          />
-          <View style={styles.spacer} />
-          <IconButton
-            source={closeIcon}
-            type='danger'
-            onPress={() => {
-              onRemove(index);
-            }}
-          />
-        </View>
+      <View style={[styles.loopContainer, wrap]}>
+        <ActionHeader
+          value={isForever ? 'loop_forever' : 'loop'}
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
         {!isForever && (
           <View style={styles.params}>
             <Text style={styles.paramLabel}>Times</Text>
             <TextInput
-              style={styles.loopCountInput}
+              style={styles.numInput}
               value={String(action.count)}
               onChangeText={(v) => {
                 const n = parseInt(v, 10);
@@ -403,69 +370,42 @@ export default function ScriptActionRow({
   // down / up
   const { buttons } = action;
   const usedActions = new Set(buttons.map((b) => b.action));
-  const addOptions = ACTION_OPTIONS.map((o) => ({
-    ...o,
-    disabled:
-      usedActions.has(o.value) ||
-      (action.type === 'up' && !pressedKeys.has(o.value)),
-  }));
   return (
-    <View style={[styles.container, disabled ? styles.disabled : undefined]}>
-      <View style={styles.headerRow}>
-        <Select
-          value={action.type}
-          options={TYPE_OPTIONS}
-          onChange={handleTypeChange}
-        />
-        <View style={styles.spacer} />
-        <IconButton
-          source={closeIcon}
-          type='danger'
-          onPress={() => {
-            onRemove(index);
-          }}
-        />
-      </View>
+    <View style={[styles.container, wrap]}>
+      <ActionHeader
+        value={action.type}
+        onTypeChange={handleTypeChange}
+        onRemove={() => {
+          onRemove(index);
+        }}
+      />
       <View style={styles.params}>
         <Text style={styles.paramLabel}>Keys</Text>
-        <View style={styles.buttonList}>
-          {buttons.map((btn, bi) => (
-            <View key={bi} style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {ACTION_OPTIONS.find((o) => o.value === btn.action)?.text ??
-                  btn.action}
-              </Text>
-              <IconButton
-                style={styles.badgeDelete}
-                source={closeIcon}
-                type='danger'
-                onPress={() => {
-                  const next = buttons.filter((_, j) => j !== bi);
-                  onChange(index, { type: action.type, buttons: next });
-                }}
-              />
-            </View>
-          ))}
-          <Select
-            value=''
-            placeholder='Pick Key'
-            options={addOptions}
-            onChange={(v) => {
-              if (usedActions.has(v as GamepadActionName)) {
-                return;
-              }
-              const next = [
+        <ButtonPicker
+          buttons={buttons}
+          gamepadIndex={gamepadIndex}
+          addOptions={ACTION_OPTIONS.map((o) => ({
+            ...o,
+            disabled:
+              usedActions.has(o.value) ||
+              (action.type === 'up' && !pressedKeys.has(o.value)),
+          }))}
+          onRemoveButton={(bi) => {
+            onChange(index, {
+              type: action.type,
+              buttons: buttons.filter((_, j) => j !== bi),
+            });
+          }}
+          onAddButton={(a) => {
+            onChange(index, {
+              type: action.type,
+              buttons: [
                 ...buttons,
-                {
-                  type: 'action' as const,
-                  gamepadIndex,
-                  action: v as GamepadActionName,
-                },
-              ];
-              onChange(index, { type: action.type, buttons: next });
-            }}
-          />
-        </View>
+                { type: 'action' as const, gamepadIndex, action: a },
+              ],
+            });
+          }}
+        />
       </View>
     </View>
   );

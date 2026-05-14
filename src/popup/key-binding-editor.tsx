@@ -1,8 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, View } from '@/components/base_components';
+import { StyleSheet, View } from '@/components/base_components';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { SlotBindings } from '@/types/popup';
 import BindingBadges from '@/components/popup/binding-badges';
+import FormRow from '@/components/popup/form-row';
+import KeyCaptureModal from '@/components/popup/key-capture-modal';
 
 const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
   { action: 'a', label: 'A' },
@@ -33,41 +35,7 @@ const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
   { action: 'toggleGamepad', label: 'Toggle Gamepad' },
 ];
 
-const styles = StyleSheet.create({
-  container: { flexDirection: 'column' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
-  modal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'var(--modal-overlay)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: 'var(--app-bg)',
-    padding: '2rem',
-    borderRadius: '1rem',
-    alignItems: 'center',
-  },
-  modalText: {
-    color: 'var(--text-primary)',
-    fontSize: '1.4rem',
-    marginBottom: '1rem',
-  },
-  modalSub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
-});
+const styles = StyleSheet.create({ container: { flexDirection: 'column' } });
 
 interface Props {
   bindings: SlotBindings;
@@ -144,8 +112,7 @@ export default function KeyBindingEditor({ bindings, onChange }: Props) {
       {ACTION_LABELS.map(({ action, label }) => {
         const codes = [...bindings[action]].sort((a, b) => a.localeCompare(b));
         return (
-          <View key={action} style={styles.row}>
-            <Text style={styles.label}>{label}</Text>
+          <FormRow key={action} label={label}>
             <BindingBadges
               codes={codes}
               onAdd={() => {
@@ -155,18 +122,11 @@ export default function KeyBindingEditor({ bindings, onChange }: Props) {
                 onChange(action, code, 'remove');
               }}
             />
-          </View>
+          </FormRow>
         );
       })}
 
-      {listening !== null && (
-        <View style={styles.modal}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Press a key or mouse button</Text>
-            <Text style={styles.modalSub}>Escape to cancel</Text>
-          </View>
-        </View>
-      )}
+      {listening !== null && <KeyCaptureModal />}
     </View>
   );
 }

@@ -1,19 +1,12 @@
-import { StyleSheet, Text, View } from '@/components/base_components';
+import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import type { ScriptEntry } from '@/popup/script-helpers';
 import { isSentinelKey } from '@/popup/script-helpers';
 import BindingBadges from './binding-badges';
+import FormRow from './form-row';
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
+  right: { flexDirection: 'row', alignItems: 'center' },
 });
 
 interface Props {
@@ -31,14 +24,15 @@ export default function ScriptRow({
 }: Props) {
   const boundKeys = entry.keyCodes.filter((c) => !isSentinelKey(c));
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{entry.script.name || '(unnamed)'}</Text>
+    <FormRow label={entry.script.name || '(unnamed)'}>
       <BindingBadges
         codes={boundKeys}
         onAdd={onAddBinding}
         onRemove={onRemoveBinding}
       />
-      <TextButton text='Edit' type='ghost' onPress={onEdit} />
-    </View>
+      <View style={styles.right}>
+        <TextButton text='Edit' type='ghost' onPress={onEdit} />
+      </View>
+    </FormRow>
   );
 }

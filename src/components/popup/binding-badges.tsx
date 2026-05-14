@@ -28,6 +28,25 @@ const styles = StyleSheet.create({
   addBtn: { marginLeft: '0.4rem' },
 });
 
+interface BadgeProps {
+  text: string;
+  onRemove: () => void;
+}
+
+export function Badge({ text, onRemove }: BadgeProps) {
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.badgeText}>{text}</Text>
+      <IconButton
+        style={styles.deleteBtn}
+        source={closeIcon}
+        type='danger'
+        onPress={onRemove}
+      />
+    </View>
+  );
+}
+
 interface Props {
   codes: string[];
   onAdd: () => void;
@@ -38,17 +57,13 @@ export default function BindingBadges({ codes, onAdd, onRemove }: Props) {
   return (
     <View style={styles.container}>
       {codes.map((code) => (
-        <View key={code} style={styles.badge}>
-          <Text style={styles.badgeText}>{formatCode(code)}</Text>
-          <IconButton
-            style={styles.deleteBtn}
-            source={closeIcon}
-            type='danger'
-            onPress={() => {
-              onRemove(code);
-            }}
-          />
-        </View>
+        <Badge
+          key={code}
+          text={formatCode(code)}
+          onRemove={() => {
+            onRemove(code);
+          }}
+        />
       ))}
       <IconButton
         style={styles.addBtn}

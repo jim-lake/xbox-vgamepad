@@ -1,21 +1,12 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import Range from '@/components/range';
+import FormRow from './form-row';
 import type { MouseControlTarget } from '@/types/gamepad';
 import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: '1rem',
-    paddingTop: '1rem',
-    gap: '1rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { color: 'var(--text-muted)', fontSize: '1.4rem', width: '10rem' },
   option: {
     paddingLeft: '0.6rem',
     paddingRight: '0.6rem',
@@ -52,15 +43,11 @@ export default function MouseSettings({
   const target = mouseControls[0];
   const currentStick = target?.stick;
   const sensitivity = target?.sensitivity ?? DEFAULT_SENSITIVITY;
-  // Display sensitivity inverted: higher display = more sensitive
-  // Stored as divisor: higher stored = less sensitive
-  // Display = 1001 - stored
   const displaySensitivity = 1001 - sensitivity;
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <Text style={styles.label}>Stick</Text>
+      <FormRow label='Stick'>
         {STICK_OPTIONS.map(({ label, value }) => (
           <TextButton
             key={label}
@@ -77,9 +64,8 @@ export default function MouseSettings({
             }}
           />
         ))}
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Sensitivity</Text>
+      </FormRow>
+      <FormRow label='Sensitivity'>
         <Range
           style={styles.rangeInput}
           min={1}
@@ -90,7 +76,7 @@ export default function MouseSettings({
           }}
         />
         <Text style={styles.sensitivityValue}>{displaySensitivity}</Text>
-      </View>
+      </FormRow>
     </View>
   );
 }

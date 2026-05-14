@@ -1,12 +1,8 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-} from '@/components/base_components';
+import { StyleSheet, View, TextInput } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import Select from '@/components/select';
 import BindingBadges from './binding-badges';
+import FormRow from './form-row';
 import type { PopupGameScript } from '@/types/popup';
 import ScriptActionList from './script-action-list';
 
@@ -25,16 +21,7 @@ const styles = StyleSheet.create({
     paddingTop: '0.5rem',
     paddingBottom: '0.8rem',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '0.5rem',
-    paddingTop: '1rem',
-    paddingBottom: '1rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { width: '8rem', color: 'var(--text-muted)', fontSize: '1.3rem' },
+  tallRow: { paddingTop: '1rem', paddingBottom: '1rem' },
   nameInput: {
     flex: 1,
     color: 'var(--text-primary)',
@@ -83,8 +70,7 @@ export default function ScriptEditBox({
 }: Props) {
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <Text style={styles.label}>Name</Text>
+      <FormRow label='Name' style={styles.tallRow}>
         <TextInput
           style={styles.nameInput}
           value={script.name}
@@ -92,17 +78,15 @@ export default function ScriptEditBox({
             onChange({ ...script, name: v });
           }}
         />
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Buttons</Text>
+      </FormRow>
+      <FormRow label='Buttons' style={styles.tallRow}>
         <BindingBadges
           codes={boundKeys}
           onAdd={onAddBinding}
           onRemove={onRemoveBinding}
         />
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Activation</Text>
+      </FormRow>
+      <FormRow label='Activation' style={styles.tallRow}>
         <Select
           value={script.activationType}
           options={[...ACTIVATION_OPTIONS]}
@@ -113,7 +97,7 @@ export default function ScriptEditBox({
             });
           }}
         />
-      </View>
+      </FormRow>
       <View style={styles.actionList}>
         <ScriptActionList
           actions={script.actions}
