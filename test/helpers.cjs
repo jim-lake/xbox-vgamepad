@@ -33,7 +33,9 @@ function patchManifest(_port) {
 async function launchBrowserWithExtension() {
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: '/usr/bin/chromium',
+    executablePath: process.env.CHROMIUM_PATH || (process.platform === 'linux'
+      ? '/usr/bin/chromium'
+      : puppeteer.executablePath()),
     args: [
       `--disable-extensions-except=${DIST_DIR}`,
       `--load-extension=${DIST_DIR}`,
