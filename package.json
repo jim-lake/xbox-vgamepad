@@ -10,7 +10,8 @@
     "lint": "eslint . --fix",
     "pretty": "prettier --write .",
     "preview": "vite preview",
-    "test": "vite build --mode test && node test/gamepad.test.cjs",
+    "test": "npm run test:unit && npm test:integration",
+    "test:integration": "vite build --mode test && node test/gamepad.test.cjs",
     "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'"
   },
   "dependencies": {
