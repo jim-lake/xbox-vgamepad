@@ -47,11 +47,7 @@ export default function buildNumberPlugin(): Plugin {
       } else {
         g_version = String(pkg_object['version']) + '-dev';
       }
-      return {
-        define: {
-          __PACKAGE_VERSION__: JSON.stringify(g_version),
-        },
-      };
+      return { define: { __PACKAGE_VERSION__: JSON.stringify(g_version) } };
     },
   };
 }

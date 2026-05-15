@@ -8,6 +8,7 @@ The entire file is available at: 8128.d3ba2d55.chunk.js
 ## Stack trace for function being run
 
 On game start:
+
 ```
 onGamepadChanged (8128.d3ba2d55.chunk.js:1)
 onGamepadChanged (8128.d3ba2d55.chunk.js:1)

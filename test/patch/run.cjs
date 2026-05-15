@@ -16,7 +16,8 @@ const PROFILE_DIR = path.join(__dirname, 'profile');
 const DIST_DIR = path.join(__dirname, '..', '..', 'build-test');
 const CHROME_PATH =
   process.env.CHROME_PATH || require('puppeteer').executablePath();
-const XBOX_PLAY_URL = 'https://www.xbox.com/en-US/play/launch/gang-beasts/BPQZT43FWD49';
+const XBOX_PLAY_URL =
+  'https://www.xbox.com/en-US/play/launch/gang-beasts/BPQZT43FWD49';
 const TIMEOUT = 90_000;
 
 function timestamp() {
@@ -131,7 +132,9 @@ async function run() {
   info('Waiting for patch interception logs (up to 20s)...');
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
-    if (logs.some((l) => l.includes('index=1') && l.includes('connected=true'))) {
+    if (
+      logs.some((l) => l.includes('index=1') && l.includes('connected=true'))
+    ) {
       break;
     }
     await new Promise((r) => setTimeout(r, 500));
@@ -141,10 +144,7 @@ async function run() {
   info('Disabling gamepad to trigger disconnect...');
   await page.evaluate(() => {
     window.postMessage(
-      {
-        source: 'xbox-vgamepad-content-script',
-        type: 'DISABLE_GAMEPAD',
-      },
+      { source: 'xbox-vgamepad-content-script', type: 'DISABLE_GAMEPAD' },
       '*'
     );
   });
@@ -160,7 +160,9 @@ async function run() {
     info('  ', l);
   }
 
-  const patchInstalled = logs.some((l) => l.includes('Patching onGamepadChanged'));
+  const patchInstalled = logs.some((l) =>
+    l.includes('Patching onGamepadChanged')
+  );
   const connectLog = logs.some(
     (l) => l.includes('index=1') && l.includes('connected=true')
   );

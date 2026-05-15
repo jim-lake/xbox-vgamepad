@@ -33,7 +33,12 @@ function patchModuleSource(src: string): string | null {
       // Log context around any partial match
       const partial = src.indexOf('onGamepadChanged');
       if (partial !== -1) {
-        log(TAG, '  partial match at:', String(partial), src.slice(partial, partial + 80));
+        log(
+          TAG,
+          '  partial match at:',
+          String(partial),
+          src.slice(partial, partial + 80)
+        );
       }
       return null;
     }
@@ -77,17 +82,36 @@ function patchModuleSource(src: string): string | null {
       patchedMethod.slice(sigEnd + 1);
   }
 
-  patchedMethod = patchedMethod.replace(/this\.gamepadStates\.get\(0\)/g, 'this.gamepadStates.get(t)');
+  patchedMethod = patchedMethod.replace(
+    /this\.gamepadStates\.get\(0\)/g,
+    'this.gamepadStates.get(t)'
+  );
   patchedMethod = patchedMethod.replace(/GamepadIndex:\s*0/g, 'GamepadIndex:t');
-  patchedMethod = patchedMethod.replace(/this\.inputSink\.onGamepadChanged\(0,/g, 'this.inputSink.onGamepadChanged(t,');
-  patchedMethod = patchedMethod.replace(/this\.gamepadStates\.set\(0,/g, 'this.gamepadStates.set(t,');
-  patchedMethod = patchedMethod.replace(/this\.gamepadStates\.delete\(0\)/g, 'this.gamepadStates.delete(t)');
-  patchedMethod = patchedMethod.replace(/0\s*===\s*e\.GamepadIndex/g, 't===e.GamepadIndex');
-  patchedMethod = patchedMethod.replace(/e\.GamepadIndex\s*===\s*0/g, 'e.GamepadIndex===t');
+  patchedMethod = patchedMethod.replace(
+    /this\.inputSink\.onGamepadChanged\(0,/g,
+    'this.inputSink.onGamepadChanged(t,'
+  );
+  patchedMethod = patchedMethod.replace(
+    /this\.gamepadStates\.set\(0,/g,
+    'this.gamepadStates.set(t,'
+  );
+  patchedMethod = patchedMethod.replace(
+    /this\.gamepadStates\.delete\(0\)/g,
+    'this.gamepadStates.delete(t)'
+  );
+  patchedMethod = patchedMethod.replace(
+    /0\s*===\s*e\.GamepadIndex/g,
+    't===e.GamepadIndex'
+  );
+  patchedMethod = patchedMethod.replace(
+    /e\.GamepadIndex\s*===\s*0/g,
+    'e.GamepadIndex===t'
+  );
 
   log(TAG, '  patched method (first 300):', patchedMethod.slice(0, 300));
 
-  const result = src.slice(0, methodStart) + patchedMethod + src.slice(methodEnd);
+  const result =
+    src.slice(0, methodStart) + patchedMethod + src.slice(methodEnd);
   return stripFunctionWrapper(result);
 }
 
@@ -114,7 +138,13 @@ function scanAndPatchModules(
       modSrc.includes('gamepadMappingsToSend') &&
       modSrc.includes('onGamepadChanged')
     ) {
-      log(TAG, '*** FOUND target module at key:', key, 'len:', String(modSrc.length));
+      log(
+        TAG,
+        '*** FOUND target module at key:',
+        key,
+        'len:',
+        String(modSrc.length)
+      );
 
       const patched = patchModuleSource(modSrc);
       if (patched) {
@@ -150,7 +180,8 @@ let patchApplied = false;
 // the array's push behavior.
 
 // The real backing array
-let realArray: unknown[][] = (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
+let realArray: unknown[][] =
+  (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
 
 // Wrap push on the real array — this handles the case where webpack
 // overwrites .push with its jsonpCallback
@@ -251,7 +282,12 @@ if (!pushDescriptor || pushDescriptor.configurable !== false) {
             if (!modules || typeof modules !== 'object') {
               continue;
             }
-            log(TAG, 'chunk has', String(Object.keys(modules).length), 'modules');
+            log(
+              TAG,
+              'chunk has',
+              String(Object.keys(modules).length),
+              'modules'
+            );
             patchApplied = scanAndPatchModules(modules);
           }
         }

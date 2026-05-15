@@ -32,6 +32,7 @@ npm run test:patch
 ```
 
 This will:
+
 1. Build the extension in test mode (`build-test/`)
 2. Launch Chrome with the pre-authed profile and extension loaded
 3. Navigate to xbox.com/play
