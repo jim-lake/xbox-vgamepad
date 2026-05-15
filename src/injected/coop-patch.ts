@@ -16,37 +16,20 @@ const TAG = '[COOP-PATCH]';
 
 // --- Patch logic ---
 
-function patchModuleSource(src: string): string | null {
-  log(TAG, '  patchModuleSource: source length:', String(src.length));
-
-  // Find the 3-arg onGamepadChanged method — try both minified and spaced
-  let methodStart = src.indexOf('onGamepadChanged(e,t,i){');
+function extractMethod(
+  src: string,
+  signature: string
+): { start: number; end: number; body: string } | null {
+  let methodStart = src.indexOf(signature + '{');
   if (methodStart === -1) {
-    // Try with spaces (prettified or different minifier)
-    const spaced = src.indexOf('onGamepadChanged(e, t, i)');
-    if (spaced !== -1) {
-      // Find the opening brace after the signature
-      methodStart = spaced;
-      log(TAG, '  found with spaces at offset', String(spaced));
-    } else {
-      log(TAG, '  could not find onGamepadChanged signature');
-      // Log context around any partial match
-      const partial = src.indexOf('onGamepadChanged');
-      if (partial !== -1) {
-        log(
-          TAG,
-          '  partial match at:',
-          String(partial),
-          src.slice(partial, partial + 80)
-        );
-      }
+    // Try with spaces
+    const spaced = signature.replace(/,/g, ', ');
+    methodStart = src.indexOf(spaced);
+    if (methodStart === -1) {
       return null;
     }
   }
 
-  log(TAG, '  found onGamepadChanged at offset', String(methodStart));
-
-  // Find the end of the method by counting braces
   let braceCount = 0;
   let methodEnd = -1;
   const bodyStart = src.indexOf('{', methodStart);
@@ -63,55 +46,111 @@ function patchModuleSource(src: string): string | null {
   }
 
   if (methodEnd === -1) {
-    log(TAG, '  could not find end of method body');
     return null;
   }
 
-  const originalMethod = src.slice(methodStart, methodEnd);
-  log(TAG, '  extracted method length:', String(originalMethod.length));
+  return {
+    start: methodStart,
+    end: methodEnd,
+    body: src.slice(methodStart, methodEnd),
+  };
+}
 
-  // Do the replacements: all hardcoded 0 → t
-  let patchedMethod = originalMethod;
+function patchOnGamepadChanged(method: string): string {
+  let patched = method;
 
-  // Insert logging at method start (find the first { after signature)
-  const sigEnd = patchedMethod.indexOf('{');
+  // Insert logging + prototype exposure at method start
+  const sigEnd = patched.indexOf('{');
   if (sigEnd !== -1) {
-    patchedMethod =
-      patchedMethod.slice(0, sigEnd + 1) +
+    patched =
+      patched.slice(0, sigEnd + 1) +
+      'if(!self.__XBVG__coopClass_prototype__){self.__XBVG__coopClass_prototype__=Object.getPrototypeOf(this);}' +
       'console.log("[COOP-PATCH] onGamepadChanged intercepted: source="+e+", index="+t+", connected="+i);' +
-      patchedMethod.slice(sigEnd + 1);
+      patched.slice(sigEnd + 1);
   }
 
-  patchedMethod = patchedMethod.replace(
+  patched = patched.replace(
     /this\.gamepadStates\.get\(0\)/g,
     'this.gamepadStates.get(t)'
   );
-  patchedMethod = patchedMethod.replace(/GamepadIndex:\s*0/g, 'GamepadIndex:t');
-  patchedMethod = patchedMethod.replace(
+  patched = patched.replace(/GamepadIndex:\s*0/g, 'GamepadIndex:t');
+  patched = patched.replace(
     /this\.inputSink\.onGamepadChanged\(0,/g,
     'this.inputSink.onGamepadChanged(t,'
   );
-  patchedMethod = patchedMethod.replace(
+  patched = patched.replace(
     /this\.gamepadStates\.set\(0,/g,
     'this.gamepadStates.set(t,'
   );
-  patchedMethod = patchedMethod.replace(
+  patched = patched.replace(
     /this\.gamepadStates\.delete\(0\)/g,
     'this.gamepadStates.delete(t)'
   );
-  patchedMethod = patchedMethod.replace(
-    /0\s*===\s*e\.GamepadIndex/g,
-    't===e.GamepadIndex'
-  );
-  patchedMethod = patchedMethod.replace(
-    /e\.GamepadIndex\s*===\s*0/g,
-    'e.GamepadIndex===t'
+  patched = patched.replace(/0\s*===\s*e\.GamepadIndex/g, 't===e.GamepadIndex');
+  patched = patched.replace(/e\.GamepadIndex\s*===\s*0/g, 'e.GamepadIndex===t');
+
+  return patched;
+}
+
+function patchOnGamepadInput(method: string): string {
+  let patched = method;
+
+  // Insert logging at method start
+  const sigEnd = patched.indexOf('{');
+  if (sigEnd !== -1) {
+    patched =
+      patched.slice(0, sigEnd + 1) +
+      'console.log("[COOP-PATCH] onGamepadInput intercepted");' +
+      patched.slice(sigEnd + 1);
+  }
+
+  // Replace the hardcoded `i = 0` in the for-of loop with `i = u.GamepadIndex`
+  // Minified: `const t=e+u.GamepadIndex,i=0,n=this.gamepadStates.get(i)`
+  // We need: `i=u.GamepadIndex` instead of `i=0`
+  patched = patched.replace(
+    /(\w)\s*=\s*e\s*\+\s*(\w)\.GamepadIndex\s*,\s*(\w)\s*=\s*0\s*,\s*(\w)\s*=\s*this\.gamepadStates\.get\(\3\)/g,
+    '$1=e+$2.GamepadIndex,$3=$2.GamepadIndex,$4=this.gamepadStates.get($3)'
   );
 
-  log(TAG, '  patched method (first 300):', patchedMethod.slice(0, 300));
+  return patched;
+}
 
-  const result =
-    src.slice(0, methodStart) + patchedMethod + src.slice(methodEnd);
+function patchModuleSource(src: string): string | null {
+  log(TAG, '  patchModuleSource: source length:', String(src.length));
+
+  // --- Patch onGamepadChanged ---
+  const changed = extractMethod(src, 'onGamepadChanged(e,t,i)');
+  if (!changed) {
+    log(TAG, '  could not find onGamepadChanged signature');
+    const partial = src.indexOf('onGamepadChanged');
+    if (partial !== -1) {
+      log(
+        TAG,
+        '  partial match at:',
+        String(partial),
+        src.slice(partial, partial + 80)
+      );
+    }
+    return null;
+  }
+  log(TAG, '  found onGamepadChanged at offset', String(changed.start));
+
+  const patchedChanged = patchOnGamepadChanged(changed.body);
+  let result =
+    src.slice(0, changed.start) + patchedChanged + src.slice(changed.end);
+
+  // --- Patch onGamepadInput ---
+  const input = extractMethod(result, 'onGamepadInput(e,t,i,n)');
+  if (input) {
+    log(TAG, '  found onGamepadInput at offset', String(input.start));
+    const patchedInput = patchOnGamepadInput(input.body);
+    result =
+      result.slice(0, input.start) + patchedInput + result.slice(input.end);
+    log(TAG, '  onGamepadInput patched');
+  } else {
+    log(TAG, '  WARNING: could not find onGamepadInput signature');
+  }
+
   return stripFunctionWrapper(result);
 }
 

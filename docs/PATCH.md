@@ -1,8 +1,10 @@
 # Co-op Patch Strategy via Main-World Extension
 
-## Status: ✅ WORKING
+## Status: ✅ WORKING (both patches)
 
-The patch successfully intercepts and rewrites the `onGamepadChanged` method at runtime, replacing hardcoded `GamepadIndex: 0` with the actual gamepad index parameter `t`.
+The patch successfully intercepts and rewrites both `onGamepadChanged` and `onGamepadInput` methods at runtime. `onGamepadChanged` replaces hardcoded `GamepadIndex: 0` with the actual gamepad index parameter `t`. `onGamepadInput` replaces hardcoded `i = 0` with `u.GamepadIndex` so inputs route to the correct gamepad slot.
+
+The patched class prototype is exposed at `self.__XBVG__coopClass_prototype__` for runtime introspection.
 
 ---
 
@@ -24,14 +26,32 @@ The `lt` class in xCloud's `8128.*.chunk.js` hardcodes `GamepadIndex: 0` in both
 
 ### Key Replacements in `onGamepadChanged(e, t, i)`
 
-| Original | Patched |
-|----------|---------|
-| `this.gamepadStates.get(0)` | `this.gamepadStates.get(t)` |
-| `GamepadIndex: 0` | `GamepadIndex: t` |
+| Original                                | Patched                                 |
+| --------------------------------------- | --------------------------------------- |
+| `this.gamepadStates.get(0)`             | `this.gamepadStates.get(t)`             |
+| `GamepadIndex: 0`                       | `GamepadIndex: t`                       |
 | `this.inputSink.onGamepadChanged(0, i)` | `this.inputSink.onGamepadChanged(t, i)` |
-| `this.gamepadStates.set(0, o)` | `this.gamepadStates.set(t, o)` |
-| `this.gamepadStates.delete(0)` | `this.gamepadStates.delete(t)` |
-| `0 === e.GamepadIndex` | `t === e.GamepadIndex` |
+| `this.gamepadStates.set(0, o)`          | `this.gamepadStates.set(t, o)`          |
+| `this.gamepadStates.delete(0)`          | `this.gamepadStates.delete(t)`          |
+| `0 === e.GamepadIndex`                  | `t === e.GamepadIndex`                  |
+
+### Key Replacements in `onGamepadInput(e, t, i, n)`
+
+| Original                                                   | Patched                                                                 |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `const t=e+u.GamepadIndex,i=0,n=this.gamepadStates.get(i)` | `const t=e+u.GamepadIndex,i=u.GamepadIndex,n=this.gamepadStates.get(i)` |
+
+The `i=0` hardcode caused all input to look up `gamepadStates.get(0)` regardless of which gamepad sent the input. Replacing with `i=u.GamepadIndex` makes the lookup use the correct slot created by `onGamepadChanged`.
+
+### Prototype Exposure
+
+On first call to `onGamepadChanged`, the patch sets:
+
+```javascript
+self.__XBVG__coopClass_prototype__ = Object.getPrototypeOf(this);
+```
+
+This exposes the `lt` class prototype (which is otherwise inaccessible outside the webpack module closure) for runtime introspection and further patching if needed.
 
 ---
 
@@ -40,9 +60,12 @@ The `lt` class in xCloud's `8128.*.chunk.js` hardcodes `GamepadIndex: 0` in both
 ### The Bug (original approach)
 
 The first implementation simply did:
+
 ```javascript
 const originalPush = chunks.push.bind(chunks);
-chunks.push = function(...args) { /* patch logic */ return originalPush(...args); };
+chunks.push = function (...args) {
+  /* patch logic */ return originalPush(...args);
+};
 ```
 
 This **appeared to work** (the interceptor fired, logged `chunk has 26 modules`) but **never found the target module**. The `.includes()` checks on module factory `.toString()` silently failed.
@@ -64,13 +87,17 @@ Use `Object.defineProperty` with getter/setter on the array's `push` property. W
 ```javascript
 Object.defineProperty(realArray, 'push', {
   configurable: true,
-  get() { return currentWrappedPush; },
+  get() {
+    return currentWrappedPush;
+  },
   set(newPush) {
     // Webpack is overwriting .push — wrap their version
     const theirPush = newPush;
-    currentWrappedPush = function(...args) {
+    currentWrappedPush = function (...args) {
       // OUR PATCH RUNS FIRST
-      for (const chunk of args) { scanAndPatchModules(chunk[1]); }
+      for (const chunk of args) {
+        scanAndPatchModules(chunk[1]);
+      }
       // THEN webpack's jsonpCallback processes the (now-patched) factories
       return theirPush.apply(realArray, args);
     };
@@ -126,10 +153,9 @@ When crxjs's `generateBundle` runs next, it sees a chunk with zero imports/expor
 
 ## Still TODO
 
-1. **Patch `onGamepadInput`** — also hardcodes `const i = 0` in the input routing loop. Should be `const i = u.GamepadIndex`.
-2. **Patch `sendKeepAliveGamepadInput`** — hardcodes `0 === i.GamepadIndex` check, only sends keepalive for slot 0.
-3. **Remove debug logging** — the `console.log("[COOP-PATCH] onGamepadChanged intercepted...")` in the patched method should be removed or gated behind a debug flag for production.
-4. **Gate behind config flag** — the patch should only activate when co-op mode is enabled in the extension settings.
+1. **Patch `sendKeepAliveGamepadInput`** — hardcodes `0 === i.GamepadIndex` check, only sends keepalive for slot 0.
+2. **Remove debug logging** — the `console.log("[COOP-PATCH] ...")` statements in the patched methods should be removed or gated behind a debug flag for production.
+3. **Gate behind config flag** — the patch should only activate when co-op mode is enabled in the extension settings.
 
 ---
 
@@ -170,6 +196,7 @@ onGamepadChanged(e, t, i) {
 ## Stack Trace (for reference)
 
 On game start:
+
 ```
 onGamepadChanged (8128.*.chunk.js:1)
 onGamepadChanged (8128.*.chunk.js:1)
@@ -183,6 +210,7 @@ cloudConnect (game-stream.*.chunk.js:1)
 ```
 
 On gamepad connect (from our extension):
+
 ```
 onGamepadChanged (8128.*.chunk.js:1)
 addGamepad (web-rtc-stream.*.chunk.js:1)
