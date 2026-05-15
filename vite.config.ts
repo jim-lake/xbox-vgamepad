@@ -3,9 +3,7 @@ import react from '@vitejs/plugin-react';
 import { crx } from '@crxjs/vite-plugin';
 import path from 'node:path';
 
-import buildNumberPlugin, {
-  getVersion,
-} from './scripts/vite-increment-build-number';
+import buildNumberPlugin from './scripts/vite-increment-build-number';
 import manifest from './manifest.json';
 
 // https://vite.dev/config/
@@ -29,15 +27,12 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       buildNumberPlugin(),
-      {
-        name: 'html-transform',
-        transformIndexHtml(html: string) {
-          return html.replace(/<%= __VERSION__ %>/g, getVersion());
-        },
-      },
       crx({ manifest: manifestCopy }),
     ],
-    build: { outDir, sourcemap: true },
+    build: {
+      outDir,
+      sourcemap: true,
+    },
     server: { cors: { origin: '*' } },
   };
 });

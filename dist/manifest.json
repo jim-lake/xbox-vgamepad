@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xbox vGamepad",
-  "version": "0.0.59",
+  "version": "0.0.135",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": {
     "default_popup": "src/popup/index.html"
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-fgyRcSiO.js"
+        "assets/index.ts-loader-DxFIbOgq.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
@@ -24,7 +24,7 @@
     },
     {
       "js": [
-        "assets/main-world.ts-loader--2WnIdmg.js"
+        "assets/main-world.ts-loader-DzVAXu55.js"
       ],
       "matches": [
         "*://*.xbox.com/*",
@@ -50,12 +50,12 @@
         "src/assets/img/*",
         "assets/messages-BV0uK2F9.js",
         "assets/messages-BV0uK2F9.js.map",
-        "assets/index.ts-CzCdWbKA.js",
-        "assets/index.ts-CzCdWbKA.js.map",
-        "assets/gamepad-zjigURwv.js",
-        "assets/gamepad-zjigURwv.js.map",
-        "assets/main-world.ts-DZ8MiHU3.js",
-        "assets/main-world.ts-DZ8MiHU3.js.map"
+        "assets/index.ts-BToX-LN_.js",
+        "assets/index.ts-BToX-LN_.js.map",
+        "assets/gamepad-CDk-qNbI.js",
+        "assets/gamepad-CDk-qNbI.js.map",
+        "assets/main-world.ts-qodLD6x8.js",
+        "assets/main-world.ts-qodLD6x8.js.map"
       ],
       "use_dynamic_url": false
     }
