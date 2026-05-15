@@ -95,15 +95,6 @@ function patchOnGamepadChanged(method: string): string {
 function patchOnGamepadInput(method: string): string {
   let patched = method;
 
-  // Insert logging at method start
-  const sigEnd = patched.indexOf('{');
-  if (sigEnd !== -1) {
-    patched =
-      patched.slice(0, sigEnd + 1) +
-      'console.log("[COOP-PATCH] onGamepadInput intercepted");' +
-      patched.slice(sigEnd + 1);
-  }
-
   // Replace the hardcoded `i = 0` in the for-of loop with `i = u.GamepadIndex`
   // Minified: `const t=e+u.GamepadIndex,i=0,n=this.gamepadStates.get(i)`
   // We need: `i=u.GamepadIndex` instead of `i=0`
