@@ -147,10 +147,13 @@ function startWaitingForGame(): void {
 
 function onGameDetected(): void {
   const gameName = getGameName();
-  sendMessage({ source: MSG_SOURCE, type: 'INITIALIZED', gameName });
 
   // Listen for responses from content script
   window.addEventListener('message', onWindowMessage);
+
+  // Send INITIALIZED — if content script is already listening, it relays immediately.
+  // If not, it will send CONTENT_READY when ready, and we re-send.
+  sendMessage({ source: MSG_SOURCE, type: 'INITIALIZED', gameName });
 
   let currentGameName = gameName;
 
@@ -195,6 +198,13 @@ function onWindowMessage(event: MessageEvent): void {
     msg.type === 'DISABLE_GAMEPAD'
   ) {
     handleMessage(msg);
+  } else if (msg.type === 'CONTENT_READY') {
+    // Content script just loaded — re-send INITIALIZED so it can relay to background
+    sendMessage({
+      source: MSG_SOURCE,
+      type: 'INITIALIZED',
+      gameName: getGameName(),
+    });
   }
 }
 

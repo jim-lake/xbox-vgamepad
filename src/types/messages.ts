@@ -51,6 +51,11 @@ export interface ConfigChangedMessage {
   gamepadConfig: GamepadConfig;
 }
 
+export interface ContentReadyMessage {
+  source: typeof MSG_SOURCE;
+  type: 'CONTENT_READY';
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
@@ -64,6 +69,7 @@ export type BackgroundToPageMessage =
 
 export type ExtensionMessage =
   | InjectedMessage
+  | ContentReadyMessage
   | InitializedMessage
   | GameChangedMessage
   | ActivateGamepadConfigMessage

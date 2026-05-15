@@ -136,21 +136,6 @@ This ensures our source rewrite happens BEFORE webpack calls the module factory.
 
 ---
 
-## Build Requirement: inlineMainWorldPlugin (vite.config.ts)
-
-The `@crxjs/vite-plugin` wraps content scripts in an async loader (`await import(...)`) when the chunk has imports, dynamic imports, or exports. This causes our interception code to run AFTER xCloud's chunks have already loaded.
-
-**Solution:** The `inlineMainWorldPlugin` in `vite.config.ts` runs as an `enforce: 'pre'` plugin BEFORE crxjs's `generateBundle` hook. It:
-
-1. Finds the main-world chunk in the bundle
-2. Inlines all its imported chunks (e.g. `messages`, `gamepad`) directly into it
-3. Strips all `import` statements from the code
-4. Clears the `imports`, `dynamicImports`, and `exports` arrays on the chunk object
-
-When crxjs's `generateBundle` runs next, it sees a chunk with zero imports/exports and skips the async loader, wrapping it in a synchronous IIFE instead. **No crxjs fork needed.**
-
----
-
 ## Still TODO
 
 1. **Patch `sendKeepAliveGamepadInput`** — hardcodes `0 === i.GamepadIndex` check, only sends keepalive for slot 0.

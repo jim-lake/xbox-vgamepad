@@ -56,6 +56,9 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
 });
 
+// Signal to main-world that the content script relay is ready
+window.postMessage({ source: MSG_SOURCE, type: 'CONTENT_READY' }, '*');
+
 // Relay messages from background/popup → page
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   // Only process messages from background/popup (not from other tabs)

@@ -18,21 +18,22 @@ const TAG = '[COOP-PATCH]';
 
 function extractMethod(
   src: string,
-  signature: string
-): { start: number; end: number; body: string } | null {
-  let methodStart = src.indexOf(signature + '{');
-  if (methodStart === -1) {
-    // Try with spaces
-    const spaced = signature.replace(/,/g, ', ');
-    methodStart = src.indexOf(spaced);
-    if (methodStart === -1) {
-      return null;
-    }
+  methodName: string,
+  paramCount: number
+): { start: number; end: number; body: string; params: string[] } | null {
+  const re = new RegExp(methodName + '\\s*\\(([^)]+)\\)\\s*\\{');
+  const m = re.exec(src);
+  if (!m?.[1]) {
+    return null;
+  }
+  const params = m[1].split(',').map((p) => p.trim());
+  if (params.length !== paramCount) {
+    return null;
   }
 
   let braceCount = 0;
   let methodEnd = -1;
-  const bodyStart = src.indexOf('{', methodStart);
+  const bodyStart = src.indexOf('{', m.index + m[0].length - 1);
   for (let i = bodyStart; i < src.length; i++) {
     if (src[i] === '{') {
       braceCount++;
@@ -50,13 +51,18 @@ function extractMethod(
   }
 
   return {
-    start: methodStart,
+    start: m.index,
     end: methodEnd,
-    body: src.slice(methodStart, methodEnd),
+    body: src.slice(m.index, methodEnd),
+    params,
   };
 }
 
-function patchOnGamepadChanged(method: string): string {
+function patchOnGamepadChanged(
+  method: string,
+  params: [string, string, string]
+): string {
+  const [sourceParam, indexParam, connectedParam] = params;
   let patched = method;
 
   // Insert logging + prototype exposure at method start
@@ -65,52 +71,79 @@ function patchOnGamepadChanged(method: string): string {
     patched =
       patched.slice(0, sigEnd + 1) +
       'if(!self.__XBVG__coopClass_prototype__){self.__XBVG__coopClass_prototype__=Object.getPrototypeOf(this);}' +
-      'console.log("[COOP-PATCH] onGamepadChanged intercepted: source="+e+", index="+t+", connected="+i);' +
+      `console.log("[COOP-PATCH] onGamepadChanged intercepted: source="+${sourceParam}+", index="+${indexParam}+", connected="+${connectedParam});` +
       patched.slice(sigEnd + 1);
   }
 
+  // All hardcoded 0s in gamepadStates access → use the index param
   patched = patched.replace(
-    /this\.gamepadStates\.get\(0\)/g,
-    'this.gamepadStates.get(t)'
-  );
-  patched = patched.replace(/GamepadIndex:\s*0/g, 'GamepadIndex:t');
-  patched = patched.replace(
-    /this\.inputSink\.onGamepadChanged\(0,/g,
-    'this.inputSink.onGamepadChanged(t,'
+    /this\.gamepadStates\.get\(\d+\)/g,
+    `this.gamepadStates.get(${indexParam})`
   );
   patched = patched.replace(
-    /this\.gamepadStates\.set\(0,/g,
-    'this.gamepadStates.set(t,'
+    /this\.gamepadStates\.set\(\d+,/g,
+    `this.gamepadStates.set(${indexParam},`
   );
   patched = patched.replace(
-    /this\.gamepadStates\.delete\(0\)/g,
-    'this.gamepadStates.delete(t)'
+    /this\.gamepadStates\.delete\(\d+\)/g,
+    `this.gamepadStates.delete(${indexParam})`
   );
-  patched = patched.replace(/0\s*===\s*e\.GamepadIndex/g, 't===e.GamepadIndex');
-  patched = patched.replace(/e\.GamepadIndex\s*===\s*0/g, 'e.GamepadIndex===t');
+
+  // GamepadIndex property — always should be the index param
+  patched = patched.replace(/GamepadIndex:\s*\d+/g, `GamepadIndex:${indexParam}`);
+
+  // inputSink.onGamepadChanged first arg
+  patched = patched.replace(
+    /this\.inputSink\.onGamepadChanged\(\d+,/g,
+    `this.inputSink.onGamepadChanged(${indexParam},`
+  );
+
+  // Comparisons: `0 === X.GamepadIndex` or `X.GamepadIndex === 0`
+  patched = patched.replace(
+    /\d+\s*===\s*(\w+)\.GamepadIndex/g,
+    `${indexParam}===$1.GamepadIndex`
+  );
+  patched = patched.replace(
+    /(\w+)\.GamepadIndex\s*===\s*\d+/g,
+    `$1.GamepadIndex===${indexParam}`
+  );
 
   return patched;
 }
 
-function patchOnGamepadInput(method: string): string {
+function patchOnGamepadInput(
+  method: string,
+  params: [string, ...string[]]
+): string {
+  const [sourceParam] = params;
   let patched = method;
 
-  // Replace the hardcoded `i = 0` in the for-of loop with `i = u.GamepadIndex`
-  // Minified: `const t=e+u.GamepadIndex,i=0,n=this.gamepadStates.get(i)`
-  // We need: `i=u.GamepadIndex` instead of `i=0`
+  // The pattern in the for-of loop (with any variable names):
+  //   <v1> = <sourceParam> + <v2>.GamepadIndex, <v3> = 0, <v4> = this.gamepadStates.get(<v3>)
+  // We replace <v3> = 0 with <v3> = <v2>.GamepadIndex
+  const re = new RegExp(
+    '(\\w)\\s*=\\s*' +
+      escapeRegExp(sourceParam) +
+      '\\s*\\+\\s*(\\w)\\.GamepadIndex\\s*,\\s*(\\w)\\s*=\\s*\\d+\\s*,\\s*(\\w)\\s*=\\s*this\\.gamepadStates\\.get\\(\\3\\)',
+    'g'
+  );
   patched = patched.replace(
-    /(\w)\s*=\s*e\s*\+\s*(\w)\.GamepadIndex\s*,\s*(\w)\s*=\s*0\s*,\s*(\w)\s*=\s*this\.gamepadStates\.get\(\3\)/g,
-    '$1=e+$2.GamepadIndex,$3=$2.GamepadIndex,$4=this.gamepadStates.get($3)'
+    re,
+    `$1=${sourceParam}+$2.GamepadIndex,$3=$2.GamepadIndex,$4=this.gamepadStates.get($3)`
   );
 
   return patched;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function patchModuleSource(src: string): string | null {
   log(TAG, '  patchModuleSource: source length:', String(src.length));
 
-  // --- Patch onGamepadChanged ---
-  const changed = extractMethod(src, 'onGamepadChanged(e,t,i)');
+  // --- Patch onGamepadChanged (3 params: source, index, connected) ---
+  const changed = extractMethod(src, 'onGamepadChanged', 3);
   if (!changed) {
     log(TAG, '  could not find onGamepadChanged signature');
     const partial = src.indexOf('onGamepadChanged');
@@ -124,17 +157,35 @@ function patchModuleSource(src: string): string | null {
     }
     return null;
   }
-  log(TAG, '  found onGamepadChanged at offset', String(changed.start));
+  log(
+    TAG,
+    '  found onGamepadChanged at offset',
+    String(changed.start),
+    'params:',
+    changed.params.join(',')
+  );
 
-  const patchedChanged = patchOnGamepadChanged(changed.body);
+  const patchedChanged = patchOnGamepadChanged(
+    changed.body,
+    changed.params as [string, string, string]
+  );
   let result =
     src.slice(0, changed.start) + patchedChanged + src.slice(changed.end);
 
-  // --- Patch onGamepadInput ---
-  const input = extractMethod(result, 'onGamepadInput(e,t,i,n)');
+  // --- Patch onGamepadInput (4 params: source, timestamp, inputs, sendFlag) ---
+  const input = extractMethod(result, 'onGamepadInput', 4);
   if (input) {
-    log(TAG, '  found onGamepadInput at offset', String(input.start));
-    const patchedInput = patchOnGamepadInput(input.body);
+    log(
+      TAG,
+      '  found onGamepadInput at offset',
+      String(input.start),
+      'params:',
+      input.params.join(',')
+    );
+    const patchedInput = patchOnGamepadInput(
+      input.body,
+      input.params as [string, ...string[]]
+    );
     result =
       result.slice(0, input.start) + patchedInput + result.slice(input.end);
     log(TAG, '  onGamepadInput patched');
