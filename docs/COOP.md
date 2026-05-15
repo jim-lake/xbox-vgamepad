@@ -39,7 +39,10 @@ applyPendingConfig (main-world.ts.js:21)
 (anonymous) (main-world.ts.js:165)
 ```
 
-## Function to be patched
+## Functions to be patched
+
+All `0`s in this need to change to `t`, so that each gamepad gets its own key
+in `gamepadStates`.
 
 ```javascript
 onGamepadChanged(e, t, i) {
@@ -67,6 +70,72 @@ onGamepadChanged(e, t, i) {
         );
         -1 !== e && this.gamepadMappingsToSend.splice(e, 1);
       } else o.sources.delete(n);
+    }
+  }
+```
+
+`this.gamepadStates.get(i)`: needs to change
+to `this.gamepadStates.get(u.GamepadIndex)` to make inputs fan out to the
+`gamepadStates` we made in the Changed function.
+
+```javascript
+onGamepadInput(e, t, i, n) {
+    for (const u of i) {
+      const t = e + u.GamepadIndex,
+        i = 0,
+        n = this.gamepadStates.get(i),
+        s = null === n || void 0 === n ? void 0 : n.sources.get(t);
+      s
+        ? this.copyGamepadMapping(u, s.mapping)
+        : this.inputSourceErrorLogged.has(e + u.GamepadIndex) ||
+          (this.logger.error(
+            `The input source ${e} for the gamepad ${u.GamepadIndex} was never connected but is trying to send input.`
+          ),
+          this.inputSourceErrorLogged.add(e + u.GamepadIndex));
+    }
+    if (n) {
+      for (const [e, i] of this.gamepadStates) {
+        let n = null;
+        for (const t of this.gamepadMappingsToSend)
+          t.GamepadIndex === e && (n = t);
+        if (n) {
+          if (
+            ((n.Dirty = !1),
+            this.mergeGamepadMappings(i.sources, n),
+            this.nexusButtonHandler)
+          )
+            if (1 === n.Nexus) {
+              var s, o, r, a;
+              if (this.firstNexusPressDownTimestampMs) {
+                if (t - this.firstNexusPressDownTimestampMs >= 500)
+                  null ===
+                    (s = (o = this.nexusButtonHandler).onNexusLongPress) ||
+                    void 0 === s ||
+                    s.call(o);
+              } else
+                ((this.firstNexusPressDownTimestampMs = t),
+                  null === (r = (a = this.nexusButtonHandler).onNexusDown) ||
+                    void 0 === r ||
+                    r.call(a));
+              n.Nexus = 0;
+            } else if (this.firstNexusPressDownTimestampMs) {
+              var l, d, c, h;
+              if (
+                (null === (l = (d = this.nexusButtonHandler).onNexusUp) ||
+                  void 0 === l ||
+                  l.call(d),
+                t - this.firstNexusPressDownTimestampMs < 500)
+              )
+                null === (c = (h = this.nexusButtonHandler).onNexusPress) ||
+                  void 0 === c ||
+                  c.call(h);
+              this.firstNexusPressDownTimestampMs = void 0;
+            }
+          this.areGamepadMappingsEqual(i.lastGamepadMapping, n) ||
+            ((n.Dirty = !0), this.copyGamepadMapping(n, i.lastGamepadMapping));
+        }
+      }
+      this.inputSink.onGamepadInput(t, this.gamepadMappingsToSend);
     }
   }
 ```
