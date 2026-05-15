@@ -1,3 +1,8 @@
+// Install co-op patch FIRST — must be before any other imports that might
+// delay execution. This is a side-effect import that sets up the webpack
+// chunk interceptor synchronously during module evaluation.
+import './coop-patch';
+
 import { MSG_SOURCE } from '@/types/messages';
 import type { ExtensionMessage } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
