@@ -24,7 +24,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "https://github.com/jim-lake/chrome-extension-tools.git#e9e08e453497f67c418bf9c2356c171e6288ede3",
+    "@crxjs/vite-plugin": "https://github.com/jim-lake/chrome-extension-tools.git#34c1e259c73391503887f8b8ef161a70baa73401",
     "@eslint/js": "9.x",
     "@types/chrome": "^0.1.40",
     "@types/events": "^3.0.3",
