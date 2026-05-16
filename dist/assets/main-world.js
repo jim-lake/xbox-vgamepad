@@ -1232,7 +1232,7 @@
 	}
 	//#endregion
 	//#region src/injected/main-world.ts
-	debugLog("[gamepad]: Load main-world2");
+	debugLog("[gamepad]: Load main-world");
 	var POLL_INTERVAL = 1e3;
 	var pollTimer = null;
 	var pendingConfig = null;
