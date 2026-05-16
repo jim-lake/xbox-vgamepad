@@ -243,14 +243,11 @@ export class GamepadSimulator {
   }
 }
 
-// Registry: one simulator per gamepad index (0–3)
 const g_simulators = new Map<number, GamepadSimulator>();
 const g_originalGetGamepads = navigator.getGamepads.bind(navigator);
-// Virtual slots claimed by enabled/configured virtual pads
 let g_virtualSlots = new Set<number>();
 // Stable mapping: physical pad ID → output slot (separate mode only)
 const g_physicalSlots = new Map<string, number>();
-// Active mode
 let g_mode: 'combine' | 'separate' = 'separate';
 
 export function getSimulator(index: 0 | 1 | 2 | 3): GamepadSimulator {
@@ -268,7 +265,6 @@ function assignPhysicalSlot(padId: string): number {
   if (existing !== undefined && !g_virtualSlots.has(existing)) {
     return existing;
   }
-  // Find first free slot not claimed by virtual pads or other physical pads
   const usedByPhysical = new Set(g_physicalSlots.values());
   for (let i = 0; i < 4; i++) {
     if (!g_virtualSlots.has(i) && !usedByPhysical.has(i)) {
@@ -287,7 +283,6 @@ function dispatchGamepadEvent(name: string, pad: Gamepad, slot: number): void {
   window.dispatchEvent(evt);
 }
 
-// Intercept native gamepadconnected/gamepaddisconnected to manage physical pad slots
 window.addEventListener(
   'gamepadconnected',
   (e: Event) => {
@@ -295,19 +290,16 @@ window.addEventListener(
       | Gamepad
       | undefined;
     if (!pad || pad.id === GAMEPAD_ID) {
-      return; // ignore our own virtual pad events
-    }
-
-    if (g_mode === 'combine') {
-      // In combine mode: suppress events for pads at virtual slots; pass through others
-      if (g_virtualSlots.has(pad.index)) {
-        e.stopImmediatePropagation();
-      }
-      // Non-virtual slots pass through unchanged
       return;
     }
 
-    // Separate mode: intercept and reassign
+    if (g_mode === 'combine') {
+      if (g_virtualSlots.has(pad.index)) {
+        e.stopImmediatePropagation();
+      }
+      return;
+    }
+
     e.stopImmediatePropagation();
     const slot = assignPhysicalSlot(pad.id);
     if (slot >= 0) {
@@ -328,7 +320,6 @@ window.addEventListener(
     }
 
     if (g_mode === 'combine') {
-      // In combine mode: suppress events for pads at virtual slots; pass through others
       if (g_virtualSlots.has(pad.index)) {
         e.stopImmediatePropagation();
       }
@@ -366,19 +357,15 @@ export function updateVirtualSlots(newVirtualSlots: Set<number>): void {
     const currentSlot = g_physicalSlots.get(pad.id);
 
     if (currentSlot === undefined) {
-      // Not yet assigned — assign native slot if it doesn't conflict
       if (!g_virtualSlots.has(pad.index)) {
         g_physicalSlots.set(pad.id, pad.index);
-        // No events fired for non-conflicting pads on initialization
       } else {
-        // Native slot conflicts — assign a free slot
         const newSlot = assignPhysicalSlot(pad.id);
         if (newSlot >= 0) {
           dispatchGamepadEvent('gamepadconnected', pad, newSlot);
         }
       }
     } else if (g_virtualSlots.has(currentSlot)) {
-      // Currently assigned slot is now a virtual slot — must move
       dispatchGamepadEvent('gamepaddisconnected', pad, currentSlot);
       g_physicalSlots.delete(pad.id);
       const newSlot = assignPhysicalSlot(pad.id);
@@ -386,11 +373,9 @@ export function updateVirtualSlots(newVirtualSlots: Set<number>): void {
         dispatchGamepadEvent('gamepadconnected', pad, newSlot);
       }
     }
-    // else: slot is still free — no events
   }
 }
 
-// Patch getGamepads immediately on module load
 navigator.getGamepads = (): (Gamepad | null)[] => {
   const real = g_originalGetGamepads();
   const enabledSims = Array.from(g_simulators.entries()).filter(([, s]) =>
@@ -403,7 +388,6 @@ navigator.getGamepads = (): (Gamepad | null)[] => {
   if (g_mode === 'combine') {
     const result: (Gamepad | null)[] = [null, null, null, null];
 
-    // For each virtual slot: merge virtual pad with physical pad at same index
     for (const [idx, sim] of g_simulators.entries()) {
       if (!sim.isEnabled() || idx >= 4) {
         continue;
@@ -438,7 +422,6 @@ navigator.getGamepads = (): (Gamepad | null)[] => {
       } as unknown as Gamepad;
     }
 
-    // For non-virtual slots: pass physical pads through unmodified
     for (let i = 0; i < 4; i++) {
       if (!g_virtualSlots.has(i)) {
         result[i] = real[i] ?? null;
@@ -447,17 +430,14 @@ navigator.getGamepads = (): (Gamepad | null)[] => {
 
     return result;
   } else {
-    // Separate: virtual pads at their configured slots; real pads at stable assigned slots
     const result: (Gamepad | null)[] = [null, null, null, null];
 
-    // Place enabled virtual pads
     for (const [idx, sim] of g_simulators.entries()) {
       if (sim.isEnabled() && idx < 4) {
         result[idx] = padToPlain(sim.snapshot(idx), { index: idx });
       }
     }
 
-    // Place real pads at their stable slots
     const realPads = Array.from(real).filter((p): p is Gamepad => p !== null);
     for (const pad of realPads) {
       const slot = g_physicalSlots.get(pad.id);

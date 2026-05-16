@@ -25,11 +25,8 @@ interface RunState {
  */
 export function runScript(script: GameScript): ScriptHandle {
   const state: RunState = { cancelled: false };
-  // Track every button this instance has pressed so we can release on cancel.
   const held: GamepadAction[] = [];
-  // Absolute start time for drift-free delay scheduling.
   const startTime = Date.now();
-  // Cumulative scheduled elapsed time (ms); advanced by each delay step.
   let scheduledMs = 0;
 
   function pressAction(action: GamepadAction): void {
@@ -39,7 +36,6 @@ export function runScript(script: GameScript): ScriptHandle {
 
   function releaseAction(action: GamepadAction): void {
     executeUnpress(action);
-    // Remove one occurrence from held list (match by value, not reference)
     const idx = held.findIndex(
       (h) =>
         h.gamepadIndex === action.gamepadIndex && h.action === action.action
@@ -50,7 +46,6 @@ export function runScript(script: GameScript): ScriptHandle {
   }
 
   function releaseAll(): void {
-    // Release in reverse order; use a copy since executeUnpress may be called
     for (const action of [...held].reverse()) {
       executeUnpress(action);
     }
@@ -101,7 +96,6 @@ export function runScript(script: GameScript): ScriptHandle {
     }
   }
 
-  // Start execution asynchronously
   void runActions(script.actions).then(() => {
     if (!state.cancelled) {
       releaseAll();
@@ -127,15 +121,12 @@ function delay(ms: number): Promise<void> {
  * Manages per-key script state for all activation types.
  */
 export class ScriptManager {
-  // key → running handle (at most one per key)
   private readonly running = new Map<string, ScriptHandle>();
-  // key → toggle state (true = script is running)
   private readonly toggleActive = new Set<string>();
 
   onKeyDown(key: string, script: GameScript): void {
     switch (script.activationType) {
       case 'on_down': {
-        // Cancel any running instance, then restart
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
@@ -143,12 +134,10 @@ export class ScriptManager {
       }
       case 'toggle': {
         if (this.toggleActive.has(key)) {
-          // Second press: cancel
           this.running.get(key)?.cancel();
           this.running.delete(key);
           this.toggleActive.delete(key);
         } else {
-          // First press: start
           const handle = runScript(script);
           this.running.set(key, handle);
           this.toggleActive.add(key);
@@ -156,14 +145,12 @@ export class ScriptManager {
         break;
       }
       case 'held': {
-        // Start on key down; cancel on key up (handled in onKeyUp)
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
         break;
       }
       case 'on_up':
-        // Nothing on key down
         break;
     }
   }
@@ -171,21 +158,18 @@ export class ScriptManager {
   onKeyUp(key: string, script: GameScript): void {
     switch (script.activationType) {
       case 'on_up': {
-        // Cancel any running instance, then restart
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
         break;
       }
       case 'held': {
-        // Cancel on key up
         this.running.get(key)?.cancel();
         this.running.delete(key);
         break;
       }
       case 'on_down':
       case 'toggle':
-        // Nothing on key up
         break;
     }
   }

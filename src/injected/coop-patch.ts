@@ -90,7 +90,10 @@ function patchOnGamepadChanged(
   );
 
   // GamepadIndex property — always should be the index param
-  patched = patched.replace(/GamepadIndex:\s*\d+/g, `GamepadIndex:${indexParam}`);
+  patched = patched.replace(
+    /GamepadIndex:\s*\d+/g,
+    `GamepadIndex:${indexParam}`
+  );
 
   // inputSink.onGamepadChanged first arg
   patched = patched.replace(

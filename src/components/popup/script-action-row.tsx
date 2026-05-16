@@ -65,8 +65,6 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4, pointerEvents: 'none' as const },
 });
 
-// --- sub-components (file-private) ---
-
 interface ActionHeaderProps {
   value: string;
   onTypeChange: (val: string) => void;
@@ -126,8 +124,6 @@ function ButtonPicker({
     </View>
   );
 }
-
-// --- main component ---
 
 export interface ScriptActionRowProps {
   action: PopupScriptAction;
@@ -367,7 +363,6 @@ export default function ScriptActionRow({
     );
   }
 
-  // down / up
   const { buttons } = action;
   const usedActions = new Set(buttons.map((b) => b.action));
   return (

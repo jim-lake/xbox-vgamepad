@@ -96,7 +96,6 @@ export function rem(amount: number): number {
   return amount;
 }
 
-// Default export for utilities only
 export default {
   css,
   resolveStyle,

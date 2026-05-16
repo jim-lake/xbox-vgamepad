@@ -55,9 +55,7 @@ export function TouchableWithoutFeedback({
   );
 }
 
-function noop() {
-  // Empty function for touch events
-}
+function noop() {}
 const DEFAULT_DELAY = 500;
 
 interface TouchableHighlightProps {
@@ -380,12 +378,8 @@ export function StatusBar() {
   return null;
 }
 
-StatusBar.setBarStyle = function () {
-  // No-op on web
-};
-StatusBar.setBackgroundColor = function () {
-  // No-op on web
-};
+StatusBar.setBarStyle = function () {};
+StatusBar.setBackgroundColor = function () {};
 
 export default {
   View,

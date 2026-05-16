@@ -10,7 +10,6 @@ import { detectGame, getGameName } from './game-detection';
 import * as inputProcessor from './input-processor';
 import { showToast } from './toast';
 
-// Patch getGamepads immediately (module side-effect via import)
 import './gamepad-simulator';
 
 const POLL_INTERVAL = 1000;
@@ -57,9 +56,7 @@ function handleMessage(msg: ExtensionMessage): void {
   }
 }
 
-// Global toggle listener (works regardless of active state, uses config-driven keys)
 let toggleCodes: Set<string> = new Set(['F9']);
-// Map from key code → set of toggle action names bound to it
 let toggleCodeActions = new Map<string, Set<string>>();
 
 function updateToggleCodes(config: GamepadConfig): void {
@@ -77,7 +74,6 @@ function updateToggleCodes(config: GamepadConfig): void {
           set = new Set();
           codeActions.set(code, set);
         }
-        // For toggleGamepad, encode the index so we know which pad to toggle
         set.add(
           e.action === 'toggleGamepad'
             ? `toggleGamepad:${String(e.gamepadIndex)}`
@@ -137,7 +133,6 @@ function startWaitingForGame(): void {
       onGameDetected();
     }
   }, POLL_INTERVAL);
-  // Check immediately
   if (detectGame()) {
     clearInterval(pollTimer);
     pollTimer = null;
@@ -148,7 +143,6 @@ function startWaitingForGame(): void {
 function onGameDetected(): void {
   const gameName = getGameName();
 
-  // Listen for responses from content script
   window.addEventListener('message', onWindowMessage);
 
   // Send INITIALIZED — if content script is already listening, it relays immediately.
@@ -157,7 +151,6 @@ function onGameDetected(): void {
 
   let currentGameName = gameName;
 
-  // Poll for game exit or game name change
   pollTimer = setInterval(() => {
     if (!detectGame()) {
       if (pollTimer !== null) {
@@ -213,7 +206,6 @@ window.addEventListener('pageshow', () => {
   startWaitingForGame();
 });
 
-// Apply pending config when window gains focus
 window.addEventListener('focus', () => {
   applyPendingConfig();
 });

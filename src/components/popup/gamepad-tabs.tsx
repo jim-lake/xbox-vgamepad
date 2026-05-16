@@ -94,7 +94,6 @@ export default function GamepadTabs({
             .slice(0, i)
             .every((s) => s.active || slots.findIndex((x) => !x.active) === i)
         ) {
-          // Show add button in the first inactive slot position after all active tabs
           const firstInactive = slots.findIndex((s) => !s.active);
           if (firstInactive === i) {
             return (

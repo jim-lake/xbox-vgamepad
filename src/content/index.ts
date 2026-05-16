@@ -1,14 +1,12 @@
 import { MSG_SOURCE } from '@/types/messages';
 import type { ExtensionMessage } from '@/types/messages';
 
-// Notify background that content script loaded
 try {
   void chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
 } catch {
   // Extension context invalidated
 }
 
-// Relay messages from page → background
 window.addEventListener('message', (event: MessageEvent) => {
   const data: unknown = event.data;
   if (
@@ -56,10 +54,8 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
 });
 
-// Signal to main-world that the content script relay is ready
 window.postMessage({ source: MSG_SOURCE, type: 'CONTENT_READY' }, '*');
 
-// Relay messages from background/popup → page
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   // Only process messages from background/popup (not from other tabs)
   if (sender.tab) {
@@ -68,7 +64,6 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');
 });
 
-// On DOMContentLoaded: pass resource URLs to the page via a meta tag
 document.addEventListener('DOMContentLoaded', () => {
   const meta = document.createElement('meta');
   meta.name = 'xvg-resources';

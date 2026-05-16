@@ -88,7 +88,6 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
   return indices;
 }
 
-// Module state
 let g_keyMap = new Map<string, GamepadAction[]>();
 let g_scriptMap = new Map<string, GameScript[]>();
 let g_scriptManager = new ScriptManager();
@@ -98,7 +97,6 @@ let g_active = false;
 let g_config: GamepadConfig | null = null;
 let g_activeIndices = new Set<0 | 1 | 2 | 3>();
 
-// Listeners (stored for removal)
 let g_onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 let g_onKeyUp: ((e: KeyboardEvent) => void) | null = null;
 let g_onMouseDown: ((e: MouseEvent) => void) | null = null;
@@ -107,14 +105,12 @@ let g_onWheel: ((e: WheelEvent) => void) | null = null;
 let g_onMouseMove: ((e: MouseEvent) => void) | null = null;
 let g_onPointerLockChange: (() => void) | null = null;
 
-// Mouse movement state
 let g_accX = 0;
 let g_accY = 0;
 let g_moveTimer: ReturnType<typeof setTimeout> | null = null;
 let g_stopTimer: ReturnType<typeof setTimeout> | null = null;
 let g_lastMoveProcess = 0;
 
-// Scroll state
 let g_scrollTimer: ReturnType<typeof setTimeout> | null = null;
 let g_scrollActions: GamepadAction[] | null = null;
 
@@ -405,18 +401,15 @@ export function activate(
     : null;
 
   if (g_active) {
-    // Hot-swap: update bindings without disconnect/reconnect for existing pads
     const hadMouse = prevMouseTarget !== null;
     removeListeners();
     clearTimers();
 
     const newIndices = getActiveGamepadIndices(config);
 
-    // setMode first so the interceptors know the new mode before updateVirtualSlots
     gamepadSimulator.setMode(config.otherGamepadMode);
     updateVirtualSlots(newIndices);
 
-    // Disable pads no longer in the new config
     for (const idx of g_activeIndices) {
       if (!newIndices.has(idx)) {
         getSimulator(idx).disable(idx);
@@ -424,7 +417,6 @@ export function activate(
         getSimulator(idx).resetState();
       }
     }
-    // Enable pads newly added in the new config
     for (const idx of newIndices) {
       if (!g_activeIndices.has(idx)) {
         getSimulator(idx).enable(idx);
