@@ -8,7 +8,7 @@ import {
 import TextButton from '@/components/buttons/text_button';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
-import { sendDisableGamepad } from './messaging';
+import { sendDisableGamepad, sendPopupOpened } from './messaging';
 import {
   loadAllPopupConfigs,
   saveAndBroadcastPopupConfig,
@@ -153,6 +153,7 @@ export default function App() {
   }
 
   React.useEffect(() => {
+    void sendPopupOpened();
     void (async () => {
       const [data, name] = await Promise.all([
         loadAllPopupConfigs(),

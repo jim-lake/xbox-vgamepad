@@ -3,6 +3,7 @@ import type {
   ActivateGamepadConfigMessage,
   ConfigChangedMessage,
   DisableGamepadMessage,
+  PopupOpenedMessage,
 } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
 
@@ -54,5 +55,14 @@ export async function sendConfigChanged(
     name,
     gamepadConfig: config,
   };
+  await chrome.tabs.sendMessage(tabId, msg);
+}
+
+export async function sendPopupOpened(): Promise<void> {
+  const tabId = await getActiveTabId();
+  if (tabId === undefined) {
+    return;
+  }
+  const msg: PopupOpenedMessage = { source: MSG_SOURCE, type: 'POPUP_OPENED' };
   await chrome.tabs.sendMessage(tabId, msg);
 }

@@ -14,6 +14,7 @@ import {
   removeMinimized,
   setOverlayMinimized,
   setMinimizedDismissed,
+  restoreIfDismissed,
 } from './overlay';
 
 const MOUSE_THROTTLE_MS = 40;
@@ -482,6 +483,12 @@ export function deactivate(): void {
 
 export function isActive(): boolean {
   return g_active;
+}
+
+export function restoreOverlayIfDismissed(): void {
+  if (g_active && g_mouseTarget !== null) {
+    restoreIfDismissed();
+  }
 }
 
 export function toggle(): void {

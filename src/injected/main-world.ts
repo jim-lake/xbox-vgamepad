@@ -191,6 +191,8 @@ function onWindowMessage(event: MessageEvent): void {
     msg.type === 'DISABLE_GAMEPAD'
   ) {
     handleMessage(msg);
+  } else if (msg.type === 'POPUP_OPENED') {
+    inputProcessor.restoreOverlayIfDismissed();
   } else if (msg.type === 'CONTENT_READY') {
     // Content script just loaded — re-send INITIALIZED so it can relay to background
     sendMessage({

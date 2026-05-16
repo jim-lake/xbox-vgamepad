@@ -47,6 +47,16 @@ export function setMinimizedDismissed(val: boolean): void {
   g_minimizedDismissed = val;
 }
 
+export function restoreIfDismissed(): boolean {
+  if (!g_minimizedDismissed || g_overlay || g_minimizedBtn) {
+    return false;
+  }
+  g_minimizedDismissed = false;
+  g_overlayMinimized = true;
+  showMinimizedBtn(getGameContainer() ?? document.body);
+  return true;
+}
+
 function showMinimizedBtn(_container: Element): void {
   if (g_minimizedBtn || g_minimizedDismissed) {
     return;

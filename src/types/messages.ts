@@ -56,6 +56,11 @@ export interface ContentReadyMessage {
   type: 'CONTENT_READY';
 }
 
+export interface PopupOpenedMessage {
+  source: typeof MSG_SOURCE;
+  type: 'POPUP_OPENED';
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
@@ -70,6 +75,7 @@ export type BackgroundToPageMessage =
 export type ExtensionMessage =
   | InjectedMessage
   | ContentReadyMessage
+  | PopupOpenedMessage
   | InitializedMessage
   | GameChangedMessage
   | ActivateGamepadConfigMessage

@@ -31,9 +31,7 @@ module.exports = async function ({
     ACTIVE_GP_CONF: 'default',
     ENABLED: true,
   });
-  await setStorageLocal(browser, {
-    gamePresets: { 'Halo Infinite': 'fps' },
-  });
+  await setStorageLocal(browser, { gamePresets: { 'Halo Infinite': 'fps' } });
 
   await assert(
     'GAME_CHANGED with matched game updates ACTIVE_GP_CONF in storage',
@@ -58,16 +56,13 @@ module.exports = async function ({
     }
   );
 
-  await assert(
-    'game-matched config is activated on the page',
-    async () => {
-      // The background should have sent ACTIVATE_GAMEPAD_CONFIG to the tab
-      await page.keyboard.down('p');
-      await waitForButton(page, 0, true);
-      await page.keyboard.up('p');
-      await waitForButton(page, 0, false);
-    }
-  );
+  await assert('game-matched config is activated on the page', async () => {
+    // The background should have sent ACTIVATE_GAMEPAD_CONFIG to the tab
+    await page.keyboard.down('p');
+    await waitForButton(page, 0, true);
+    await page.keyboard.up('p');
+    await waitForButton(page, 0, false);
+  });
 
   await assert(
     'GAME_CHANGED with no matching preset does not change ACTIVE_GP_CONF',
