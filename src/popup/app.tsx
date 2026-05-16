@@ -246,8 +246,11 @@ export default function App() {
       setDirty(false);
       await saveAndBroadcastPopupConfig(uniqueName, cloned);
       await setActiveConfig(uniqueName);
+      if (gameName !== null) {
+        await setGamePreset(gameName, uniqueName);
+      }
     },
-    [presetNames]
+    [presetNames, gameName]
   );
 
   const handleNew = React.useCallback(() => {

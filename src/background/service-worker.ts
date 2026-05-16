@@ -117,6 +117,7 @@ async function handleGameChanged(
   if (!config) {
     return;
   }
+  await chrome.storage.sync.set({ ACTIVE_GP_CONF: presetName });
   void chrome.tabs.sendMessage(tabId, {
     source: MSG_SOURCE,
     type: 'ACTIVATE_GAMEPAD_CONFIG',

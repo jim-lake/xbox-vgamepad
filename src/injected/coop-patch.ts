@@ -22,7 +22,10 @@ function extractMethod(
   paramCount: number
 ): { start: number; end: number; body: string; params: string[] } | null {
   // Use negative lookbehind for '.' to skip call sites like this.x.onGamepadChanged(...)
-  const re = new RegExp('(?<!\\.)' + methodName + '\\s*\\(([^)]+)\\)\\s*\\{', 'g');
+  const re = new RegExp(
+    '(?<!\\.)' + methodName + '\\s*\\(([^)]+)\\)\\s*\\{',
+    'g'
+  );
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     if (!m[1]) {
@@ -203,7 +206,13 @@ function scanAndPatchModules(
       modSrc.includes('gamepadMappingsToSend') &&
       modSrc.includes('onGamepadChanged')
     ) {
-      log(TAG, 'FOUND target module at key:', key, 'len:', String(modSrc.length));
+      log(
+        TAG,
+        'FOUND target module at key:',
+        key,
+        'len:',
+        String(modSrc.length)
+      );
 
       const patched = patchModuleSource(modSrc);
       if (patched) {

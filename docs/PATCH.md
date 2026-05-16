@@ -21,8 +21,9 @@ The `lt` class in xCloud's `8128.*.chunk.js` hardcodes `GamepadIndex: 0` in both
 1. **`Object.defineProperty` trap on `self.__LOADABLE_LOADED_CHUNKS__`** — intercepts any reassignment of the global
 2. **`Object.defineProperty` trap on the array's `.push` property** — uses getter/setter so when webpack overwrites `.push` with its jsonpCallback, we wrap THEIR callback
 3. **Content-based module detection** — searches module factory `.toString()` for both `gamepadMappingsToSend` AND `onGamepadChanged`
-4. **Source rewrite via string replacement** — patches the method body, replacing all hardcoded `0` with `t`
-5. **`new Function()` replacement** — replaces the module factory before webpack processes it
+4. **`extractMethod` with param-count matching** — uses a regex with negative lookbehind (`(?<!\\.)`) to skip call sites, iterates all matches (global flag) to find the method definition with the correct parameter count (the module contains multiple classes with `onGamepadChanged` — one with 2 params, the target with 3)
+5. **Source rewrite via string replacement** — patches the method body, replacing all hardcoded `0` with the index param
+6. **`new Function()` replacement** — replaces the module factory before webpack processes it
 
 ### Key Replacements in `onGamepadChanged(e, t, i)`
 
@@ -55,6 +56,29 @@ This exposes the `lt` class prototype (which is otherwise inaccessible outside t
 
 ---
 
+## Interception Architecture
+
+The patch uses a single interception point with two layers:
+
+```
+┌─ Object.defineProperty on self.__LOADABLE_LOADED_CHUNKS__ ─┐
+│  Traps reassignment of the global array                     │
+│  On set: scan existing entries + installPushTrap(newArray)  │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─ installPushTrap(arr) ──────────────────────────────────────┐
+│  Object.defineProperty on arr.push (getter/setter)          │
+│  When webpack assigns .push = jsonpCallback:                │
+│    setter wraps their callback with processChunks()         │
+│  Result: our patch runs BEFORE webpack processes modules    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Once `patchApplied` becomes `true`, all scanning stops immediately.
+
+---
+
 ## Critical Learning: Webpack `.push` Overwrite Race
 
 ### The Bug (original approach)
@@ -82,30 +106,21 @@ Webpack's runtime overwrites `.push` on the `__LOADABLE_LOADED_CHUNKS__` array w
 
 ### The Fix
 
-Use `Object.defineProperty` with getter/setter on the array's `push` property. When webpack assigns `.push = webpackJsonpCallback`, our setter fires, and we wrap THEIR callback so our patch logic runs BEFORE webpack processes the modules:
+Use `Object.defineProperty` with getter/setter on the array's `push` property. When webpack assigns `.push = webpackJsonpCallback`, our setter fires, and we wrap THEIR callback so our patch logic runs BEFORE webpack processes the modules.
 
-```javascript
-Object.defineProperty(realArray, 'push', {
-  configurable: true,
-  get() {
-    return currentWrappedPush;
-  },
-  set(newPush) {
-    // Webpack is overwriting .push — wrap their version
-    const theirPush = newPush;
-    currentWrappedPush = function (...args) {
-      // OUR PATCH RUNS FIRST
-      for (const chunk of args) {
-        scanAndPatchModules(chunk[1]);
-      }
-      // THEN webpack's jsonpCallback processes the (now-patched) factories
-      return theirPush.apply(realArray, args);
-    };
-  },
-});
-```
+---
 
-This ensures our source rewrite happens BEFORE webpack calls the module factory.
+## Critical Learning: Multiple Classes with Same Method Name
+
+### The Bug
+
+The target webpack module (key 51879, ~137KB) contains MULTIPLE classes that define `onGamepadChanged`. The first occurrence has 2 parameters `(e,t)` (a different class's version), while the target `lt` class has 3 parameters `(e,t,i)`.
+
+The original `extractMethod` used `re.exec()` once — it found the 2-param version first, failed the param count check, and returned null.
+
+### The Fix
+
+`extractMethod` now uses the `g` (global) flag and loops with `while ((m = re.exec(src)) !== null)` to find the match with the correct parameter count. It also uses a negative lookbehind `(?<!\\.)` to skip method CALL sites (like `this.inputSink.onGamepadChanged(0, i)`) and only match method DEFINITIONS.
 
 ---
 
@@ -126,12 +141,12 @@ This ensures our source rewrite happens BEFORE webpack calls the module factory.
 ## Key Facts
 
 - Our script runs at `document_start` in the MAIN world, before xCloud loads
-- The `lt` class is defined inside a webpack module in the `8128` chunk (26 modules)
+- The `lt` class is defined inside a webpack module in the `8128` chunk (~26 modules in that chunk)
 - The webpack chunk global is `self.__LOADABLE_LOADED_CHUNKS__`
 - `lt` is a local class (NOT exported) — cannot be accessed from module exports
 - The `r()` helper is Babel's `_defineProperty` — uses `Object.defineProperty` internally
-- Modules are structured as `51879(e, t, i) { ... }` (shorthand method syntax)
 - Module detection is content-based (searches for `gamepadMappingsToSend` + `onGamepadChanged`), not by module ID which changes per build
+- The target module (key 51879, ~137KB) contains multiple classes — method extraction must handle same-name methods with different param counts
 - The minified source preserves property/method names (they're runtime identifiers)
 
 ---
@@ -141,6 +156,63 @@ This ensures our source rewrite happens BEFORE webpack calls the module factory.
 1. **Patch `sendKeepAliveGamepadInput`** — hardcodes `0 === i.GamepadIndex` check, only sends keepalive for slot 0.
 2. **Remove debug logging** — the `console.log("[COOP-PATCH] ...")` statements in the patched methods should be removed or gated behind a debug flag for production.
 3. **Gate behind config flag** — the patch should only activate when co-op mode is enabled in the extension settings.
+
+---
+
+## Testing
+
+### Integration Test: `npm run test:patch`
+
+A standalone integration test that validates the co-op patch on a live xCloud session. Located in `test/patch/`.
+
+#### Prerequisites
+
+- **Chrome For Testing** installed (or set `CHROME_PATH` env var)
+- A persistent Chrome profile at `test/patch/profile/` with valid Xbox auth cookies
+
+#### Initial Auth Setup
+
+```bash
+npm run test:patch:setup
+```
+
+Or manually:
+
+```bash
+"/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+  --user-data-dir=test/patch/profile \
+  --no-first-run \
+  --no-default-browser-check \
+  https://www.xbox.com/en-US/play
+```
+
+Log into your Xbox account, then close the browser. Cookies persist for subsequent runs.
+
+#### What It Does
+
+1. Builds the extension in test mode (`vite build --mode test` → `build-test/`)
+2. Launches Chrome with the pre-authed profile and extension loaded
+3. Navigates to xbox.com/play and launches a game (Gang Beasts)
+4. Waits for `#game-stream` element (game stream active)
+5. Sends `ACTIVATE_GAMEPAD_CONFIG` message with a config using gamepad index 1
+6. Asserts console logs contain patch application and interception at index 1
+7. Sends `DISABLE_GAMEPAD` message and asserts disconnect interception
+
+#### Assertions (3 checks)
+
+| Assertion                        | Log pattern checked               |
+| -------------------------------- | --------------------------------- |
+| Patch was applied                | `"Patching onGamepadChanged"`     |
+| Gamepad 1 connect intercepted    | `"index=1"` + `"connected=true"`  |
+| Gamepad 1 disconnect intercepted | `"index=1"` + `"connected=false"` |
+
+#### Troubleshooting
+
+- **Timeout waiting for `#game-stream`**: Ensure you're logged in. You may need to manually click a game title.
+- **Auth expired**: Re-run `npm run test:patch:setup` to refresh cookies.
+- **Chrome still running from previous test**: Kill it with `pkill -f "Google Chrome for Testing"` before re-running.
+- **Patch finds module but can't find signature**: xCloud may have updated their bundle. Check the debug output — the `extractMethod` regex may need adjustment for new minification patterns.
+- The `test/patch/profile/` directory is gitignored — don't commit it.
 
 ---
 
@@ -204,36 +276,3 @@ enable (gamepad-simulator.ts.js)
 activate (input-processor.ts.js)
 applyPendingConfig (main-world.ts.js)
 ```
-
----
-
-## Test Design: `test/patch/`
-
-### Overview
-
-A standalone integration test that validates the co-op patch is intercepting `onGamepadChanged` correctly on a live xCloud session. Runs via `npm run test:patch`, independent of all other test infrastructure.
-
-### Requirements
-
-- **Chrome For Testing** with a persistent user data directory (real cookie store for Xbox auth)
-- **No headless** — xCloud requires a real browser session with valid auth cookies
-- **Extension loaded** — the built extension (with patch enabled) loaded via `--load-extension`
-- **Logging** — the patch logs `[COOP-PATCH] onGamepadChanged intercepted: index=<N>` to the page console whenever it fires, proving interception is working
-
-### Test Flow
-
-1. Build the extension with the co-op patch enabled (`vite build --mode test`)
-2. Launch Chrome For Testing with persistent profile (pre-authed Xbox cookies)
-3. Navigate to `https://www.xbox.com/en-US/play`
-4. Wait for game stream to initialize
-5. Connect virtual gamepad at index 1 (pad 2), then disconnect it
-6. Assert console logs contain `[COOP-PATCH] onGamepadChanged intercepted: index=1` for both connect and disconnect
-
-### Initial Auth Setup
-
-```bash
-"/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
-  --user-data-dir=test/patch/profile
-```
-
-Log into xbox.com, then close. Cookies persist for subsequent automated runs.

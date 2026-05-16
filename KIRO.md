@@ -45,17 +45,17 @@ Key injected modules:
 
 ## Key Commands
 
-| Task              | Command                | Notes                                                          |
-| ----------------- | ---------------------- | -------------------------------------------------------------- |
-| Dev server        | `npm run dev`          | Outputs to `build/`, includes HMR                              |
-| Build             | `npm run build`        | Type-checks then builds production to `dist/`                  |
-| Type check        | `npm run ts:check`     | `tsc -b --noEmit`                                              |
-| Lint + fix        | `npm run lint`         | `eslint . --fix`                                               |
-| Format            | `npm run pretty`       | `prettier --write .`                                           |
-| All tests         | `npm test`             | Runs unit tests then integration tests                         |
+| Task              | Command                    | Notes                                                          |
+| ----------------- | -------------------------- | -------------------------------------------------------------- |
+| Dev server        | `npm run dev`              | Outputs to `build/`, includes HMR                              |
+| Build             | `npm run build`            | Type-checks then builds production to `dist/`                  |
+| Type check        | `npm run ts:check`         | `tsc -b --noEmit`                                              |
+| Lint + fix        | `npm run lint`             | `eslint . --fix`                                               |
+| Format            | `npm run pretty`           | `prettier --write .`                                           |
+| All tests         | `npm test`                 | Runs unit tests then integration tests                         |
 | Integration tests | `npm run test:integration` | Builds to `build-test/` (test mode) then runs Puppeteer suites |
-| Unit tests        | `npm run test:unit`    | Fast unit tests (no browser, no build) in `test/unit/`         |
-| Patch tests       | `npm run test:patch`   | Builds test mode + runs co-op patch integration tests          |
+| Unit tests        | `npm run test:unit`        | Fast unit tests (no browser, no build) in `test/unit/`         |
+| Patch tests       | `npm run test:patch`       | Builds test mode + runs co-op patch integration tests          |
 
 ## Build Modes
 

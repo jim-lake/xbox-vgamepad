@@ -7,6 +7,7 @@ import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
+  stickOptions: { flexDirection: 'row', gap: '0.6rem', alignItems: 'center' },
   option: {
     paddingLeft: '0.6rem',
     paddingRight: '0.6rem',
@@ -48,22 +49,24 @@ export default function MouseSettings({
   return (
     <View style={styles.container}>
       <FormRow label='Stick'>
-        {STICK_OPTIONS.map(({ label, value }) => (
-          <TextButton
-            key={label}
-            style={[
-              styles.option,
-              currentStick === value ? styles.optionActive : undefined,
-            ]}
-            textStyle={
-              currentStick === value ? styles.optionActiveText : undefined
-            }
-            text={label}
-            onPress={() => {
-              onChangeStick(value);
-            }}
-          />
-        ))}
+        <View style={styles.stickOptions}>
+          {STICK_OPTIONS.map(({ label, value }) => (
+            <TextButton
+              key={label}
+              style={[
+                styles.option,
+                currentStick === value ? styles.optionActive : undefined,
+              ]}
+              textStyle={
+                currentStick === value ? styles.optionActiveText : undefined
+              }
+              text={label}
+              onPress={() => {
+                onChangeStick(value);
+              }}
+            />
+          ))}
+        </View>
       </FormRow>
       <FormRow label='Sensitivity'>
         <Range
