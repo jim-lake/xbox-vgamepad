@@ -13,7 +13,7 @@ import { debugLog } from '../tools/log';
 
 import './gamepad-simulator';
 
-debugLog('[gamepad]: Load main-world2');
+debugLog('[gamepad]: Load main-world');
 
 const POLL_INTERVAL = 1000;
 
