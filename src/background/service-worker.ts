@@ -86,6 +86,10 @@ async function handleInitialized(
     ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
     : getActiveConfig(syncData);
 
+  if (gamePreset) {
+    await chrome.storage.sync.set({ ACTIVE_GP_CONF: name });
+  }
+
   if (isEnabled && config) {
     sendResponse({
       source: MSG_SOURCE,
