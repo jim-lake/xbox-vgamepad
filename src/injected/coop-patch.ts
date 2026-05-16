@@ -5,9 +5,9 @@
  * This file is a SIDE-EFFECT module — the interception installs immediately
  * when this module is evaluated (top-level code, no function wrapper).
  *
- * Mechanism: Uses a Proxy on `self.__LOADABLE_LOADED_CHUNKS__` so that ANY
- * push (including webpack's own jsonpCallback) goes through our interceptor
- * FIRST, allowing us to patch module factories before webpack processes them.
+ * Mechanism: Uses Object.defineProperty on the array's .push property so that
+ * when webpack overwrites .push with its jsonpCallback, we wrap THEIR callback
+ * and patch module factories BEFORE webpack processes them.
  */
 
 import { log } from '@/tools/log';
@@ -21,41 +21,45 @@ function extractMethod(
   methodName: string,
   paramCount: number
 ): { start: number; end: number; body: string; params: string[] } | null {
-  const re = new RegExp(methodName + '\\s*\\(([^)]+)\\)\\s*\\{');
-  const m = re.exec(src);
-  if (!m?.[1]) {
-    return null;
-  }
-  const params = m[1].split(',').map((p) => p.trim());
-  if (params.length !== paramCount) {
-    return null;
-  }
+  // Use negative lookbehind for '.' to skip call sites like this.x.onGamepadChanged(...)
+  const re = new RegExp('(?<!\\.)' + methodName + '\\s*\\(([^)]+)\\)\\s*\\{', 'g');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (!m[1]) {
+      continue;
+    }
+    const params = m[1].split(',').map((p) => p.trim());
+    if (params.length !== paramCount) {
+      continue;
+    }
 
-  let braceCount = 0;
-  let methodEnd = -1;
-  const bodyStart = src.indexOf('{', m.index + m[0].length - 1);
-  for (let i = bodyStart; i < src.length; i++) {
-    if (src[i] === '{') {
-      braceCount++;
-    } else if (src[i] === '}') {
-      braceCount--;
-      if (braceCount === 0) {
-        methodEnd = i + 1;
-        break;
+    let braceCount = 0;
+    let methodEnd = -1;
+    const bodyStart = src.indexOf('{', m.index + m[0].length - 1);
+    for (let i = bodyStart; i < src.length; i++) {
+      if (src[i] === '{') {
+        braceCount++;
+      } else if (src[i] === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          methodEnd = i + 1;
+          break;
+        }
       }
     }
-  }
 
-  if (methodEnd === -1) {
-    return null;
-  }
+    if (methodEnd === -1) {
+      continue;
+    }
 
-  return {
-    start: m.index,
-    end: methodEnd,
-    body: src.slice(m.index, methodEnd),
-    params,
-  };
+    return {
+      start: m.index,
+      end: methodEnd,
+      body: src.slice(m.index, methodEnd),
+      params,
+    };
+  }
+  return null;
 }
 
 function patchOnGamepadChanged(
@@ -143,30 +147,12 @@ function escapeRegExp(s: string): string {
 }
 
 function patchModuleSource(src: string): string | null {
-  log(TAG, '  patchModuleSource: source length:', String(src.length));
-
   // --- Patch onGamepadChanged (3 params: source, index, connected) ---
   const changed = extractMethod(src, 'onGamepadChanged', 3);
   if (!changed) {
-    log(TAG, '  could not find onGamepadChanged signature');
-    const partial = src.indexOf('onGamepadChanged');
-    if (partial !== -1) {
-      log(
-        TAG,
-        '  partial match at:',
-        String(partial),
-        src.slice(partial, partial + 80)
-      );
-    }
+    log(TAG, 'could not find onGamepadChanged(3) signature');
     return null;
   }
-  log(
-    TAG,
-    '  found onGamepadChanged at offset',
-    String(changed.start),
-    'params:',
-    changed.params.join(',')
-  );
 
   const patchedChanged = patchOnGamepadChanged(
     changed.body,
@@ -175,25 +161,20 @@ function patchModuleSource(src: string): string | null {
   let result =
     src.slice(0, changed.start) + patchedChanged + src.slice(changed.end);
 
+  log(TAG, 'Patching onGamepadChanged params:', changed.params.join(','));
+
   // --- Patch onGamepadInput (4 params: source, timestamp, inputs, sendFlag) ---
   const input = extractMethod(result, 'onGamepadInput', 4);
   if (input) {
-    log(
-      TAG,
-      '  found onGamepadInput at offset',
-      String(input.start),
-      'params:',
-      input.params.join(',')
-    );
     const patchedInput = patchOnGamepadInput(
       input.body,
       input.params as [string, ...string[]]
     );
     result =
       result.slice(0, input.start) + patchedInput + result.slice(input.end);
-    log(TAG, '  onGamepadInput patched');
+    log(TAG, 'onGamepadInput patched');
   } else {
-    log(TAG, '  WARNING: could not find onGamepadInput signature');
+    log(TAG, 'WARNING: could not find onGamepadInput signature');
   }
 
   return stripFunctionWrapper(result);
@@ -222,13 +203,7 @@ function scanAndPatchModules(
       modSrc.includes('gamepadMappingsToSend') &&
       modSrc.includes('onGamepadChanged')
     ) {
-      log(
-        TAG,
-        '*** FOUND target module at key:',
-        key,
-        'len:',
-        String(modSrc.length)
-      );
+      log(TAG, 'FOUND target module at key:', key, 'len:', String(modSrc.length));
 
       const patched = patchModuleSource(modSrc);
       if (patched) {
@@ -237,13 +212,11 @@ function scanAndPatchModules(
           modules[key] = new Function('e', 't', 'i', patched) as (
             ...a: unknown[]
           ) => void;
-          log(TAG, '  module', key, 'REPLACED successfully');
+          log(TAG, 'module', key, 'REPLACED successfully');
           return true;
         } catch (err: unknown) {
-          log(TAG, '  ERROR creating patched function:', err);
+          log(TAG, 'ERROR creating patched function:', err);
         }
-      } else {
-        log(TAG, '  WARNING: patchModuleSource returned null');
       }
       return false;
     }
@@ -253,148 +226,86 @@ function scanAndPatchModules(
 
 // --- Top-level side effect: install interceptor immediately ---
 
-log(TAG, 'Installing interceptor');
+log(TAG, 'installing interceptor');
 
 const g = self as unknown as Record<string, unknown>;
 
 let patchApplied = false;
 
-// Use a property descriptor trap on self so that no matter when webpack
-// or loadable-component accesses __LOADABLE_LOADED_CHUNKS__, we control
-// the array's push behavior.
-
 // The real backing array
 let realArray: unknown[][] =
   (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
 
-// Wrap push on the real array — this handles the case where webpack
-// overwrites .push with its jsonpCallback
-function wrapPush(arr: unknown[][]): void {
-  const currentPush = arr.push.bind(arr);
-
-  arr.push = function (...args: unknown[]): number {
-    if (!patchApplied) {
-      for (const chunk of args) {
-        if (patchApplied) {
-          break;
-        }
-        if (!Array.isArray(chunk) || chunk.length < 2) {
-          continue;
-        }
-        const modules = chunk[1] as Record<
-          string | number,
-          ((...a: unknown[]) => void) | undefined
-        > | null;
-        if (!modules || typeof modules !== 'object') {
-          continue;
-        }
-        log(TAG, 'chunk has', String(Object.keys(modules).length), 'modules');
-        patchApplied = scanAndPatchModules(modules);
-      }
+function processChunks(args: unknown[]): void {
+  for (const chunk of args) {
+    if (patchApplied) {
+      break;
     }
-    return currentPush(...(args as unknown[][]));
-  };
+    if (!Array.isArray(chunk) || chunk.length < 2) {
+      continue;
+    }
+    const modules = chunk[1] as Record<
+      string | number,
+      ((...a: unknown[]) => void) | undefined
+    > | null;
+    if (!modules || typeof modules !== 'object') {
+      continue;
+    }
+    const count = Object.keys(modules).length;
+    log(TAG, 'chunk has', String(count), 'modules');
+    patchApplied = scanAndPatchModules(modules);
+  }
 }
 
-wrapPush(realArray);
+// Install defineProperty on the array's .push so we intercept webpack's
+// jsonpCallback overwrite. This is the single interception point.
+function installPushTrap(arr: unknown[][]): void {
+  const nativePush = arr.push.bind(arr);
+  let currentPush: (...args: unknown[]) => number = (...args: unknown[]) =>
+    nativePush(...(args as unknown[][]));
 
-// Use defineProperty to intercept any reassignment of __LOADABLE_LOADED_CHUNKS__
-// AND to intercept when webpack replaces .push on the array
+  Object.defineProperty(arr, 'push', {
+    configurable: true,
+    enumerable: false,
+    get() {
+      return currentPush;
+    },
+    set(newPush: (...args: unknown[]) => number) {
+      // Webpack is overwriting .push with jsonpCallback — wrap it
+      log(TAG, '.push overwritten, wrapping');
+      const theirPush = newPush;
+
+      currentPush = function (...args: unknown[]): number {
+        if (!patchApplied) {
+          processChunks(args);
+        }
+        return theirPush.apply(arr, args);
+      };
+    },
+  });
+}
+
+installPushTrap(realArray);
+
+// Trap reassignment of the global __LOADABLE_LOADED_CHUNKS__
 Object.defineProperty(g, '__LOADABLE_LOADED_CHUNKS__', {
   configurable: true,
   get() {
     return realArray;
   },
   set(newVal: unknown) {
-    // If webpack or loadable sets a new array, adopt it but re-wrap push
     if (Array.isArray(newVal)) {
       realArray = newVal as unknown[][];
       if (!patchApplied) {
         // Scan existing entries in the new array
-        for (const chunk of realArray) {
-          if (patchApplied) {
-            break;
-          }
-          if (!Array.isArray(chunk) || chunk.length < 2) {
-            continue;
-          }
-          const modules = chunk[1] as Record<
-            string | number,
-            ((...a: unknown[]) => void) | undefined
-          > | null;
-          if (!modules || typeof modules !== 'object') {
-            continue;
-          }
-          patchApplied = scanAndPatchModules(modules);
-        }
-        wrapPush(realArray);
+        processChunks(realArray);
+        installPushTrap(realArray);
       }
     }
   },
 });
 
-// Also watch for .push being overwritten on the current array via defineProperty
-// by using a Proxy — this is the nuclear option to ensure we always intercept
-const pushDescriptor = Object.getOwnPropertyDescriptor(realArray, 'push');
-if (!pushDescriptor || pushDescriptor.configurable !== false) {
-  let currentWrappedPush = realArray.push;
-
-  Object.defineProperty(realArray, 'push', {
-    configurable: true,
-    enumerable: false,
-    get() {
-      return currentWrappedPush;
-    },
-    set(newPush: (...args: unknown[]) => number) {
-      // Someone (webpack) is overwriting .push — wrap their version too
-      log(TAG, '.push was overwritten, re-wrapping');
-      const theirPush = newPush;
-
-      currentWrappedPush = function (...args: unknown[]): number {
-        if (!patchApplied) {
-          for (const chunk of args) {
-            if (patchApplied) {
-              break;
-            }
-            if (!Array.isArray(chunk) || chunk.length < 2) {
-              continue;
-            }
-            const modules = chunk[1] as Record<
-              string | number,
-              ((...a: unknown[]) => void) | undefined
-            > | null;
-            if (!modules || typeof modules !== 'object') {
-              continue;
-            }
-            log(
-              TAG,
-              'chunk has',
-              String(Object.keys(modules).length),
-              'modules'
-            );
-            patchApplied = scanAndPatchModules(modules);
-          }
-        }
-        return theirPush.apply(realArray, args);
-      };
-    },
-  });
-}
-
 // Scan any chunks already in the array
-for (let ci = 0; ci < realArray.length && !patchApplied; ci++) {
-  const chunk = realArray[ci];
-  if (!Array.isArray(chunk) || chunk.length < 2) {
-    continue;
-  }
-  const modules = chunk[1] as Record<
-    string | number,
-    ((...a: unknown[]) => void) | undefined
-  > | null;
-  if (!modules || typeof modules !== 'object') {
-    continue;
-  }
-  patchApplied = scanAndPatchModules(modules);
-}
+processChunks(realArray);
 
-log(TAG, 'Interceptor installed, patchApplied:', String(patchApplied));
+log(TAG, 'interceptor installed, patchApplied:', String(patchApplied));
