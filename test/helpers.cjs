@@ -253,6 +253,32 @@ async function getStorageSync(browser, keys) {
   }, keys);
 }
 
+async function setStorageLocal(browser, data) {
+  const targets = browser.targets();
+  const swTarget = targets.find(
+    (t) =>
+      t.type() === 'service_worker' && t.url().includes('chrome-extension://')
+  );
+  if (!swTarget) throw new Error('Could not find extension service worker');
+  const worker = await swTarget.worker();
+  await worker.evaluate((d) => {
+    return new Promise((resolve) => chrome.storage.local.set(d, resolve));
+  }, data);
+}
+
+async function getStorageLocal(browser, keys) {
+  const targets = browser.targets();
+  const swTarget = targets.find(
+    (t) =>
+      t.type() === 'service_worker' && t.url().includes('chrome-extension://')
+  );
+  if (!swTarget) throw new Error('Could not find extension service worker');
+  const worker = await swTarget.worker();
+  return worker.evaluate((k) => {
+    return new Promise((resolve) => chrome.storage.local.get(k, resolve));
+  }, keys);
+}
+
 /**
  * Sends a message to the injected script by posting directly into the page context.
  * This simulates what the content script does when relaying messages from the extension.
@@ -410,6 +436,8 @@ module.exports = {
   waitForReady,
   setStorageSync,
   getStorageSync,
+  setStorageLocal,
+  getStorageLocal,
   sendConfigToPage,
   getExtensionId,
   getTabId,

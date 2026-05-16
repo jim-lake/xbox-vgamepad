@@ -44,4 +44,5 @@ runSuites([
   path.join(__dirname, 'suites', 'gamescript.cjs'),
   path.join(__dirname, 'suites', 'gamescript-extended.cjs'),
   path.join(__dirname, 'suites', 'gamescript-timing.cjs'),
+  path.join(__dirname, 'suites', 'game-preset-sync.cjs'),
 ]);
