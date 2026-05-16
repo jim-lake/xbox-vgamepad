@@ -9,8 +9,11 @@ import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
 import * as inputProcessor from './input-processor';
 import { showToast } from './toast';
+import { debugLog } from '../tools/log';
 
 import './gamepad-simulator';
+
+debugLog('[gamepad]: Load main-world2');
 
 const POLL_INTERVAL = 1000;
 
