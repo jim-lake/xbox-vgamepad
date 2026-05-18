@@ -5,6 +5,7 @@ import {
   View,
   TextInput,
 } from '@/components/base_components';
+import type { StyleInput } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
 import { Badge } from '@/components/popup/binding-badges';
@@ -13,6 +14,55 @@ import type { PopupScriptAction } from '@/types/popup';
 import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
 
 import closeIcon from '@/assets/img/close.svg';
+
+interface NumericInputProps {
+  style?: StyleInput;
+  value: number;
+  min?: number;
+  max?: number;
+  integer?: boolean;
+  onChange: (n: number) => void;
+}
+
+function NumericInput({
+  style,
+  value,
+  min,
+  max,
+  integer = false,
+  onChange,
+}: NumericInputProps) {
+  const [state, setState] = React.useState({ text: String(value), value });
+
+  if (value !== state.value) {
+    const parsed = integer ? parseInt(state.text, 10) : parseFloat(state.text);
+    if (parsed !== value) {
+      setState({ text: String(value), value });
+    } else {
+      setState({ text: state.text, value });
+    }
+  }
+
+  return (
+    <TextInput
+      style={style}
+      value={state.text}
+      onChangeText={(v) => {
+        const n = integer ? parseInt(v, 10) : parseFloat(v);
+        if (
+          !isNaN(n) &&
+          (min === undefined || n >= min) &&
+          (max === undefined || n <= max)
+        ) {
+          setState({ text: v, value: n });
+          onChange(n);
+        } else {
+          setState({ text: v, value: state.value });
+        }
+      }}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', paddingTop: '0.5rem' },
@@ -46,7 +96,7 @@ const styles = StyleSheet.create({
     borderRadius: '0.4rem',
     padding: '0.4rem 0.5rem',
     backgroundColor: 'var(--input-bg)',
-    width: '5rem',
+    width: '7rem',
   },
   paramLabel: {
     color: 'var(--text-muted)',
@@ -205,14 +255,12 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
-          <TextInput
+          <NumericInput
             style={styles.numInput}
-            value={String(action.durationMs)}
-            onChangeText={(v) => {
-              const n = parseInt(v, 10);
-              if (!isNaN(n) && n >= 0) {
-                onChange(index, { ...action, durationMs: n });
-              }
+            value={action.durationMs}
+            min={0}
+            onChange={(n) => {
+              onChange(index, { ...action, durationMs: n });
             }}
           />
         </View>
@@ -260,14 +308,14 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Speed (ms)</Text>
-          <TextInput
+          <NumericInput
             style={styles.numInput}
-            value={String(action.speed)}
-            onChangeText={(v) => {
-              const n = parseInt(v, 10);
-              if (!isNaN(n) && n >= 64 && n <= 150) {
-                onChange(index, { ...action, speed: n });
-              }
+            value={action.speed}
+            min={64}
+            max={150}
+            integer
+            onChange={(n) => {
+              onChange(index, { ...action, speed: n });
             }}
           />
         </View>
@@ -313,14 +361,12 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
-          <TextInput
+          <NumericInput
             style={styles.numInput}
-            value={String(action.durationMs)}
-            onChangeText={(v) => {
-              const n = parseInt(v, 10);
-              if (!isNaN(n) && n >= 0) {
-                onChange(index, { type: 'delay', durationMs: n });
-              }
+            value={action.durationMs}
+            min={0}
+            onChange={(n) => {
+              onChange(index, { type: 'delay', durationMs: n });
             }}
           />
         </View>
@@ -342,14 +388,13 @@ export default function ScriptActionRow({
         {!isForever && (
           <View style={styles.params}>
             <Text style={styles.paramLabel}>Times</Text>
-            <TextInput
+            <NumericInput
               style={styles.numInput}
-              value={String(action.count)}
-              onChangeText={(v) => {
-                const n = parseInt(v, 10);
-                if (!isNaN(n) && n >= 1) {
-                  onChange(index, { ...action, count: n });
-                }
+              value={action.count as number}
+              min={1}
+              integer
+              onChange={(n) => {
+                onChange(index, { ...action, count: n });
               }}
             />
           </View>

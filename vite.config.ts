@@ -24,7 +24,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-    plugins: [react(), buildNumberPlugin(), crx({ manifest: manifestCopy })],
+    plugins: [
+      react(),
+      buildNumberPlugin(),
+      crx({ manifest: manifestCopy, mainLoaderAsync: false }),
+    ],
     build: { outDir, sourcemap: true },
     server: { cors: { origin: '*' } },
   };

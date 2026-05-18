@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.240",
+  "version": "0.0.264",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "https://github.com/jim-lake/chrome-extension-tools.git#cbd7220ac5b7ec2f2a1eb89d593e099263109102",
+    "@crxjs/vite-plugin": "https://github.com/jim-lake/chrome-extension-tools.git#4f7f9a8c973cb35cf663b76f9d1dfffd3f1fd8e6",
     "@eslint/js": "9.x",
     "@types/chrome": "^0.1.40",
     "@types/events": "^3.0.3",
