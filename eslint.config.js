@@ -28,6 +28,7 @@ export default defineConfig([
     },
     rules: {
       '@react-native/no-inline-styles': 'error',
+      '@react-native/no-unused-styles': 'error',
       curly: 'error',
       eqeqeq: 'error',
       'no-console': 'warn',

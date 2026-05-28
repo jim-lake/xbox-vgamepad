@@ -1,13 +1,12 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from '@/components/base_components';
+import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import Select from '@/components/select';
-import type { GamepadActionName, OtherGamepadMode } from '@/types/gamepad';
+import type {
+  GamepadActionName,
+  GlobalSettings,
+  OtherGamepadMode,
+} from '@/types/gamepad';
+import { DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
 import { sendDisableGamepad, sendPopupOpened } from './messaging';
 import {
@@ -24,6 +23,7 @@ import {
   getGameName,
   setGamePreset,
   clearStorage,
+  saveGlobalSettings,
   MAX_PRESETS,
   DEFAULT_POPUP,
   popupAddSlot,
@@ -38,7 +38,8 @@ import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import GamepadTabs from '@/components/popup/gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
-import GlobalBindingEditor from './global-binding-editor';
+import AdvancedSection from '@/components/popup/advanced-section';
+import GlobalSettingsPanel from '@/components/popup/global-settings-panel';
 import type { ScriptEntry } from './script-helpers';
 
 const styles = StyleSheet.create({
@@ -68,14 +69,6 @@ const styles = StyleSheet.create({
   },
   body: { flexDirection: 'column', alignSelf: 'stretch' },
   bottomGutter: { height: '4rem' },
-  section: { padding: '0.8rem', flexDirection: 'column' },
-  sectionTitle: {
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    fontWeight: '600',
-    marginBottom: '0.4rem',
-    textTransform: 'uppercase',
-  },
   statusBar: {
     position: 'fixed',
     bottom: 0,
@@ -96,37 +89,6 @@ const styles = StyleSheet.create({
     color: 'var(--text-muted)',
     fontSize: '1.4rem',
   },
-  advancedButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: '0.5rem',
-    margin: '1rem',
-    justifyContent: 'center',
-  },
-  renameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  renameLabel: {
-    width: '10rem',
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-  },
-  renameInput: {
-    flex: 1,
-    marginRight: '1.5rem',
-    backgroundColor: 'var(--input-bg)',
-    color: 'var(--text-primary)',
-    fontSize: '1.4rem',
-    padding: '0.6rem 0.8rem',
-    borderRadius: '0.6rem',
-    borderWidth: 1,
-    borderColor: 'var(--surface-border)',
-  },
 });
 
 export default function App() {
@@ -142,6 +104,12 @@ export default function App() {
   const [savedConfig, setSavedConfig] =
     React.useState<PopupConfig>(DEFAULT_POPUP);
   const [activeSlotTab, setActiveSlotTab] = React.useState<0 | 1 | 2 | 3>(0);
+  const [activeTab, setActiveTab] = React.useState<0 | 1 | 2 | 3 | 'settings'>(
+    0
+  );
+  const [globalSettings, setGlobalSettings] = React.useState<GlobalSettings>(
+    DEFAULT_GLOBAL_SETTINGS
+  );
   const [editingScriptId, setEditingScriptId] = React.useState<string | null>(
     null
   );
@@ -169,6 +137,8 @@ export default function App() {
       );
       setGameName(name);
       setActiveSlotTab(0);
+      setActiveTab(0);
+      setGlobalSettings(data.globalSettings);
       setLoading(false);
     })();
   }, []);
@@ -443,6 +413,14 @@ export default function App() {
     [updateActivePopup]
   );
 
+  const handleChangeGlobalSettings = React.useCallback(
+    (settings: GlobalSettings) => {
+      setGlobalSettings(settings);
+      void saveGlobalSettings(settings);
+    },
+    []
+  );
+
   const handleChangeSlotIndex = React.useCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
       setActiveSlotTab(newIndex);
@@ -456,6 +434,7 @@ export default function App() {
       const next = ([0, 1, 2, 3] as const).find((i) => !popup.slots[i].active);
       if (next !== undefined) {
         setActiveSlotTab(next);
+        setActiveTab(next);
       }
       return popupAddSlot(popup);
     });
@@ -510,89 +489,68 @@ export default function App() {
       <View style={styles.body}>
         <GamepadTabs
           slots={activePopup.slots}
-          activeIndex={activeSlotIndex}
+          activeIndex={activeTab}
           onSelect={(i) => {
             setActiveSlotTab(i);
+            setActiveTab(i);
+            clearScriptEditState();
+          }}
+          onSelectSettings={() => {
+            setActiveTab('settings');
             clearScriptEditState();
           }}
           onAdd={handleAddSlot}
         />
-        <GamepadConfigSection
-          slot={activeSlot}
-          scripts={activePopup.scripts}
-          usedIndices={activeSlots}
-          gamepadCount={activeSlots.length}
-          editingScriptId={editingScriptId}
-          listeningScriptEntry={listeningScriptEntry}
-          onEditingScriptIdChange={setEditingScriptId}
-          onListeningScriptEntryChange={setListeningScriptEntry}
-          onChangeIndex={(next) => {
-            handleChangeSlotIndex(activeSlotIndex, next);
-          }}
-          onChangeBinding={handleChangeBinding}
-          onChangeScripts={handleChangeScripts}
-          onChangeMouseStick={handleChangeMouseStick}
-          onChangeMouseSensitivity={handleChangeMouseSensitivity}
-          onRemove={() => {
-            handleRemoveSlot(activeSlotIndex);
-          }}
-        />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Advanced</Text>
-          <GlobalBindingEditor
-            globalBindings={activePopup.globalBindings}
-            onChange={handleChangeGlobalBinding}
+        {activeTab === 'settings' ? (
+          <GlobalSettingsPanel
+            settings={globalSettings}
+            onChange={handleChangeGlobalSettings}
           />
-          <View style={styles.renameRow}>
-            <Text style={styles.renameLabel}>Physical Gamepads</Text>
-            <Select
-              value={activePopup.otherGamepadMode}
-              options={[
-                { value: 'separate', text: 'Separate' },
-                { value: 'combine', text: 'Combine' },
-              ]}
-              onChange={handleChangeOtherGamepadMode}
+        ) : (
+          <>
+            <GamepadConfigSection
+              slot={activeSlot}
+              scripts={activePopup.scripts}
+              usedIndices={activeSlots}
+              gamepadCount={activeSlots.length}
+              editingScriptId={editingScriptId}
+              listeningScriptEntry={listeningScriptEntry}
+              onEditingScriptIdChange={setEditingScriptId}
+              onListeningScriptEntryChange={setListeningScriptEntry}
+              onChangeIndex={(next) => {
+                handleChangeSlotIndex(activeSlotIndex, next);
+              }}
+              onChangeBinding={handleChangeBinding}
+              onChangeScripts={handleChangeScripts}
+              onChangeMouseStick={handleChangeMouseStick}
+              onChangeMouseSensitivity={handleChangeMouseSensitivity}
+              onRemove={() => {
+                handleRemoveSlot(activeSlotIndex);
+              }}
             />
-          </View>
-          <View style={styles.renameRow}>
-            <Text style={styles.renameLabel}>Rename Profile</Text>
-            <TextInput
-              style={styles.renameInput}
-              value={renameValue}
-              onChangeText={setRenameValue}
-              onSubmitEditing={() => void handleRenameSubmit()}
+
+            <AdvancedSection
+              globalBindings={activePopup.globalBindings}
+              onChangeGlobalBinding={handleChangeGlobalBinding}
+              otherGamepadMode={activePopup.otherGamepadMode}
+              onChangeOtherGamepadMode={handleChangeOtherGamepadMode}
+              renameValue={renameValue}
+              onRenameValueChange={setRenameValue}
+              onRenameSubmit={() => void handleRenameSubmit()}
+              onCopy={() => void handleCopy()}
+              onImport={handleImport}
+              onExport={handleExport}
+              onDelete={() => void handleDelete()}
+              showDelete={presetNames.length > 1}
+              showWipe={import.meta.env.DEV}
+              onWipe={() => {
+                void clearStorage().then(() => {
+                  window.close();
+                });
+              }}
             />
-            <TextButton
-              type='green'
-              text='Save'
-              onPress={() => void handleRenameSubmit()}
-            />
-          </View>
-          <View style={styles.advancedButtons}>
-            <TextButton text='Copy' onPress={() => void handleCopy()} />
-            <TextButton text='Import' onPress={handleImport} />
-            <TextButton text='Export' onPress={handleExport} />
-            {presetNames.length > 1 && (
-              <TextButton
-                type='danger'
-                text='Delete'
-                onPress={() => void handleDelete()}
-              />
-            )}
-            {import.meta.env.DEV && (
-              <TextButton
-                type='danger'
-                text='Wipe'
-                onPress={() => {
-                  void clearStorage().then(() => {
-                    window.close();
-                  });
-                }}
-              />
-            )}
-          </View>
-        </View>
+          </>
+        )}
       </View>
 
       {dirty && <View style={styles.bottomGutter} />}

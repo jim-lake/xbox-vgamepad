@@ -71,10 +71,23 @@ export interface GamepadConfig {
   unboundScripts?: GameScript[];
 }
 
+export interface GlobalSettings {
+  patchRemoteMultigamepad: boolean;
+  enableLogging: boolean;
+  disableBlur: boolean;
+}
+
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  patchRemoteMultigamepad: true,
+  enableLogging: false,
+  disableBlur: false,
+};
+
 export interface StorageData {
   isEnabled: boolean;
   activeConfig: string;
   configs: Record<string, GamepadConfig>;
+  globalSettings: GlobalSettings;
 }
 
 export const BUTTON_MAP: Record<string, number> = {

@@ -3,6 +3,7 @@ import type {
   GamepadKeyboardConfig,
   GamepadActionName,
   GameScript,
+  GlobalSettings,
   ScriptAction,
 } from '@/types/gamepad';
 import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
@@ -270,6 +271,7 @@ export async function loadAllPopupConfigs(): Promise<{
   isEnabled: boolean;
   activeConfig: string;
   configs: Record<string, PopupConfig>;
+  globalSettings: GlobalSettings;
 }> {
   const data = await loadStorage();
   return {
@@ -281,6 +283,7 @@ export async function loadAllPopupConfigs(): Promise<{
         gamepadConfigToPopupConfig(v),
       ])
     ),
+    globalSettings: data.globalSettings,
   };
 }
 
@@ -468,6 +471,7 @@ export {
   getGamePresets,
   setGamePreset,
   clearStorage,
+  saveGlobalSettings,
 } from './storage';
 
 export const DEFAULT_POPUP: PopupConfig =

@@ -1,4 +1,5 @@
 import {
+  Image,
   StyleSheet,
   Text,
   TouchableWithoutFeedback,
@@ -6,6 +7,7 @@ import {
 } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import plusIcon from '@/assets/img/plus.svg';
+import gearIcon from '@/assets/img/gear.svg';
 import type { PopupConfig } from '@/types/popup';
 
 import '@/css/colors.css';
@@ -45,12 +47,16 @@ const styles = StyleSheet.create({
     color: 'var(--text-muted)',
   },
   tabTextActive: { color: 'var(--text-primary)' },
+  gearSlot: { justifyContent: 'center', alignItems: 'center' },
+  gearIcon: { width: '1.6rem', height: '1.6rem', opacity: 0.6 },
+  gearIconActive: { width: '1.6rem', height: '1.6rem', opacity: 1 },
 });
 
 interface Props {
   slots: PopupConfig['slots'];
-  activeIndex: 0 | 1 | 2 | 3;
+  activeIndex: 0 | 1 | 2 | 3 | 'settings';
   onSelect: (i: 0 | 1 | 2 | 3) => void;
+  onSelectSettings: () => void;
   onAdd: () => void;
 }
 
@@ -58,9 +64,11 @@ export default function GamepadTabs({
   slots,
   activeIndex,
   onSelect,
+  onSelectSettings,
   onAdd,
 }: Props) {
   const activeCount = slots.filter((s) => s.active).length;
+  const settingsActive = activeIndex === 'settings';
   return (
     <View style={styles.container}>
       {slots.map((slot, i) => {
@@ -105,6 +113,17 @@ export default function GamepadTabs({
         }
         return <View key={i} style={styles.slot} />;
       })}
+      <View style={styles.gearSlot}>
+        <TouchableWithoutFeedback
+          style={settingsActive ? [styles.tab, styles.tabActive] : styles.tab}
+          onPress={onSelectSettings}
+        >
+          <Image
+            source={gearIcon}
+            style={settingsActive ? styles.gearIconActive : styles.gearIcon}
+          />
+        </TouchableWithoutFeedback>
+      </View>
     </View>
   );
 }

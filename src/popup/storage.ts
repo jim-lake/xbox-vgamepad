@@ -1,5 +1,13 @@
-import type { GamepadConfig, StorageData } from '@/types/gamepad';
-import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
+import type {
+  GamepadConfig,
+  GlobalSettings,
+  StorageData,
+} from '@/types/gamepad';
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_GLOBAL_SETTINGS,
+  CONFIG_PREFIX,
+} from '@/types/gamepad';
 import { validateConfig } from './validate';
 
 export function parseStorageData(data: Record<string, unknown>): StorageData {
@@ -16,7 +24,15 @@ export function parseStorageData(data: Record<string, unknown>): StorageData {
     }
   }
 
-  return { isEnabled, activeConfig, configs };
+  const rawSettings = data['GLOBAL_SETTINGS'] as
+    | Partial<GlobalSettings>
+    | undefined;
+  const globalSettings: GlobalSettings = {
+    ...DEFAULT_GLOBAL_SETTINGS,
+    ...rawSettings,
+  };
+
+  return { isEnabled, activeConfig, configs, globalSettings };
 }
 
 export async function loadStorage(): Promise<StorageData> {
@@ -68,4 +84,10 @@ export async function clearStorage(): Promise<void> {
     chrome.storage.sync.clear(),
     chrome.storage.local.clear(),
   ]);
+}
+
+export async function saveGlobalSettings(
+  settings: GlobalSettings
+): Promise<void> {
+  await chrome.storage.sync.set({ GLOBAL_SETTINGS: settings });
 }

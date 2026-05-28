@@ -17,15 +17,39 @@ The root object stored in persistent sync storage:
   "configs": {
     "default": { "...GamepadConfig..." },
     "shooter": { "...GamepadConfig..." }
+  },
+  "globalSettings": {
+    "patchRemoteMultigamepad": true,
+    "enableLogging": false,
+    "disableBlur": false
   }
 }
 ```
 
-| Field          | Type                            | Required | Description                                                                                                |
-| -------------- | ------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `isEnabled`    | `boolean`                       | Yes      | Whether the virtual gamepad is active. When `false`, the extension does not intercept input.               |
-| `activeConfig` | `string`                        | Yes      | Name of the currently active preset from `configs`.                                                        |
-| `configs`      | `Record<string, GamepadConfig>` | Yes      | Map of preset names to configuration objects. Must always contain a `"default"` entry. Maximum 25 presets. |
+| Field            | Type                            | Required | Description                                                                                                |
+| ---------------- | ------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `isEnabled`      | `boolean`                       | Yes      | Whether the virtual gamepad is active. When `false`, the extension does not intercept input.               |
+| `activeConfig`   | `string`                        | Yes      | Name of the currently active preset from `configs`.                                                        |
+| `configs`        | `Record<string, GamepadConfig>` | Yes      | Map of preset names to configuration objects. Must always contain a `"default"` entry. Maximum 25 presets. |
+| `globalSettings` | `GlobalSettings`                | No       | Extension-wide settings that apply across all presets. Defaults applied when absent.                       |
+
+## GlobalSettings
+
+Settings that apply globally to the extension, independent of the active preset.
+
+```json
+{
+  "patchRemoteMultigamepad": true,
+  "enableLogging": false,
+  "disableBlur": false
+}
+```
+
+| Field                     | Type      | Default | Description                                                                                    |
+| ------------------------- | --------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `patchRemoteMultigamepad` | `boolean` | `true`  | Whether to apply the co-op webpack patch that fixes hardcoded gamepad indices for multiplayer. |
+| `enableLogging`           | `boolean` | `false` | Whether to enable debug logging in the extension's injected scripts.                           |
+| `disableBlur`             | `boolean` | `false` | Whether to disable the blur effect on the xCloud page when the extension overlay is active.    |
 
 ## GamepadConfig
 
