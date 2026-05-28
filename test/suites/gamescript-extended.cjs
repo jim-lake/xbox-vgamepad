@@ -766,6 +766,51 @@ module.exports = async function ({
     }
   );
 
+  // ── unbind running macro stops it ───────────────────────────────────────
+
+  console.log('  [GameScript Extended - unbind running macro stops it]');
+
+  await assert(
+    'unbinding a key while its macro is running stops the macro immediately',
+    async () => {
+      // Start a toggle turbo on KeyT (infinite loop pressing button A)
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'gs-ext',
+        gamepadConfig: scriptConfig('KeyT', turboScript('a', 50, 'toggle')),
+      });
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Activate the turbo
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+      await waitForButton(page, 0, true);
+
+      // Rebind KeyT to a regular action (unbinds the macro)
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'gs-ext-rebound',
+        gamepadConfig: {
+          mouseConfig: { mouseControls: [] },
+          keyboardConfig: {
+            KeyT: [{ type: 'action', gamepadIndex: 0, action: 'b' }],
+          },
+        },
+      });
+
+      // Macro must have stopped — button A released
+      await waitForButton(page, 0, false);
+      await new Promise((r) => setTimeout(r, 150));
+      expect((await getButtonStates(page))[0]).toBeFalse();
+
+      // New binding works
+      await page.keyboard.down('t');
+      await waitForButton(page, 1, true);
+      await page.keyboard.up('t');
+      await waitForButton(page, 1, false);
+    }
+  );
+
   // Restore clean state
   await releaseAll(page);
   await sendConfigToPage(page, {
