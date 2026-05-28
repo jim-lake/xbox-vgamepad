@@ -1,15 +1,33 @@
-export default { setDebugLogger, log, errorLog, errorQuietLog, debugLog };
+export default {
+  setDebugLogger,
+  setLoggingEnabled,
+  log,
+  errorLog,
+  errorQuietLog,
+  debugLog,
+};
 
 export type Logger = (...args: unknown[]) => void;
 let g_logger: Logger | null = null;
+let g_enabled = false;
+
 export function setDebugLogger(logger: Logger) {
   g_logger = logger;
 }
+export function setLoggingEnabled(enabled: boolean) {
+  g_enabled = enabled;
+}
 export function log(...args: unknown[]) {
+  if (!g_enabled) {
+    return;
+  }
   // eslint-disable-next-line no-console
   console.log(...args);
 }
 export function errorLog(...args: unknown[]) {
+  if (!g_enabled) {
+    return;
+  }
   // eslint-disable-next-line no-console
   console.log(...args);
   if (g_logger) {
@@ -17,6 +35,9 @@ export function errorLog(...args: unknown[]) {
   }
 }
 export function errorQuietLog(...args: unknown[]) {
+  if (!g_enabled) {
+    return;
+  }
   // eslint-disable-next-line no-console
   console.log(...args);
   if (g_logger) {
@@ -24,6 +45,9 @@ export function errorQuietLog(...args: unknown[]) {
   }
 }
 export function debugLog(...args: unknown[]) {
+  if (!g_enabled) {
+    return;
+  }
   // eslint-disable-next-line no-console
   console.log(...args);
   if (g_logger) {

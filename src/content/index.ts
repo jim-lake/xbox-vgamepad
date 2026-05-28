@@ -1,5 +1,49 @@
 import { MSG_SOURCE } from '@/types/messages';
-import type { ExtensionMessage } from '@/types/messages';
+import type {
+  ExtensionMessage,
+  SettingsChangedMessage,
+} from '@/types/messages';
+import type { GlobalSettings } from '@/types/gamepad';
+import { DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
+import { setLoggingEnabled } from '@/tools/log';
+
+function parseSettings(data: Record<string, unknown>): GlobalSettings {
+  const raw = data['GLOBAL_SETTINGS'] as Partial<GlobalSettings> | undefined;
+  return { ...DEFAULT_GLOBAL_SETTINGS, ...raw };
+}
+
+function sendSettingsToPage(settings: GlobalSettings): void {
+  window.postMessage(
+    {
+      source: MSG_SOURCE,
+      type: 'SETTINGS_CHANGED',
+      enableLogging: settings.enableLogging,
+      disableBlur: settings.disableBlur,
+    } satisfies SettingsChangedMessage,
+    '*'
+  );
+}
+
+try {
+  void chrome.storage.sync.get('GLOBAL_SETTINGS').then((data) => {
+    const settings = parseSettings(data);
+    setLoggingEnabled(settings.enableLogging);
+    sendSettingsToPage(settings);
+  });
+} catch {
+  // Extension context invalidated
+}
+
+chrome.storage.sync.onChanged.addListener((changes) => {
+  if (changes['GLOBAL_SETTINGS']) {
+    const raw = changes['GLOBAL_SETTINGS'].newValue as
+      | Partial<GlobalSettings>
+      | undefined;
+    const settings: GlobalSettings = { ...DEFAULT_GLOBAL_SETTINGS, ...raw };
+    setLoggingEnabled(settings.enableLogging);
+    sendSettingsToPage(settings);
+  }
+});
 
 try {
   void chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });

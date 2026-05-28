@@ -9,6 +9,7 @@ import type {
 import { DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
 import { sendDisableGamepad, sendPopupOpened } from './messaging';
+import { setLoggingEnabled } from '@/tools/log';
 import {
   loadAllPopupConfigs,
   saveAndBroadcastPopupConfig,
@@ -139,6 +140,7 @@ export default function App() {
       setActiveSlotTab(0);
       setActiveTab(0);
       setGlobalSettings(data.globalSettings);
+      setLoggingEnabled(data.globalSettings.enableLogging);
       setLoading(false);
     })();
   }, []);
@@ -416,6 +418,7 @@ export default function App() {
   const handleChangeGlobalSettings = React.useCallback(
     (settings: GlobalSettings) => {
       setGlobalSettings(settings);
+      setLoggingEnabled(settings.enableLogging);
       void saveGlobalSettings(settings);
     },
     []

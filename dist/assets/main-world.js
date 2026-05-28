@@ -1,10 +1,16 @@
 (function() {
 	//#region src/tools/log.ts
 	var g_logger = null;
+	var g_enabled = false;
+	function setLoggingEnabled(enabled) {
+		g_enabled = enabled;
+	}
 	function log(...args) {
+		if (!g_enabled) return;
 		console.log(...args);
 	}
 	function debugLog(...args) {
+		if (!g_enabled) return;
 		console.log(...args);
 		if (g_logger) g_logger(...args);
 	}
@@ -1253,6 +1259,20 @@
 	}
 	//#endregion
 	//#region src/injected/main-world.ts
+	var g_disableBlur = false;
+	window.addEventListener("blur", (e) => {
+		if (g_disableBlur) {
+			e.stopImmediatePropagation();
+			e.preventDefault();
+		}
+	}, true);
+	window.addEventListener("message", (event) => {
+		const data = event.data;
+		if (data && typeof data === "object" && data.source === "xbox-vgamepad-content-script" && data.type === "SETTINGS_CHANGED") {
+			setLoggingEnabled(data.enableLogging);
+			g_disableBlur = data.disableBlur;
+		}
+	});
 	debugLog("[gamepad]: Load main-world");
 	var POLL_INTERVAL = 1e3;
 	var pollTimer = null;

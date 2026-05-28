@@ -9,9 +9,36 @@ import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
 import * as inputProcessor from './input-processor';
 import { showToast } from './toast';
-import { debugLog } from '../tools/log';
+import { debugLog, setLoggingEnabled } from '../tools/log';
 
 import './gamepad-simulator';
+
+// Blur suppression — always registered with capture, controlled by flag
+let g_disableBlur = false;
+window.addEventListener(
+  'blur',
+  (e: Event) => {
+    if (g_disableBlur) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  },
+  true
+);
+
+// Listen for settings changes at all times (before and after game detection)
+window.addEventListener('message', (event: MessageEvent) => {
+  const data: unknown = event.data;
+  if (
+    data &&
+    typeof data === 'object' &&
+    (data as { source?: unknown }).source === MSG_SOURCE &&
+    (data as { type?: unknown }).type === 'SETTINGS_CHANGED'
+  ) {
+    setLoggingEnabled((data as { enableLogging: boolean }).enableLogging);
+    g_disableBlur = (data as { disableBlur: boolean }).disableBlur;
+  }
+});
 
 debugLog('[gamepad]: Load main-world');
 

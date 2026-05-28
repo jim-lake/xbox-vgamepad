@@ -27,6 +27,13 @@ export interface ActivateGamepadConfigMessage {
   overlayMinimized?: boolean;
 }
 
+export interface SettingsChangedMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SETTINGS_CHANGED';
+  enableLogging: boolean;
+  disableBlur: boolean;
+}
+
 export interface DisableGamepadMessage {
   source: typeof MSG_SOURCE;
   type: 'DISABLE_GAMEPAD';
@@ -77,7 +84,8 @@ export type PageToContentMessage =
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
   | DisableGamepadMessage
-  | ConfigChangedMessage;
+  | ConfigChangedMessage
+  | SettingsChangedMessage;
 
 export type ExtensionMessage =
   | InjectedMessage
@@ -90,4 +98,5 @@ export type ExtensionMessage =
   | SetOverlayMinimizedMessage
   | ToggleEnabledMessage
   | ConfigChangedMessage
+  | SettingsChangedMessage
   | ScriptCountMessage;

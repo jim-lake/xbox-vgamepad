@@ -34,7 +34,11 @@ interface Props {
 
 export default function Switch({ value, onValueChange }: Props) {
   return (
-    <TouchableWithoutFeedback onPress={() => { onValueChange(!value); }}>
+    <TouchableWithoutFeedback
+      onPress={() => {
+        onValueChange(!value);
+      }}
+    >
       <View style={[styles.toggle, value ? styles.toggleOn : styles.toggleOff]}>
         <View style={styles.knob} />
       </View>
