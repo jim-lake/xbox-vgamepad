@@ -1,11 +1,11 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.273",
+  "version": "0.0.288",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && rm -rf dist && vite build",
     "ts:check": "tsc -b --noEmit",
     "lint": "eslint . --fix",
     "pretty": "prettier --write .",

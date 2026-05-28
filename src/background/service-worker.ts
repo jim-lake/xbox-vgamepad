@@ -8,6 +8,14 @@ import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
 import type { GamepadConfig } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
 
+function storeGameName(gameName: string | null): void {
+  if (gameName !== null) {
+    void chrome.storage.local.set({ gameName });
+  } else {
+    void chrome.storage.local.remove('gameName');
+  }
+}
+
 const ICONS_ENABLED = {
   16: 'src/assets/img/icon16.png',
   48: 'src/assets/img/icon48.png',
@@ -168,13 +176,13 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'INITIALIZED') {
-      void chrome.storage.local.set({ gameName: message.gameName });
+      storeGameName(message.gameName);
       void handleInitialized(message.gameName, sendResponse);
       return true;
     }
 
     if (message.type === 'GAME_CHANGED') {
-      void chrome.storage.local.set({ gameName: message.gameName });
+      storeGameName(message.gameName);
       const { gameName } = message;
       const tabId = sender.tab.id;
       if (gameName !== null && tabId !== undefined) {
