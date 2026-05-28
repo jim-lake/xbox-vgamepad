@@ -6,7 +6,8 @@ import {
   View,
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import type { GamepadActionName } from '@/types/gamepad';
+import Select from '@/components/select';
+import type { GamepadActionName, OtherGamepadMode } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
 import { sendDisableGamepad, sendPopupOpened } from './messaging';
 import {
@@ -432,6 +433,16 @@ export default function App() {
     [updateActivePopup]
   );
 
+  const handleChangeOtherGamepadMode = React.useCallback(
+    (value: string) => {
+      updateActivePopup((popup) => ({
+        ...popup,
+        otherGamepadMode: value as OtherGamepadMode,
+      }));
+    },
+    [updateActivePopup]
+  );
+
   const handleChangeSlotIndex = React.useCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
       setActiveSlotTab(newIndex);
@@ -533,6 +544,17 @@ export default function App() {
             globalBindings={activePopup.globalBindings}
             onChange={handleChangeGlobalBinding}
           />
+          <View style={styles.renameRow}>
+            <Text style={styles.renameLabel}>Physical Gamepads</Text>
+            <Select
+              value={activePopup.otherGamepadMode}
+              options={[
+                { value: 'separate', text: 'Separate' },
+                { value: 'combine', text: 'Combine' },
+              ]}
+              onChange={handleChangeOtherGamepadMode}
+            />
+          </View>
           <View style={styles.renameRow}>
             <Text style={styles.renameLabel}>Rename Profile</Text>
             <TextInput

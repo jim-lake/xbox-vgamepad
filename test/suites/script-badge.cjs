@@ -68,16 +68,12 @@ module.exports = async function ({
               actions: [
                 {
                   type: 'down',
-                  buttons: [
-                    { type: 'action', gamepadIndex: 0, action: 'a' },
-                  ],
+                  buttons: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
                 },
                 { type: 'delay', durationMs: 50 },
                 {
                   type: 'up',
-                  buttons: [
-                    { type: 'action', gamepadIndex: 0, action: 'a' },
-                  ],
+                  buttons: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
                 },
                 { type: 'delay', durationMs: 50 },
               ],
@@ -96,16 +92,12 @@ module.exports = async function ({
               actions: [
                 {
                   type: 'down',
-                  buttons: [
-                    { type: 'action', gamepadIndex: 0, action: 'b' },
-                  ],
+                  buttons: [{ type: 'action', gamepadIndex: 0, action: 'b' }],
                 },
                 { type: 'delay', durationMs: 50 },
                 {
                   type: 'up',
-                  buttons: [
-                    { type: 'action', gamepadIndex: 0, action: 'b' },
-                  ],
+                  buttons: [{ type: 'action', gamepadIndex: 0, action: 'b' }],
                 },
                 { type: 'delay', durationMs: 50 },
               ],
@@ -130,43 +122,34 @@ module.exports = async function ({
   // The cancelAll during activate sends count=0
   await clearRecordedCounts();
 
-  await assert(
-    'starting one script sends count=1 to background',
-    async () => {
-      await page.keyboard.down('t');
-      await page.keyboard.up('t');
-      const counts = await waitForCount(1);
-      const last = counts[counts.length - 1];
-      expect(last).toBe(1);
-    }
-  );
+  await assert('starting one script sends count=1 to background', async () => {
+    await page.keyboard.down('t');
+    await page.keyboard.up('t');
+    const counts = await waitForCount(1);
+    const last = counts[counts.length - 1];
+    expect(last).toBe(1);
+  });
 
-  await assert(
-    'toggling script off sends count=0 to background',
-    async () => {
-      await clearRecordedCounts();
-      await page.keyboard.down('t');
-      await page.keyboard.up('t');
-      const counts = await waitForCount(0);
-      const last = counts[counts.length - 1];
-      expect(last).toBe(0);
-    }
-  );
+  await assert('toggling script off sends count=0 to background', async () => {
+    await clearRecordedCounts();
+    await page.keyboard.down('t');
+    await page.keyboard.up('t');
+    const counts = await waitForCount(0);
+    const last = counts[counts.length - 1];
+    expect(last).toBe(0);
+  });
 
-  await assert(
-    'starting two scripts sends count=2 to background',
-    async () => {
-      await clearRecordedCounts();
-      await page.keyboard.down('t');
-      await page.keyboard.up('t');
-      await waitForCount(1);
-      await page.keyboard.down('y');
-      await page.keyboard.up('y');
-      const counts = await waitForCount(2);
-      const last = counts[counts.length - 1];
-      expect(last).toBe(2);
-    }
-  );
+  await assert('starting two scripts sends count=2 to background', async () => {
+    await clearRecordedCounts();
+    await page.keyboard.down('t');
+    await page.keyboard.up('t');
+    await waitForCount(1);
+    await page.keyboard.down('y');
+    await page.keyboard.up('y');
+    const counts = await waitForCount(2);
+    const last = counts[counts.length - 1];
+    expect(last).toBe(2);
+  });
 
   await assert(
     'stopping one of two scripts sends count=1 to background',
@@ -180,38 +163,32 @@ module.exports = async function ({
     }
   );
 
-  await assert(
-    'stopping all scripts sends count=0 to background',
-    async () => {
-      await clearRecordedCounts();
-      await page.keyboard.down('y');
-      await page.keyboard.up('y');
-      const counts = await waitForCount(0);
-      const last = counts[counts.length - 1];
-      expect(last).toBe(0);
-    }
-  );
+  await assert('stopping all scripts sends count=0 to background', async () => {
+    await clearRecordedCounts();
+    await page.keyboard.down('y');
+    await page.keyboard.up('y');
+    const counts = await waitForCount(0);
+    const last = counts[counts.length - 1];
+    expect(last).toBe(0);
+  });
 
-  await assert(
-    'config change cancels scripts and sends count=0',
-    async () => {
-      // Start a script
-      await page.keyboard.down('t');
-      await page.keyboard.up('t');
-      await waitForCount(1);
-      await clearRecordedCounts();
+  await assert('config change cancels scripts and sends count=0', async () => {
+    // Start a script
+    await page.keyboard.down('t');
+    await page.keyboard.up('t');
+    await waitForCount(1);
+    await clearRecordedCounts();
 
-      // Switch config — should cancel all scripts
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'badge-test-2',
-        gamepadConfig: twoScriptConfig,
-      });
-      const counts = await waitForCount(0);
-      const last = counts[counts.length - 1];
-      expect(last).toBe(0);
-    }
-  );
+    // Switch config — should cancel all scripts
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'badge-test-2',
+      gamepadConfig: twoScriptConfig,
+    });
+    const counts = await waitForCount(0);
+    const last = counts[counts.length - 1];
+    expect(last).toBe(0);
+  });
 
   // Cleanup
   await releaseAll(page);

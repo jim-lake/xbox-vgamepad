@@ -23,10 +23,7 @@ const MOUSE_STOP_MS = 50;
 const SCROLL_UNPRESS_MS = 20;
 
 function onScriptCountChange(count: number): void {
-  window.postMessage(
-    { source: MSG_SOURCE, type: 'SCRIPT_COUNT', count },
-    '*'
-  );
+  window.postMessage({ source: MSG_SOURCE, type: 'SCRIPT_COUNT', count }, '*');
 }
 
 const TOGGLE_ACTIONS = new Set([

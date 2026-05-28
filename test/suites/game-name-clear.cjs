@@ -11,7 +11,9 @@ module.exports = async function ({
   const { setStorageSync, setStorageLocal, getStorageLocal, sendConfigToPage } =
     helpers;
 
-  console.log('  [Game Name Clear - gameName removed from storage on game end]');
+  console.log(
+    '  [Game Name Clear - gameName removed from storage on game end]'
+  );
 
   await setStorageSync(browser, {
     'GP_CONF:default': DEFAULT_CONFIG,

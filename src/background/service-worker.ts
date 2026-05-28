@@ -204,10 +204,7 @@ chrome.runtime.onMessage.addListener(
       if (tabId !== undefined) {
         const text = message.count > 0 ? String(message.count) : '';
         void chrome.action.setBadgeText({ text, tabId });
-        void chrome.action.setBadgeBackgroundColor({
-          color: '#ffffff',
-          tabId,
-        });
+        void chrome.action.setBadgeBackgroundColor({ color: '#ffffff', tabId });
         void chrome.action.setBadgeTextColor({ color: '#16a34a', tabId });
       }
       return false;
