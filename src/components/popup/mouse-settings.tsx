@@ -13,6 +13,8 @@ const styles = StyleSheet.create({
     paddingRight: '0.6rem',
     borderRadius: '1rem',
   },
+  optionInactive: { backgroundColor: 'var(--chip-bg)' },
+  optionInactiveText: { color: 'var(--text-primary)' },
   optionActive: { backgroundColor: 'var(--chip-active-bg)' },
   optionActiveText: { color: 'var(--text-on-color)' },
   sensitivityValue: {
@@ -50,22 +52,25 @@ export default function MouseSettings({
     <View style={styles.container}>
       <FormRow label='Stick'>
         <View style={styles.stickOptions}>
-          {STICK_OPTIONS.map(({ label, value }) => (
-            <TextButton
-              key={label}
-              style={[
-                styles.option,
-                currentStick === value ? styles.optionActive : undefined,
-              ]}
-              textStyle={
-                currentStick === value ? styles.optionActiveText : undefined
-              }
-              text={label}
-              onPress={() => {
-                onChangeStick(value);
-              }}
-            />
-          ))}
+          {STICK_OPTIONS.map(({ label, value }) => {
+            const active = currentStick === value;
+            return (
+              <TextButton
+                key={label}
+                style={[
+                  styles.option,
+                  active ? styles.optionActive : styles.optionInactive,
+                ]}
+                textStyle={
+                  active ? styles.optionActiveText : styles.optionInactiveText
+                }
+                text={label}
+                onPress={() => {
+                  onChangeStick(value);
+                }}
+              />
+            );
+          })}
         </View>
       </FormRow>
       <FormRow label='Sensitivity'>

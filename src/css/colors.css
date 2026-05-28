@@ -2,7 +2,7 @@
   /* ── App shell ── */
   --app-bg: #1a1a2e;
   --surface-bg: #16213e;
-  --surface-border: #0f3460;
+  --surface-border: #1e4a7a;
 
   /* ── Typography ── */
   --text-primary: #e2e8f0;
@@ -44,8 +44,8 @@
   --button-default-border: #0b5e0b;
   --button-default-text: #fff;
 
-  --button-disabled-bg: #ccc;
-  --button-disabled-border: #aaa;
+  --button-disabled-bg: #2a2a3e;
+  --button-disabled-border: #3a3a4e;
   --button-disabled-text: #666;
 
   --button-danger-bg: #d13438;
@@ -56,9 +56,9 @@
   --button-ghost-inverted-bg: transparent;
   --button-ghost-inverted-text: #fff;
 
-  --button-ghost-border: #107c10;
+  --button-ghost-border: #3daa3d;
   --button-ghost-bg: transparent;
-  --button-ghost-text: #107c10;
+  --button-ghost-text: #3daa3d;
 
   --button-inverted-bg: #fff;
   --button-inverted-border: #ddd;
@@ -66,7 +66,7 @@
 
   --button-empty-bg: transparent;
   --button-empty-border: transparent;
-  --button-empty-text: #333;
+  --button-empty-text: #e2e8f0;
 
   --button-blue-bg: #0078d4;
   --button-blue-border: #005a9e;
