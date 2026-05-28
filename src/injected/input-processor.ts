@@ -4,6 +4,7 @@ import type {
   GameScript,
   ScriptAction,
 } from '@/types/gamepad';
+import { MSG_SOURCE } from '@/types/messages';
 import { getSimulator, updateVirtualSlots } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
 import { executePress, executeUnpress } from './script-actions';
@@ -20,6 +21,13 @@ import {
 const MOUSE_THROTTLE_MS = 40;
 const MOUSE_STOP_MS = 50;
 const SCROLL_UNPRESS_MS = 20;
+
+function onScriptCountChange(count: number): void {
+  window.postMessage(
+    { source: MSG_SOURCE, type: 'SCRIPT_COUNT', count },
+    '*'
+  );
+}
 
 const TOGGLE_ACTIONS = new Set([
   'toggleGamepad',
@@ -91,7 +99,7 @@ function getActiveGamepadIndices(config: GamepadConfig): Set<0 | 1 | 2 | 3> {
 
 let g_keyMap = new Map<string, GamepadAction[]>();
 let g_scriptMap = new Map<string, GameScript[]>();
-let g_scriptManager = new ScriptManager();
+let g_scriptManager = new ScriptManager(onScriptCountChange);
 let g_mouseTarget: { stick: number; gamepadIndex: 0 | 1 | 2 | 3 } | null = null;
 let g_sensitivity = 10;
 let g_active = false;
@@ -428,7 +436,7 @@ export function activate(
     const built = buildKeyMap(config);
     g_keyMap = built.keyMap;
     g_scriptMap = built.scriptMap;
-    g_scriptManager = new ScriptManager();
+    g_scriptManager = new ScriptManager(onScriptCountChange);
     g_activeIndices = newIndices;
     attachKeyboard();
     attachMouseButtons();
@@ -445,7 +453,7 @@ export function activate(
   const built = buildKeyMap(config);
   g_keyMap = built.keyMap;
   g_scriptMap = built.scriptMap;
-  g_scriptManager = new ScriptManager();
+  g_scriptManager = new ScriptManager(onScriptCountChange);
   g_activeIndices = getActiveGamepadIndices(config);
   g_active = true;
   gamepadSimulator.setMode(config.otherGamepadMode);

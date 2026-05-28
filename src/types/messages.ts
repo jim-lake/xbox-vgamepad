@@ -61,11 +61,18 @@ export interface PopupOpenedMessage {
   type: 'POPUP_OPENED';
 }
 
+export interface ScriptCountMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SCRIPT_COUNT';
+  count: number;
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
   | SetOverlayMinimizedMessage
-  | ToggleEnabledMessage;
+  | ToggleEnabledMessage
+  | ScriptCountMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -82,4 +89,5 @@ export type ExtensionMessage =
   | DisableGamepadMessage
   | SetOverlayMinimizedMessage
   | ToggleEnabledMessage
-  | ConfigChangedMessage;
+  | ConfigChangedMessage
+  | ScriptCountMessage;

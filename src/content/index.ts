@@ -51,6 +51,12 @@ window.addEventListener('message', (event: MessageEvent) => {
     } catch {
       // Extension context invalidated
     }
+  } else if (msg.type === 'SCRIPT_COUNT') {
+    try {
+      void chrome.runtime.sendMessage(msg);
+    } catch {
+      // Extension context invalidated
+    }
   }
 });
 

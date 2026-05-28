@@ -123,6 +123,15 @@ function delay(ms: number): Promise<void> {
 export class ScriptManager {
   private readonly running = new Map<string, ScriptHandle>();
   private readonly toggleActive = new Set<string>();
+  private readonly onCountChange: ((count: number) => void) | undefined;
+
+  constructor(onCountChange?: (count: number) => void) {
+    this.onCountChange = onCountChange;
+  }
+
+  private notifyCount(): void {
+    this.onCountChange?.(this.running.size);
+  }
 
   onKeyDown(key: string, script: GameScript): void {
     switch (script.activationType) {
@@ -130,6 +139,7 @@ export class ScriptManager {
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
+        this.notifyCount();
         break;
       }
       case 'toggle': {
@@ -137,10 +147,12 @@ export class ScriptManager {
           this.running.get(key)?.cancel();
           this.running.delete(key);
           this.toggleActive.delete(key);
+          this.notifyCount();
         } else {
           const handle = runScript(script);
           this.running.set(key, handle);
           this.toggleActive.add(key);
+          this.notifyCount();
         }
         break;
       }
@@ -148,6 +160,7 @@ export class ScriptManager {
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
+        this.notifyCount();
         break;
       }
       case 'on_up':
@@ -161,11 +174,13 @@ export class ScriptManager {
         this.running.get(key)?.cancel();
         const handle = runScript(script);
         this.running.set(key, handle);
+        this.notifyCount();
         break;
       }
       case 'held': {
         this.running.get(key)?.cancel();
         this.running.delete(key);
+        this.notifyCount();
         break;
       }
       case 'on_down':
@@ -181,5 +196,6 @@ export class ScriptManager {
     }
     this.running.clear();
     this.toggleActive.clear();
+    this.notifyCount();
   }
 }

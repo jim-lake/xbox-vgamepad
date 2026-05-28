@@ -441,6 +441,7 @@ module.exports = {
   sendConfigToPage,
   getExtensionId,
   getTabId,
+  getServiceWorker,
   makeConfig,
   getPadButtonStates,
   getPadAxesStates,

@@ -687,12 +687,20 @@
 	var ScriptManager = class {
 		running = /* @__PURE__ */ new Map();
 		toggleActive = /* @__PURE__ */ new Set();
+		onCountChange;
+		constructor(onCountChange) {
+			this.onCountChange = onCountChange;
+		}
+		notifyCount() {
+			this.onCountChange?.(this.running.size);
+		}
 		onKeyDown(key, script) {
 			switch (script.activationType) {
 				case "on_down": {
 					this.running.get(key)?.cancel();
 					const handle = runScript(script);
 					this.running.set(key, handle);
+					this.notifyCount();
 					break;
 				}
 				case "toggle":
@@ -700,16 +708,19 @@
 						this.running.get(key)?.cancel();
 						this.running.delete(key);
 						this.toggleActive.delete(key);
+						this.notifyCount();
 					} else {
 						const handle = runScript(script);
 						this.running.set(key, handle);
 						this.toggleActive.add(key);
+						this.notifyCount();
 					}
 					break;
 				case "held": {
 					this.running.get(key)?.cancel();
 					const handle = runScript(script);
 					this.running.set(key, handle);
+					this.notifyCount();
 					break;
 				}
 				case "on_up": break;
@@ -721,11 +732,13 @@
 					this.running.get(key)?.cancel();
 					const handle = runScript(script);
 					this.running.set(key, handle);
+					this.notifyCount();
 					break;
 				}
 				case "held":
 					this.running.get(key)?.cancel();
 					this.running.delete(key);
+					this.notifyCount();
 					break;
 				case "on_down":
 				case "toggle": break;
@@ -736,6 +749,7 @@
 			for (const handle of this.running.values()) handle.cancel();
 			this.running.clear();
 			this.toggleActive.clear();
+			this.notifyCount();
 		}
 	};
 	//#endregion
@@ -898,6 +912,13 @@
 	var MOUSE_THROTTLE_MS = 40;
 	var MOUSE_STOP_MS = 50;
 	var SCROLL_UNPRESS_MS = 20;
+	function onScriptCountChange(count) {
+		window.postMessage({
+			source: MSG_SOURCE,
+			type: "SCRIPT_COUNT",
+			count
+		}, "*");
+	}
 	var TOGGLE_ACTIONS = new Set([
 		"toggleGamepad",
 		"toggleAllGamepads",
@@ -933,7 +954,7 @@
 	}
 	var g_keyMap = /* @__PURE__ */ new Map();
 	var g_scriptMap = /* @__PURE__ */ new Map();
-	var g_scriptManager = new ScriptManager();
+	var g_scriptManager = new ScriptManager(onScriptCountChange);
 	var g_mouseTarget = null;
 	var g_sensitivity = 10;
 	var g_active = false;
@@ -1135,7 +1156,7 @@
 			const built = buildKeyMap(config);
 			g_keyMap = built.keyMap;
 			g_scriptMap = built.scriptMap;
-			g_scriptManager = new ScriptManager();
+			g_scriptManager = new ScriptManager(onScriptCountChange);
 			g_activeIndices = newIndices;
 			attachKeyboard();
 			attachMouseButtons();
@@ -1150,7 +1171,7 @@
 		const built = buildKeyMap(config);
 		g_keyMap = built.keyMap;
 		g_scriptMap = built.scriptMap;
-		g_scriptManager = new ScriptManager();
+		g_scriptManager = new ScriptManager(onScriptCountChange);
 		g_activeIndices = getActiveGamepadIndices(config);
 		g_active = true;
 		setMode(config.otherGamepadMode);
