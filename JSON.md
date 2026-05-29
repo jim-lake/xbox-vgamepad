@@ -12,13 +12,11 @@ The root object stored in persistent sync storage:
 
 ```json
 {
-  "isEnabled": true,
-  "activeConfig": "default",
-  "configs": {
-    "default": { "...GamepadConfig..." },
-    "shooter": { "...GamepadConfig..." }
-  },
-  "globalSettings": {
+  "ENABLED": true,
+  "ACTIVE_GP_CONF": "default",
+  "GP_CONF:default": { "...GamepadConfig..." },
+  "GP_CONF:shooter": { "...GamepadConfig..." },
+  "GLOBAL_SETTINGS": {
     "patchRemoteMultigamepad": true,
     "enableLogging": false,
     "disableBlur": false
@@ -26,12 +24,12 @@ The root object stored in persistent sync storage:
 }
 ```
 
-| Field            | Type                            | Required | Description                                                                                                |
-| ---------------- | ------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `isEnabled`      | `boolean`                       | Yes      | Whether the virtual gamepad is active. When `false`, the extension does not intercept input.               |
-| `activeConfig`   | `string`                        | Yes      | Name of the currently active preset from `configs`.                                                        |
-| `configs`        | `Record<string, GamepadConfig>` | Yes      | Map of preset names to configuration objects. Must always contain a `"default"` entry. Maximum 25 presets. |
-| `globalSettings` | `GlobalSettings`                | No       | Extension-wide settings that apply across all presets. Defaults applied when absent.                       |
+| Field             | Type             | Required | Description                                                                                                                 |
+| ----------------- | ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ENABLED`         | `boolean`        | Yes      | Whether the virtual gamepad is active. When `false`, the extension does not intercept input.                                |
+| `ACTIVE_GP_CONF`  | `string`         | Yes      | Name of the currently active preset (matches the suffix in `GP_CONF:<name>` keys).                                          |
+| `GP_CONF:<name>`  | `GamepadConfig`  | Yes      | Each preset is stored as a separate key with the `GP_CONF:` prefix. Must always have a `GP_CONF:default` entry. Maximum 25. |
+| `GLOBAL_SETTINGS` | `GlobalSettings` | No       | Extension-wide settings that apply across all presets. Defaults applied when absent.                                        |
 
 ## GlobalSettings
 

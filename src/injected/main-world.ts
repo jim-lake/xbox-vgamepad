@@ -35,12 +35,23 @@ window.addEventListener('message', (event: MessageEvent) => {
     (data as { source?: unknown }).source === MSG_SOURCE &&
     (data as { type?: unknown }).type === 'SETTINGS_CHANGED'
   ) {
-    setLoggingEnabled((data as { enableLogging: boolean }).enableLogging);
+    const logging = (data as { enableLogging: boolean }).enableLogging;
+    setLoggingEnabled(logging);
+    localStorage.setItem('xvg-enableLogging', logging ? 'true' : 'false');
     g_disableBlur = (data as { disableBlur: boolean }).disableBlur;
+    const patch = (data as { patchRemoteMultigamepad: boolean })
+      .patchRemoteMultigamepad;
+    localStorage.setItem(
+      'xvg-patchRemoteMultigamepad',
+      patch ? 'true' : 'false'
+    );
   }
 });
 
-debugLog('[gamepad]: Load main-world');
+debugLog(
+  '[gamepad]: Load main-world, logging enabled:',
+  String(localStorage.getItem('xvg-enableLogging'))
+);
 
 const POLL_INTERVAL = 1000;
 

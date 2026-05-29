@@ -19,6 +19,7 @@ function sendSettingsToPage(settings: GlobalSettings): void {
       type: 'SETTINGS_CHANGED',
       enableLogging: settings.enableLogging,
       disableBlur: settings.disableBlur,
+      patchRemoteMultigamepad: settings.patchRemoteMultigamepad,
     } satisfies SettingsChangedMessage,
     '*'
   );

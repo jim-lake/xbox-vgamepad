@@ -9,7 +9,9 @@ export default {
 
 export type Logger = (...args: unknown[]) => void;
 let g_logger: Logger | null = null;
-let g_enabled = false;
+let g_enabled =
+  typeof localStorage !== 'undefined' &&
+  localStorage.getItem('xvg-enableLogging') !== 'false';
 
 export function setDebugLogger(logger: Logger) {
   g_logger = logger;
@@ -45,9 +47,6 @@ export function errorQuietLog(...args: unknown[]) {
   }
 }
 export function debugLog(...args: unknown[]) {
-  if (!g_enabled) {
-    return;
-  }
   // eslint-disable-next-line no-console
   console.log(...args);
   if (g_logger) {

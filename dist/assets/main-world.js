@@ -1,7 +1,7 @@
 (function() {
 	//#region src/tools/log.ts
 	var g_logger = null;
-	var g_enabled = false;
+	var g_enabled = typeof localStorage !== "undefined" && localStorage.getItem("xvg-enableLogging") !== "false";
 	function setLoggingEnabled(enabled) {
 		g_enabled = enabled;
 	}
@@ -10,7 +10,6 @@
 		console.log(...args);
 	}
 	function debugLog(...args) {
-		if (!g_enabled) return;
 		console.log(...args);
 		if (g_logger) g_logger(...args);
 	}
@@ -122,58 +121,61 @@
 		}
 		return false;
 	}
-	log(TAG, "installing interceptor");
-	var g = self;
-	var patchApplied = false;
-	var realArray = g["__LOADABLE_LOADED_CHUNKS__"] ?? [];
-	function processChunks(args) {
-		for (const chunk of args) {
-			if (patchApplied) break;
-			if (!Array.isArray(chunk) || chunk.length < 2) continue;
-			const modules = chunk[1];
-			if (!modules || typeof modules !== "object") continue;
-			const count = Object.keys(modules).length;
-			log(TAG, "chunk has", String(count), "modules");
-			patchApplied = scanAndPatchModules(modules);
-		}
-	}
-	function installPushTrap(arr) {
-		const nativePush = arr.push.bind(arr);
-		let currentPush = (...args) => nativePush(...args);
-		Object.defineProperty(arr, "push", {
-			configurable: true,
-			enumerable: false,
-			get() {
-				return currentPush;
-			},
-			set(newPush) {
-				log(TAG, ".push overwritten, wrapping");
-				const theirPush = newPush;
-				currentPush = function(...args) {
-					if (!patchApplied) processChunks(args);
-					return theirPush.apply(arr, args);
-				};
+	if (localStorage.getItem("xvg-patchRemoteMultigamepad") === "false") log(TAG, "patch disabled via settings (reload required to re-enable)");
+	else {
+		log(TAG, "installing interceptor");
+		const g = self;
+		let patchApplied = false;
+		let realArray = g["__LOADABLE_LOADED_CHUNKS__"] ?? [];
+		function processChunks(args) {
+			for (const chunk of args) {
+				if (patchApplied) break;
+				if (!Array.isArray(chunk) || chunk.length < 2) continue;
+				const modules = chunk[1];
+				if (!modules || typeof modules !== "object") continue;
+				const count = Object.keys(modules).length;
+				log(TAG, "chunk has", String(count), "modules");
+				patchApplied = scanAndPatchModules(modules);
 			}
-		});
-	}
-	installPushTrap(realArray);
-	Object.defineProperty(g, "__LOADABLE_LOADED_CHUNKS__", {
-		configurable: true,
-		get() {
-			return realArray;
-		},
-		set(newVal) {
-			if (Array.isArray(newVal)) {
-				realArray = newVal;
-				if (!patchApplied) {
-					processChunks(realArray);
-					installPushTrap(realArray);
+		}
+		function installPushTrap(arr) {
+			const nativePush = arr.push.bind(arr);
+			let currentPush = (...args) => nativePush(...args);
+			Object.defineProperty(arr, "push", {
+				configurable: true,
+				enumerable: false,
+				get() {
+					return currentPush;
+				},
+				set(newPush) {
+					log(TAG, ".push overwritten, wrapping");
+					const theirPush = newPush;
+					currentPush = function(...args) {
+						if (!patchApplied) processChunks(args);
+						return theirPush.apply(arr, args);
+					};
+				}
+			});
+		}
+		installPushTrap(realArray);
+		Object.defineProperty(g, "__LOADABLE_LOADED_CHUNKS__", {
+			configurable: true,
+			get() {
+				return realArray;
+			},
+			set(newVal) {
+				if (Array.isArray(newVal)) {
+					realArray = newVal;
+					if (!patchApplied) {
+						processChunks(realArray);
+						installPushTrap(realArray);
+					}
 				}
 			}
-		}
-	});
-	processChunks(realArray);
-	log(TAG, "interceptor installed, patchApplied:", String(patchApplied));
+		});
+		processChunks(realArray);
+		log(TAG, "interceptor installed, patchApplied:", String(patchApplied));
+	}
 	//#endregion
 	//#region src/types/messages.ts
 	var MSG_SOURCE = "xbox-vgamepad-content-script";
@@ -1269,11 +1271,15 @@
 	window.addEventListener("message", (event) => {
 		const data = event.data;
 		if (data && typeof data === "object" && data.source === "xbox-vgamepad-content-script" && data.type === "SETTINGS_CHANGED") {
-			setLoggingEnabled(data.enableLogging);
+			const logging = data.enableLogging;
+			setLoggingEnabled(logging);
+			localStorage.setItem("xvg-enableLogging", logging ? "true" : "false");
 			g_disableBlur = data.disableBlur;
+			const patch = data.patchRemoteMultigamepad;
+			localStorage.setItem("xvg-patchRemoteMultigamepad", patch ? "true" : "false");
 		}
 	});
-	debugLog("[gamepad]: Load main-world");
+	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
 	var POLL_INTERVAL = 1e3;
 	var pollTimer = null;
 	var pendingConfig = null;

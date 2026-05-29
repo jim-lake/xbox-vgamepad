@@ -32,6 +32,7 @@ export interface SettingsChangedMessage {
   type: 'SETTINGS_CHANGED';
   enableLogging: boolean;
   disableBlur: boolean;
+  patchRemoteMultigamepad: boolean;
 }
 
 export interface DisableGamepadMessage {

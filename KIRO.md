@@ -45,17 +45,18 @@ Key injected modules:
 
 ## Key Commands
 
-| Task              | Command                    | Notes                                                          |
-| ----------------- | -------------------------- | -------------------------------------------------------------- |
-| Dev server        | `npm run dev`              | Outputs to `build/`, includes HMR                              |
-| Build             | `npm run build`            | Type-checks then builds production to `dist/`                  |
-| Type check        | `npm run ts:check`         | `tsc -b --noEmit`                                              |
-| Lint + fix        | `npm run lint`             | `eslint . --fix`                                               |
-| Format            | `npm run pretty`           | `prettier --write .`                                           |
-| All tests         | `npm test`                 | Runs unit tests then integration tests                         |
-| Integration tests | `npm run test:integration` | Builds to `build-test/` (test mode) then runs Puppeteer suites |
-| Unit tests        | `npm run test:unit`        | Fast unit tests (no browser, no build) in `test/unit/`         |
-| Patch tests       | `npm run test:patch`       | Builds test mode + runs co-op patch integration tests          |
+| Task              | Command                    | Notes                                                                  |
+| ----------------- | -------------------------- | ---------------------------------------------------------------------- |
+| Dev server        | `npm run dev`              | Outputs to `build/`, includes HMR                                      |
+| Build             | `npm run build`            | Type-checks then builds production to `dist/`                          |
+| Type check        | `npm run ts:check`         | `tsc -b --noEmit`                                                      |
+| Lint + fix        | `npm run lint`             | `eslint . --fix`                                                       |
+| Format            | `npm run pretty`           | `prettier --write .`                                                   |
+| All tests         | `npm test`                 | Runs unit tests then integration tests                                 |
+| Integration tests | `npm run test:integration` | Builds to `build-test/` (test mode) then runs Puppeteer suites         |
+| Unit tests        | `npm run test:unit`        | Fast unit tests (no browser, no build) in `test/unit/`                 |
+| Patch tests       | `npm run test:patch`       | Builds test mode + runs co-op patch integration tests                  |
+| Patch setup       | `npm run test:patch:setup` | Builds test mode, launches Chrome with extension + 2-controller config |
 
 ## Build Modes
 
@@ -123,7 +124,7 @@ Fast, browser-free tests for pure logic (config conversion, round-trips, etc.) i
 
 ### Co-op Patch Tests
 
-Integration tests for the co-op webpack interception in `test/patch/`. Requires a persistent Chrome profile with Xbox auth cookies (see `test/patch/README.md`). Run with `npm run test:patch`.
+Integration tests for the co-op webpack interception in `test/patch/`. Requires a persistent Chrome profile with Xbox auth cookies (see `test/patch/README.md`). Run with `npm run test:patch`. For manual testing, `npm run test:patch:setup` builds the extension, loads it, seeds a 2-controller config, and opens xbox.com/play.
 
 ## Build Constraints
 

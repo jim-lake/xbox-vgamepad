@@ -234,87 +234,91 @@ function scanAndPatchModules(
 }
 
 // --- Top-level side effect: install interceptor immediately ---
+// Read setting synchronously — requires page reload to take effect
+if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
+  log(TAG, 'patch disabled via settings (reload required to re-enable)');
+} else {
+  log(TAG, 'installing interceptor');
 
-log(TAG, 'installing interceptor');
+  const g = self as unknown as Record<string, unknown>;
 
-const g = self as unknown as Record<string, unknown>;
+  let patchApplied = false;
 
-let patchApplied = false;
+  // The real backing array
+  let realArray: unknown[][] =
+    (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
 
-// The real backing array
-let realArray: unknown[][] =
-  (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
-
-function processChunks(args: unknown[]): void {
-  for (const chunk of args) {
-    if (patchApplied) {
-      break;
+  function processChunks(args: unknown[]): void {
+    for (const chunk of args) {
+      if (patchApplied) {
+        break;
+      }
+      if (!Array.isArray(chunk) || chunk.length < 2) {
+        continue;
+      }
+      const modules = chunk[1] as Record<
+        string | number,
+        ((...a: unknown[]) => void) | undefined
+      > | null;
+      if (!modules || typeof modules !== 'object') {
+        continue;
+      }
+      const count = Object.keys(modules).length;
+      log(TAG, 'chunk has', String(count), 'modules');
+      patchApplied = scanAndPatchModules(modules);
     }
-    if (!Array.isArray(chunk) || chunk.length < 2) {
-      continue;
-    }
-    const modules = chunk[1] as Record<
-      string | number,
-      ((...a: unknown[]) => void) | undefined
-    > | null;
-    if (!modules || typeof modules !== 'object') {
-      continue;
-    }
-    const count = Object.keys(modules).length;
-    log(TAG, 'chunk has', String(count), 'modules');
-    patchApplied = scanAndPatchModules(modules);
   }
-}
 
-// Install defineProperty on the array's .push so we intercept webpack's
-// jsonpCallback overwrite. This is the single interception point.
-function installPushTrap(arr: unknown[][]): void {
-  const nativePush = arr.push.bind(arr);
-  let currentPush: (...args: unknown[]) => number = (...args: unknown[]) =>
-    nativePush(...(args as unknown[][]));
+  // Install defineProperty on the array's .push so we intercept webpack's
+  // jsonpCallback overwrite. This is the single interception point.
+  function installPushTrap(arr: unknown[][]): void {
+    const nativePush = arr.push.bind(arr);
+    let currentPush: (...args: unknown[]) => number = (...args: unknown[]) =>
+      nativePush(...(args as unknown[][]));
 
-  Object.defineProperty(arr, 'push', {
+    Object.defineProperty(arr, 'push', {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return currentPush;
+      },
+      set(newPush: (...args: unknown[]) => number) {
+        // Webpack is overwriting .push with jsonpCallback — wrap it
+        log(TAG, '.push overwritten, wrapping');
+        const theirPush = newPush;
+
+        currentPush = function (...args: unknown[]): number {
+          if (!patchApplied) {
+            processChunks(args);
+          }
+          return theirPush.apply(arr, args);
+        };
+      },
+    });
+  }
+
+  installPushTrap(realArray);
+
+  // Trap reassignment of the global __LOADABLE_LOADED_CHUNKS__
+  Object.defineProperty(g, '__LOADABLE_LOADED_CHUNKS__', {
     configurable: true,
-    enumerable: false,
     get() {
-      return currentPush;
+      return realArray;
     },
-    set(newPush: (...args: unknown[]) => number) {
-      // Webpack is overwriting .push with jsonpCallback — wrap it
-      log(TAG, '.push overwritten, wrapping');
-      const theirPush = newPush;
-
-      currentPush = function (...args: unknown[]): number {
+    set(newVal: unknown) {
+      if (Array.isArray(newVal)) {
+        realArray = newVal as unknown[][];
         if (!patchApplied) {
-          processChunks(args);
+          // Scan existing entries in the new array
+          processChunks(realArray);
+          installPushTrap(realArray);
         }
-        return theirPush.apply(arr, args);
-      };
+      }
     },
   });
-}
 
-installPushTrap(realArray);
+  // Scan any chunks already in the array
+  processChunks(realArray);
 
-// Trap reassignment of the global __LOADABLE_LOADED_CHUNKS__
-Object.defineProperty(g, '__LOADABLE_LOADED_CHUNKS__', {
-  configurable: true,
-  get() {
-    return realArray;
-  },
-  set(newVal: unknown) {
-    if (Array.isArray(newVal)) {
-      realArray = newVal as unknown[][];
-      if (!patchApplied) {
-        // Scan existing entries in the new array
-        processChunks(realArray);
-        installPushTrap(realArray);
-      }
-    }
-  },
-});
-
-// Scan any chunks already in the array
-processChunks(realArray);
-
-log(TAG, 'interceptor installed, patchApplied:', String(patchApplied));
+  log(TAG, 'interceptor installed, patchApplied:', String(patchApplied));
+} // end if patchEnabled

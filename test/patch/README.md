@@ -13,17 +13,9 @@ Before first run, launch Chrome with the test profile and log into xbox.com:
 npm run test:patch:setup
 ```
 
-Or manually:
+This builds the extension in test mode, launches Chrome with the extension loaded and a 2-controller config pre-seeded (WASD + Space/E for player 1, Arrows + U/I/O for player 2), then navigates to xbox.com/play.
 
-```bash
-"/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
-  --user-data-dir=test/patch/profile \
-  --no-first-run \
-  --no-default-browser-check \
-  https://www.xbox.com/en-US/play
-```
-
-Log into your Xbox account, then close the browser. The cookies persist in `test/patch/profile/` for subsequent automated runs.
+Log into your Xbox account on first run. The cookies persist in `test/patch/profile/` for subsequent runs.
 
 ## Running the Test
 

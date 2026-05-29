@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.351",
+  "version": "0.0.387",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,7 @@
     "test:integration": "vite build --mode test && node test/gamepad.test.cjs",
     "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'",
     "test:patch": "vite build --mode test && node test/patch/run.cjs",
-    "test:patch:setup": "node -e \"const{execSync}=require('child_process');const p=process.env.CHROME_PATH||require('puppeteer').executablePath();execSync('\\\"'+p+'\\\" --user-data-dir=test/patch/profile --no-first-run --no-default-browser-check https://www.xbox.com/en-US/play',{stdio:'inherit'})\""
+    "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs"
   },
   "dependencies": {
     "aphrodite": "^2.4.0",

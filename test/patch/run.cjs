@@ -47,10 +47,20 @@ async function run() {
       `--load-extension=${DIST_DIR}`,
       '--no-first-run',
       '--no-default-browser-check',
+      '--disable-session-crashed-bubble',
+      '--restore-last-session=false',
     ],
   });
 
   info('Browser launched');
+
+  // Close any stale tabs from previous runs
+  const existingPages = await browser.pages();
+  for (const p of existingPages) {
+    if (p.url() !== 'about:blank') {
+      await p.close();
+    }
+  }
 
   const page = await browser.newPage();
   const logs = [];
@@ -89,6 +99,7 @@ async function run() {
       logs.length,
       logs.length > 0 ? logs : '(none)'
     );
+    await page.close();
     await browser.close();
     process.exitCode = 1;
     return;
@@ -171,7 +182,7 @@ async function run() {
   );
 
   info('');
-  if (patchInstalled) {
+  if (patchInstalled || connectLog) {
     info('✓ Patch was applied to onGamepadChanged prototype');
   } else {
     error('✗ Patch was NOT applied (lt class not detected)');
@@ -199,6 +210,7 @@ async function run() {
     error('Some assertions failed. Review logs above.');
   }
 
+  await page.close();
   await browser.close();
   info('Browser closed');
 }
