@@ -75,6 +75,9 @@
   --button-green-bg: #107c10;
   --button-green-border: #0b5e0b;
   --button-green-text: #fff;
+
+  /* ── Icons ── */
+  --icon-filter: none;
 }
 
 @media (prefers-color-scheme: light) {
@@ -155,5 +158,8 @@
     --button-green-bg: #107c10;
     --button-green-border: #0b5e0b;
     --button-green-text: #fff;
+
+    /* ── Icons ── */
+    --icon-filter: invert(1);
   }
 }
