@@ -48,4 +48,5 @@ runSuites([
   path.join(__dirname, 'suites', 'game-name-clear.cjs'),
   path.join(__dirname, 'suites', 'script-badge.cjs'),
   path.join(__dirname, 'suites', 'disable-blur.cjs'),
+  path.join(__dirname, 'suites', 'backup-restore.cjs'),
 ]);

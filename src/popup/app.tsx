@@ -507,7 +507,15 @@ export default function App() {
         {activeTab === 'settings' ? (
           <GlobalSettingsPanel
             settings={globalSettings}
+            configs={configs}
+            activeConfigName={activeConfigName}
+            isEnabled={isEnabled}
             onChange={handleChangeGlobalSettings}
+            onRestore={(imported, settings) => {
+              setConfigs((prev) => ({ ...prev, ...imported }));
+              setGlobalSettings(settings);
+              setLoggingEnabled(settings.enableLogging);
+            }}
           />
         ) : (
           <>

@@ -79,6 +79,15 @@ export async function setGamePreset(
   });
 }
 
+export async function mergeGamePresets(
+  presets: Record<string, string>
+): Promise<void> {
+  const existing = await getGamePresets();
+  await chrome.storage.local.set({
+    gamePresets: { ...existing, ...presets },
+  });
+}
+
 export async function clearStorage(): Promise<void> {
   await Promise.all([
     chrome.storage.sync.clear(),

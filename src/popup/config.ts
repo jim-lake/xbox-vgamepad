@@ -6,7 +6,7 @@ import type {
   GlobalSettings,
   ScriptAction,
 } from '@/types/gamepad';
-import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY } from '@/types/gamepad';
+import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY, DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
 import type {
   PopupConfig,
   PopupSlot,
@@ -20,6 +20,9 @@ import {
   saveConfig,
   deleteConfig,
   setActiveConfig,
+  saveGlobalSettings,
+  getGamePresets,
+  mergeGamePresets,
 } from './storage';
 import { validateConfig } from './validate';
 import { deepEqual } from '@/tools/deep_equal';
@@ -346,6 +349,87 @@ export function parseImportedConfig(raw: unknown): PopupConfig | null {
 
 export function exportPopupConfig(popup: PopupConfig): string {
   return JSON.stringify(popupConfigToGamepadConfig(popup), null, 2);
+}
+
+interface BackupData {
+  version: 1;
+  globalSettings: GlobalSettings;
+  activeConfig: string;
+  isEnabled: boolean;
+  configs: Record<string, GamepadConfig>;
+  gamePresets: Record<string, string>;
+}
+
+export async function exportAllConfigs(
+  configs: Record<string, PopupConfig>,
+  globalSettings: GlobalSettings,
+  activeConfig: string,
+  isEnabled: boolean
+): Promise<string> {
+  const gamepadConfigs: Record<string, GamepadConfig> = {};
+  for (const [name, popup] of Object.entries(configs)) {
+    gamepadConfigs[name] = popupConfigToGamepadConfig(popup);
+  }
+  const backup: BackupData = {
+    version: 1,
+    globalSettings,
+    activeConfig,
+    isEnabled,
+    configs: gamepadConfigs,
+    gamePresets: await getGamePresets(),
+  };
+  return JSON.stringify(backup, null, 2);
+}
+
+export async function importAllConfigs(raw: unknown): Promise<{
+  configs: Record<string, PopupConfig>;
+  globalSettings: GlobalSettings;
+} | null> {
+  if (!raw || typeof raw !== 'object' || !('configs' in raw)) {
+    return null;
+  }
+  const data = raw as Record<string, unknown>;
+  const rawConfigs = data['configs'];
+  if (!rawConfigs || typeof rawConfigs !== 'object') {
+    return null;
+  }
+
+  const rawSettings = data['globalSettings'] as
+    | Partial<GlobalSettings>
+    | undefined;
+  const globalSettings: GlobalSettings = {
+    ...DEFAULT_GLOBAL_SETTINGS,
+    ...rawSettings,
+  };
+
+  // Validate and merge configs
+  const imported: Record<string, PopupConfig> = {};
+  for (const [name, cfg] of Object.entries(
+    rawConfigs as Record<string, unknown>
+  )) {
+    if (validateConfig(cfg)) {
+      imported[name] = gamepadConfigToPopupConfig(cfg);
+    }
+  }
+  if (Object.keys(imported).length === 0) {
+    return null;
+  }
+
+  // Save global settings
+  await saveGlobalSettings(globalSettings);
+
+  // Save each imported config (overwrites existing, doesn't delete others)
+  for (const [name, popup] of Object.entries(imported)) {
+    await saveConfig(name, popupConfigToGamepadConfig(popup));
+  }
+
+  // Merge game presets (overwrites existing, doesn't delete others)
+  const rawPresets = data['gamePresets'];
+  if (rawPresets && typeof rawPresets === 'object') {
+    await mergeGamePresets(rawPresets as Record<string, string>);
+  }
+
+  return { configs: imported, globalSettings };
 }
 
 // ── PopupConfig mutation helpers ─────────────────────────────────────────────
