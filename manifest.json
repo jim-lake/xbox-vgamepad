@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xbox vGamepad",
-  "version": "0.0.324",
+  "version": "0.0.351",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": { "default_popup": "src/popup/index.html" },
   "background": {
@@ -12,6 +12,7 @@
     {
       "matches": [
         "https://xbox.com/*",
+        "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
         "https://hardwaretester.com/*"
       ],
@@ -21,6 +22,7 @@
     {
       "matches": [
         "https://xbox.com/*",
+        "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
         "https://hardwaretester.com/*"
       ],
@@ -34,7 +36,8 @@
     {
       "resources": ["src/assets/img/*"],
       "matches": [
-        "*://*.xbox.com/*",
+        "https://xbox.com/*",
+        "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
         "https://hardwaretester.com/*"
       ]
