@@ -210,6 +210,23 @@ chrome.runtime.onMessage.addListener(
       return false;
     }
 
+    if (message.type === 'INPUT_SUSPENDED') {
+      const tabId = sender.tab.id;
+      if (tabId !== undefined) {
+        if (message.suspended) {
+          void chrome.action.setBadgeText({ text: 'X', tabId });
+          void chrome.action.setBadgeBackgroundColor({
+            color: '#dc2626',
+            tabId,
+          });
+          void chrome.action.setBadgeTextColor({ color: '#ffffff', tabId });
+        } else {
+          void chrome.action.setBadgeText({ text: '', tabId });
+        }
+      }
+      return false;
+    }
+
     return false;
   }
 );

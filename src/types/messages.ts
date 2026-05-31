@@ -75,12 +75,19 @@ export interface ScriptCountMessage {
   count: number;
 }
 
+export interface InputSuspendedMessage {
+  source: typeof MSG_SOURCE;
+  type: 'INPUT_SUSPENDED';
+  suspended: boolean;
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
   | SetOverlayMinimizedMessage
   | ToggleEnabledMessage
-  | ScriptCountMessage;
+  | ScriptCountMessage
+  | InputSuspendedMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -100,4 +107,5 @@ export type ExtensionMessage =
   | ToggleEnabledMessage
   | ConfigChangedMessage
   | SettingsChangedMessage
-  | ScriptCountMessage;
+  | ScriptCountMessage
+  | InputSuspendedMessage;

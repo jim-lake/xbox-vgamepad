@@ -48,8 +48,18 @@ const styles = StyleSheet.create({
   },
   tabTextActive: { color: 'var(--text-primary)' },
   gearSlot: { justifyContent: 'center', alignItems: 'center' },
-  gearIcon: { width: '1.6rem', height: '1.6rem', opacity: 0.6, filter: 'var(--icon-filter)' },
-  gearIconActive: { width: '1.6rem', height: '1.6rem', opacity: 1, filter: 'var(--icon-filter)' },
+  gearIcon: {
+    width: '1.6rem',
+    height: '1.6rem',
+    opacity: 0.6,
+    filter: 'var(--icon-filter)',
+  },
+  gearIconActive: {
+    width: '1.6rem',
+    height: '1.6rem',
+    opacity: 1,
+    filter: 'var(--icon-filter)',
+  },
 });
 
 interface Props {

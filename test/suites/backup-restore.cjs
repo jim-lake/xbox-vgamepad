@@ -98,10 +98,7 @@ module.exports = async function ({
   });
 
   await assert('backup contains activeConfig and isEnabled', async () => {
-    const data = await getStorageSync(browser, [
-      'ACTIVE_GP_CONF',
-      'ENABLED',
-    ]);
+    const data = await getStorageSync(browser, ['ACTIVE_GP_CONF', 'ENABLED']);
     expect(data['ACTIVE_GP_CONF']).toBe('fps');
     expect(data['ENABLED']).toBeTrue();
   });
@@ -151,13 +148,16 @@ module.exports = async function ({
     }
   );
 
-  await assert('restore overwrites existing profiles with backup data', async () => {
-    const data = await getStorageSync(browser, ['GP_CONF:fps']);
-    const fps = data['GP_CONF:fps'];
-    // fps should now have the updated bindings (KeyP → x, not a)
-    expect(fps.keyboardConfig.KeyP?.[0]?.action).toBe('x');
-    expect(fps.keyboardConfig.KeyB?.[0]?.action).toBe('y');
-  });
+  await assert(
+    'restore overwrites existing profiles with backup data',
+    async () => {
+      const data = await getStorageSync(browser, ['GP_CONF:fps']);
+      const fps = data['GP_CONF:fps'];
+      // fps should now have the updated bindings (KeyP → x, not a)
+      expect(fps.keyboardConfig.KeyP?.[0]?.action).toBe('x');
+      expect(fps.keyboardConfig.KeyB?.[0]?.action).toBe('y');
+    }
+  );
 
   await assert('restore replaces global settings', async () => {
     const data = await getStorageSync(browser, ['GLOBAL_SETTINGS']);
@@ -182,14 +182,11 @@ module.exports = async function ({
     gamePresets: { ...existingPresets, ...backupPresets },
   });
 
-  await assert(
-    'game presets merge overwrites existing entries',
-    async () => {
-      const local = await getStorageLocal(browser, ['gamePresets']);
-      // Halo should be overwritten to 'imported'
-      expect(local['gamePresets']['Halo Infinite']).toBe('imported');
-    }
-  );
+  await assert('game presets merge overwrites existing entries', async () => {
+    const local = await getStorageLocal(browser, ['gamePresets']);
+    // Halo should be overwritten to 'imported'
+    expect(local['gamePresets']['Halo Infinite']).toBe('imported');
+  });
 
   await assert('game presets merge adds new entries', async () => {
     const local = await getStorageLocal(browser, ['gamePresets']);
@@ -229,29 +226,26 @@ module.exports = async function ({
     }
   );
 
-  await assert(
-    'overwritten config activates with new bindings',
-    async () => {
-      await sendConfigToPage(page, {
-        type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name: 'fps',
-        gamepadConfig: updatedFpsConfig,
-      });
-      await new Promise((r) => setTimeout(r, 500));
+  await assert('overwritten config activates with new bindings', async () => {
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'fps',
+      gamepadConfig: updatedFpsConfig,
+    });
+    await new Promise((r) => setTimeout(r, 500));
 
-      // KeyP should now be 'x' (button index 2)
-      await page.keyboard.down('p');
-      await waitForButton(page, 2, true);
-      await page.keyboard.up('p');
-      await waitForButton(page, 2, false);
+    // KeyP should now be 'x' (button index 2)
+    await page.keyboard.down('p');
+    await waitForButton(page, 2, true);
+    await page.keyboard.up('p');
+    await waitForButton(page, 2, false);
 
-      // KeyB should now be 'y' (button index 3)
-      await page.keyboard.down('b');
-      await waitForButton(page, 3, true);
-      await page.keyboard.up('b');
-      await waitForButton(page, 3, false);
-    }
-  );
+    // KeyB should now be 'y' (button index 3)
+    await page.keyboard.down('b');
+    await waitForButton(page, 3, true);
+    await page.keyboard.up('b');
+    await waitForButton(page, 3, false);
+  });
 
   await assert(
     'pre-existing config not in backup still works after restore',
@@ -276,14 +270,11 @@ module.exports = async function ({
     'restore with invalid config entries skips them without corrupting storage',
     async () => {
       // Write an invalid config alongside a valid one
-      await setStorageSync(browser, {
-        'GP_CONF:valid': fpsConfig,
-      });
+      await setStorageSync(browser, { 'GP_CONF:valid': fpsConfig });
 
       // Verify the valid one is still there
       const data = await getStorageSync(browser, ['GP_CONF:valid']);
-      if (!data['GP_CONF:valid'])
-        throw new Error('Valid config lost');
+      if (!data['GP_CONF:valid']) throw new Error('Valid config lost');
       expect(data['GP_CONF:valid'].keyboardConfig.KeyP?.[0]?.action).toBe('a');
     }
   );
@@ -293,68 +284,61 @@ module.exports = async function ({
     async () => {
       // racing should still be intact from before
       const data = await getStorageSync(browser, ['GP_CONF:racing']);
-      if (!data['GP_CONF:racing'])
-        throw new Error('racing config was lost');
-      expect(
-        data['GP_CONF:racing'].keyboardConfig.KeyW?.[0]?.action
-      ).toBe('rightTrigger');
+      if (!data['GP_CONF:racing']) throw new Error('racing config was lost');
+      expect(data['GP_CONF:racing'].keyboardConfig.KeyW?.[0]?.action).toBe(
+        'rightTrigger'
+      );
     }
   );
 
   console.log('  [Backup/Restore - Multiple Restore Cycles]');
 
-  await assert(
-    'multiple restores accumulate profiles correctly',
-    async () => {
-      // First restore adds "batch1"
-      const batch1Config = makeConfig({
-        mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyboardConfig: { KeyZ: 'a' },
-      });
-      await setStorageSync(browser, { 'GP_CONF:batch1': batch1Config });
+  await assert('multiple restores accumulate profiles correctly', async () => {
+    // First restore adds "batch1"
+    const batch1Config = makeConfig({
+      mouseConfig: { mouseControls: 1, sensitivity: 10 },
+      keyboardConfig: { KeyZ: 'a' },
+    });
+    await setStorageSync(browser, { 'GP_CONF:batch1': batch1Config });
 
-      // Second restore adds "batch2"
-      const batch2Config = makeConfig({
-        mouseConfig: { mouseControls: 1, sensitivity: 10 },
-        keyboardConfig: { KeyX: 'b' },
-      });
-      await setStorageSync(browser, { 'GP_CONF:batch2': batch2Config });
+    // Second restore adds "batch2"
+    const batch2Config = makeConfig({
+      mouseConfig: { mouseControls: 1, sensitivity: 10 },
+      keyboardConfig: { KeyX: 'b' },
+    });
+    await setStorageSync(browser, { 'GP_CONF:batch2': batch2Config });
 
-      // Both should exist
-      const data = await getStorageSync(browser, [
-        'GP_CONF:batch1',
-        'GP_CONF:batch2',
-        'GP_CONF:racing',
-      ]);
-      if (!data['GP_CONF:batch1']) throw new Error('batch1 missing');
-      if (!data['GP_CONF:batch2']) throw new Error('batch2 missing');
-      if (!data['GP_CONF:racing'])
-        throw new Error('racing lost after multiple restores');
-    }
-  );
+    // Both should exist
+    const data = await getStorageSync(browser, [
+      'GP_CONF:batch1',
+      'GP_CONF:batch2',
+      'GP_CONF:racing',
+    ]);
+    if (!data['GP_CONF:batch1']) throw new Error('batch1 missing');
+    if (!data['GP_CONF:batch2']) throw new Error('batch2 missing');
+    if (!data['GP_CONF:racing'])
+      throw new Error('racing lost after multiple restores');
+  });
 
-  await assert(
-    'game presets accumulate across multiple restores',
-    async () => {
-      const local1 = await getStorageLocal(browser, ['gamePresets']);
-      const existing1 = local1['gamePresets'] || {};
-      await setStorageLocal(browser, {
-        gamePresets: { ...existing1, 'Game A': 'batch1' },
-      });
+  await assert('game presets accumulate across multiple restores', async () => {
+    const local1 = await getStorageLocal(browser, ['gamePresets']);
+    const existing1 = local1['gamePresets'] || {};
+    await setStorageLocal(browser, {
+      gamePresets: { ...existing1, 'Game A': 'batch1' },
+    });
 
-      const local2 = await getStorageLocal(browser, ['gamePresets']);
-      const existing2 = local2['gamePresets'] || {};
-      await setStorageLocal(browser, {
-        gamePresets: { ...existing2, 'Game B': 'batch2' },
-      });
+    const local2 = await getStorageLocal(browser, ['gamePresets']);
+    const existing2 = local2['gamePresets'] || {};
+    await setStorageLocal(browser, {
+      gamePresets: { ...existing2, 'Game B': 'batch2' },
+    });
 
-      const final = await getStorageLocal(browser, ['gamePresets']);
-      expect(final['gamePresets']['Game A']).toBe('batch1');
-      expect(final['gamePresets']['Game B']).toBe('batch2');
-      // Previous entries should still be there
-      expect(final['gamePresets']['Forza Horizon']).toBe('racing');
-    }
-  );
+    const final = await getStorageLocal(browser, ['gamePresets']);
+    expect(final['gamePresets']['Game A']).toBe('batch1');
+    expect(final['gamePresets']['Game B']).toBe('batch2');
+    // Previous entries should still be there
+    expect(final['gamePresets']['Forza Horizon']).toBe('racing');
+  });
 
   // Restore default config
   await sendConfigToPage(page, {

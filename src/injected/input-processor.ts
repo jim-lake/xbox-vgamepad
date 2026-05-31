@@ -504,6 +504,37 @@ export function toggle(): void {
   }
 }
 
+/** Re-activate with the last known config (no-op if no config stored). */
+export function reactivate(): void {
+  if (g_config) {
+    activate(g_config);
+  }
+}
+
+/** Suspend input capture without disconnecting virtual gamepads. */
+export function suspend(): void {
+  if (!g_active) {
+    return;
+  }
+  g_scriptManager.cancelAll();
+  removeListeners();
+  exitPointerLock();
+  removeOverlay();
+  removeMinimized();
+  for (const idx of g_activeIndices) {
+    getSimulator(idx).resetState();
+  }
+  clearTimers();
+}
+
+/** Resume input capture after suspend (no-op if not active). */
+export function resume(): void {
+  if (!g_active || !g_config) {
+    return;
+  }
+  activate(g_config);
+}
+
 /** Toggle a single virtual gamepad slot on/off. */
 export function toggleGamepadIndex(index: 0 | 1 | 2 | 3): void {
   const sim = getSimulator(index);

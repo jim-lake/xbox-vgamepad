@@ -6,7 +6,11 @@ import type {
   GlobalSettings,
   ScriptAction,
 } from '@/types/gamepad';
-import { DEFAULT_CONFIG, DEFAULT_SENSITIVITY, DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_SENSITIVITY,
+  DEFAULT_GLOBAL_SETTINGS,
+} from '@/types/gamepad';
 import type {
   PopupConfig,
   PopupSlot,
@@ -381,7 +385,9 @@ export async function exportAllConfigs(
   return JSON.stringify(backup, null, 2);
 }
 
-export async function importAllConfigs(raw: unknown): Promise<{
+export async function importAllConfigs(
+  raw: unknown
+): Promise<{
   configs: Record<string, PopupConfig>;
   globalSettings: GlobalSettings;
 } | null> {

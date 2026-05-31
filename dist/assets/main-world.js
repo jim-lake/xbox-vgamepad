@@ -1210,6 +1210,22 @@
 	function restoreOverlayIfDismissed() {
 		if (g_active && g_mouseTarget !== null) restoreIfDismissed();
 	}
+	/** Suspend input capture without disconnecting virtual gamepads. */
+	function suspend() {
+		if (!g_active) return;
+		g_scriptManager.cancelAll();
+		removeListeners();
+		exitPointerLock();
+		removeOverlay();
+		removeMinimized();
+		for (const idx of g_activeIndices) getSimulator(idx).resetState();
+		clearTimers();
+	}
+	/** Resume input capture after suspend (no-op if not active). */
+	function resume() {
+		if (!g_active || !g_config) return;
+		activate(g_config);
+	}
 	/** Toggle a single virtual gamepad slot on/off. */
 	function toggleGamepadIndex(index) {
 		const sim = getSimulator(index);
@@ -1283,6 +1299,7 @@
 	var POLL_INTERVAL = 1e3;
 	var pollTimer = null;
 	var pendingConfig = null;
+	var g_activePresetName = "default";
 	function sendMessage(msg) {
 		window.postMessage(msg, "*");
 	}
@@ -1290,6 +1307,7 @@
 		if (!pendingConfig) return;
 		const { name, gamepadConfig } = pendingConfig;
 		pendingConfig = null;
+		g_activePresetName = name;
 		updateToggleCodes(gamepadConfig);
 		showToast(`'${name}' preset activated`);
 		activate(gamepadConfig, { resetDismissed: true });
@@ -1297,6 +1315,7 @@
 	function handleMessage(msg) {
 		if (msg.type === "ACTIVATE_GAMEPAD_CONFIG") {
 			const activateMsg = msg;
+			g_activePresetName = activateMsg.name;
 			updateToggleCodes(activateMsg.gamepadConfig);
 			showToast(`'${activateMsg.name}' preset activated`);
 			activate(activateMsg.gamepadConfig, activateMsg.overlayMinimized !== void 0 ? { overlayMinimized: activateMsg.overlayMinimized } : void 0);
@@ -1398,13 +1417,61 @@
 		if (!data || typeof data !== "object" || data.source !== "xbox-vgamepad-content-script") return;
 		const msg = data;
 		if (msg.type === "ACTIVATE_GAMEPAD_CONFIG" || msg.type === "CONFIG_CHANGED" || msg.type === "DISABLE_GAMEPAD") handleMessage(msg);
-		else if (msg.type === "POPUP_OPENED") restoreOverlayIfDismissed();
-		else if (msg.type === "CONTENT_READY") sendMessage({
+		else if (msg.type === "POPUP_OPENED") {
+			if (g_autoDisabled) {
+				setAutoDisabled(false);
+				g_suspendSuppressed = true;
+				resume();
+				showToast(`'${g_activePresetName}' resumed`);
+			}
+			restoreOverlayIfDismissed();
+		} else if (msg.type === "CONTENT_READY") sendMessage({
 			source: MSG_SOURCE,
 			type: "INITIALIZED",
 			gameName: getGameName()
 		});
 	}
+	var TEXT_INPUT_SELECTOR = "input:not([type=\"hidden\"]):not([type=\"radio\"]):not([type=\"checkbox\"]):not([type=\"submit\"]):not([type=\"button\"]), textarea, [contenteditable=\"true\"], [role=\"textbox\"]";
+	var g_autoDisabled = false;
+	var g_suspendSuppressed = false;
+	function findVisibleTextInput() {
+		return Array.from(document.querySelectorAll(TEXT_INPUT_SELECTOR)).find((el) => el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).visibility !== "hidden" && window.getComputedStyle(el).display !== "none") || null;
+	}
+	function setAutoDisabled(suspended) {
+		g_autoDisabled = suspended;
+		sendMessage({
+			source: MSG_SOURCE,
+			type: "INPUT_SUSPENDED",
+			suspended
+		});
+	}
+	function checkTextInputState() {
+		const visible = findVisibleTextInput();
+		if (visible && !g_autoDisabled && !g_suspendSuppressed && isActive()) {
+			setAutoDisabled(true);
+			suspend();
+			showToast("Keyboard/Mouse suspended for text input");
+			log("[gamepad]: Auto-disabled — text input detected");
+		} else if (!visible && g_autoDisabled) {
+			setAutoDisabled(false);
+			resume();
+			showToast(`'${g_activePresetName}' resumed`);
+			log("[gamepad]: Auto-re-enabled — text input removed");
+		} else if (!visible && g_suspendSuppressed) g_suspendSuppressed = false;
+	}
+	new MutationObserver(checkTextInputState).observe(document.documentElement, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: [
+			"style",
+			"class",
+			"type",
+			"hidden",
+			"contenteditable",
+			"role"
+		]
+	});
 	window.addEventListener("pageshow", () => {
 		startWaitingForGame();
 	});

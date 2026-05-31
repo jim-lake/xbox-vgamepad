@@ -49,4 +49,5 @@ runSuites([
   path.join(__dirname, 'suites', 'script-badge.cjs'),
   path.join(__dirname, 'suites', 'disable-blur.cjs'),
   path.join(__dirname, 'suites', 'backup-restore.cjs'),
+  path.join(__dirname, 'suites', 'text-input-auto-disable.cjs'),
 ]);

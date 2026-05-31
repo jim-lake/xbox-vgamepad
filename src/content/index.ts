@@ -102,6 +102,12 @@ window.addEventListener('message', (event: MessageEvent) => {
     } catch {
       // Extension context invalidated
     }
+  } else if (msg.type === 'INPUT_SUSPENDED') {
+    try {
+      void chrome.runtime.sendMessage(msg);
+    } catch {
+      // Extension context invalidated
+    }
   }
 });
 

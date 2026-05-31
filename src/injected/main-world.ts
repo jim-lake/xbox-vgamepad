@@ -9,7 +9,7 @@ import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
 import * as inputProcessor from './input-processor';
 import { showToast } from './toast';
-import { debugLog, setLoggingEnabled } from '../tools/log';
+import { debugLog, log, setLoggingEnabled } from '../tools/log';
 
 import './gamepad-simulator';
 
@@ -57,6 +57,7 @@ const POLL_INTERVAL = 1000;
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let pendingConfig: { name: string; gamepadConfig: GamepadConfig } | null = null;
+let g_activePresetName = 'default';
 
 function sendMessage(msg: ExtensionMessage): void {
   window.postMessage(msg, '*');
@@ -68,6 +69,7 @@ function applyPendingConfig(): void {
   }
   const { name, gamepadConfig } = pendingConfig;
   pendingConfig = null;
+  g_activePresetName = name;
   updateToggleCodes(gamepadConfig);
   showToast(`'${name}' preset activated`);
   inputProcessor.activate(gamepadConfig, { resetDismissed: true });
@@ -76,6 +78,7 @@ function applyPendingConfig(): void {
 function handleMessage(msg: ExtensionMessage): void {
   if (msg.type === 'ACTIVATE_GAMEPAD_CONFIG') {
     const activateMsg = msg;
+    g_activePresetName = activateMsg.name;
     updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(
@@ -233,6 +236,12 @@ function onWindowMessage(event: MessageEvent): void {
   ) {
     handleMessage(msg);
   } else if (msg.type === 'POPUP_OPENED') {
+    if (g_autoDisabled) {
+      setAutoDisabled(false);
+      g_suspendSuppressed = true;
+      inputProcessor.resume();
+      showToast(`'${g_activePresetName}' resumed`);
+    }
     inputProcessor.restoreOverlayIfDismissed();
   } else if (msg.type === 'CONTENT_READY') {
     // Content script just loaded — re-send INITIALIZED so it can relay to background
@@ -243,6 +252,66 @@ function onWindowMessage(event: MessageEvent): void {
     });
   }
 }
+
+// Auto-disable gamepad when a visible text input appears
+const TEXT_INPUT_SELECTOR =
+  'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"], [role="textbox"]';
+
+let g_autoDisabled = false;
+let g_suspendSuppressed = false;
+
+function findVisibleTextInput(): Element | null {
+  return (
+    Array.from(document.querySelectorAll(TEXT_INPUT_SELECTOR)).find(
+      (el) =>
+        (el as HTMLElement).offsetWidth > 0 &&
+        (el as HTMLElement).offsetHeight > 0 &&
+        window.getComputedStyle(el).visibility !== 'hidden' &&
+        window.getComputedStyle(el).display !== 'none'
+    ) || null
+  );
+}
+
+function setAutoDisabled(suspended: boolean): void {
+  g_autoDisabled = suspended;
+  sendMessage({ source: MSG_SOURCE, type: 'INPUT_SUSPENDED', suspended });
+}
+
+function checkTextInputState(): void {
+  const visible = findVisibleTextInput();
+  if (
+    visible &&
+    !g_autoDisabled &&
+    !g_suspendSuppressed &&
+    inputProcessor.isActive()
+  ) {
+    setAutoDisabled(true);
+    inputProcessor.suspend();
+    showToast('Keyboard/Mouse suspended for text input');
+    log('[gamepad]: Auto-disabled — text input detected');
+  } else if (!visible && g_autoDisabled) {
+    setAutoDisabled(false);
+    inputProcessor.resume();
+    showToast(`'${g_activePresetName}' resumed`);
+    log('[gamepad]: Auto-re-enabled — text input removed');
+  } else if (!visible && g_suspendSuppressed) {
+    g_suspendSuppressed = false;
+  }
+}
+
+new MutationObserver(checkTextInputState).observe(document.documentElement, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: [
+    'style',
+    'class',
+    'type',
+    'hidden',
+    'contenteditable',
+    'role',
+  ],
+});
 
 // Handle bfcache
 window.addEventListener('pageshow', () => {

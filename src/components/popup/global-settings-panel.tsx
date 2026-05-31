@@ -26,11 +26,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'var(--row-border)',
   },
   label: { color: 'var(--text-primary)', fontSize: '1.4rem' },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: '0.8rem',
-    paddingTop: '1.2rem',
-  },
+  buttonRow: { flexDirection: 'row', gap: '0.8rem', paddingTop: '1.2rem' },
 });
 
 interface Props {
@@ -39,7 +35,10 @@ interface Props {
   activeConfigName: string;
   isEnabled: boolean;
   onChange: (settings: GlobalSettings) => void;
-  onRestore: (configs: Record<string, PopupConfig>, settings: GlobalSettings) => void;
+  onRestore: (
+    configs: Record<string, PopupConfig>,
+    settings: GlobalSettings
+  ) => void;
 }
 
 export default function GlobalSettingsPanel({
@@ -122,8 +121,8 @@ export default function GlobalSettingsPanel({
         />
       </View>
       <View style={styles.buttonRow}>
-        <TextButton text="Backup All" onPress={handleBackupAll} />
-        <TextButton text="Restore All" onPress={handleRestoreAll} />
+        <TextButton text='Backup All' onPress={handleBackupAll} />
+        <TextButton text='Restore All' onPress={handleRestoreAll} />
       </View>
     </View>
   );
