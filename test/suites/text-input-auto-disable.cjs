@@ -252,5 +252,102 @@ module.exports = async function ({
     }
   );
 
+  // ─── Badge shows X when suspended, clears on resume ───────────────────────
+
+  const { getServiceWorker } = helpers;
+
+  async function setupSuspendRecorder() {
+    const swTarget = await getServiceWorker(browser);
+    const worker = await swTarget.worker();
+    await worker.evaluate(() => {
+      globalThis.__suspendMsgs = [];
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg.type === 'INPUT_SUSPENDED') {
+          globalThis.__suspendMsgs.push(msg.suspended);
+        }
+      });
+    });
+  }
+
+  async function getSuspendMsgs() {
+    const swTarget = await getServiceWorker(browser);
+    const worker = await swTarget.worker();
+    return worker.evaluate(() => globalThis.__suspendMsgs);
+  }
+
+  async function clearSuspendMsgs() {
+    const swTarget = await getServiceWorker(browser);
+    const worker = await swTarget.worker();
+    await worker.evaluate(() => {
+      globalThis.__suspendMsgs = [];
+    });
+  }
+
+  async function waitForSuspendMsg(expected, timeout = 3000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const msgs = await getSuspendMsgs();
+      if (msgs.length > 0 && msgs[msgs.length - 1] === expected) {
+        return msgs;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return getSuspendMsgs();
+  }
+
+  await setupSuspendRecorder();
+
+  await assert(
+    'INPUT_SUSPENDED message with suspended=true reaches background on text input',
+    async () => {
+      await clearSuspendMsgs();
+      await activate();
+      await addTextInput();
+      const msgs = await waitForSuspendMsg(true);
+      expect(msgs[msgs.length - 1]).toBe(true);
+    }
+  );
+
+  await assert('badge text is X when input is suspended', async () => {
+    const swTarget = await getServiceWorker(browser);
+    const worker = await swTarget.worker();
+    // Give badge API time to process
+    await new Promise((r) => setTimeout(r, 200));
+    const badgeText = await worker.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (!tab?.id) return '';
+      return chrome.action.getBadgeText({ tabId: tab.id });
+    });
+    expect(badgeText).toBe('X');
+  });
+
+  await assert(
+    'INPUT_SUSPENDED message with suspended=false reaches background on removal',
+    async () => {
+      await clearSuspendMsgs();
+      await removeTextInput();
+      const msgs = await waitForSuspendMsg(false);
+      expect(msgs[msgs.length - 1]).toBe(false);
+    }
+  );
+
+  await assert('badge text is cleared when input resumes', async () => {
+    const swTarget = await getServiceWorker(browser);
+    const worker = await swTarget.worker();
+    await new Promise((r) => setTimeout(r, 200));
+    const badgeText = await worker.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (!tab?.id) return 'FAIL';
+      return chrome.action.getBadgeText({ tabId: tab.id });
+    });
+    expect(badgeText).toBe('');
+  });
+
   await releaseAll(page);
 };

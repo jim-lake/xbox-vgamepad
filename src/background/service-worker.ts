@@ -8,6 +8,8 @@ import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
 import type { GamepadConfig } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
 
+const g_suspendedTabs = new Set<number>();
+
 function storeGameName(gameName: string | null): void {
   if (gameName !== null) {
     void chrome.storage.local.set({ gameName });
@@ -201,7 +203,7 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'SCRIPT_COUNT') {
       const tabId = sender.tab.id;
-      if (tabId !== undefined) {
+      if (tabId !== undefined && !g_suspendedTabs.has(tabId)) {
         const text = message.count > 0 ? String(message.count) : '';
         void chrome.action.setBadgeText({ text, tabId });
         void chrome.action.setBadgeBackgroundColor({ color: '#ffffff', tabId });
@@ -214,6 +216,7 @@ chrome.runtime.onMessage.addListener(
       const tabId = sender.tab.id;
       if (tabId !== undefined) {
         if (message.suspended) {
+          g_suspendedTabs.add(tabId);
           void chrome.action.setBadgeText({ text: 'X', tabId });
           void chrome.action.setBadgeBackgroundColor({
             color: '#dc2626',
@@ -221,6 +224,7 @@ chrome.runtime.onMessage.addListener(
           });
           void chrome.action.setBadgeTextColor({ color: '#ffffff', tabId });
         } else {
+          g_suspendedTabs.delete(tabId);
           void chrome.action.setBadgeText({ text: '', tabId });
         }
       }

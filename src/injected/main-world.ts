@@ -237,9 +237,14 @@ function onWindowMessage(event: MessageEvent): void {
     handleMessage(msg);
   } else if (msg.type === 'POPUP_OPENED') {
     if (g_autoDisabled) {
-      setAutoDisabled(false);
+      g_autoDisabled = false;
       g_suspendSuppressed = true;
       inputProcessor.resume();
+      sendMessage({
+        source: MSG_SOURCE,
+        type: 'INPUT_SUSPENDED',
+        suspended: false,
+      });
       showToast(`'${g_activePresetName}' resumed`);
     }
     inputProcessor.restoreOverlayIfDismissed();
@@ -272,11 +277,6 @@ function findVisibleTextInput(): Element | null {
   );
 }
 
-function setAutoDisabled(suspended: boolean): void {
-  g_autoDisabled = suspended;
-  sendMessage({ source: MSG_SOURCE, type: 'INPUT_SUSPENDED', suspended });
-}
-
 function checkTextInputState(): void {
   const visible = findVisibleTextInput();
   if (
@@ -285,13 +285,23 @@ function checkTextInputState(): void {
     !g_suspendSuppressed &&
     inputProcessor.isActive()
   ) {
-    setAutoDisabled(true);
+    g_autoDisabled = true;
     inputProcessor.suspend();
+    sendMessage({
+      source: MSG_SOURCE,
+      type: 'INPUT_SUSPENDED',
+      suspended: true,
+    });
     showToast('Keyboard/Mouse suspended for text input');
     log('[gamepad]: Auto-disabled — text input detected');
   } else if (!visible && g_autoDisabled) {
-    setAutoDisabled(false);
+    g_autoDisabled = false;
     inputProcessor.resume();
+    sendMessage({
+      source: MSG_SOURCE,
+      type: 'INPUT_SUSPENDED',
+      suspended: false,
+    });
     showToast(`'${g_activePresetName}' resumed`);
     log('[gamepad]: Auto-re-enabled — text input removed');
   } else if (!visible && g_suspendSuppressed) {
