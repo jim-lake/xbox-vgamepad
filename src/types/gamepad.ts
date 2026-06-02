@@ -75,12 +75,16 @@ export interface GlobalSettings {
   patchRemoteMultigamepad: boolean;
   enableLogging: boolean;
   disableBlur: boolean;
+  autoSuspendOnInput: boolean;
+  fakeFullscreen: boolean;
 }
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   patchRemoteMultigamepad: true,
   enableLogging: false,
   disableBlur: false,
+  autoSuspendOnInput: true,
+  fakeFullscreen: false,
 };
 
 export interface StorageData {

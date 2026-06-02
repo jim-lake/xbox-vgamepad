@@ -1278,12 +1278,24 @@
 	//#endregion
 	//#region src/injected/main-world.ts
 	var g_disableBlur = false;
+	var g_autoSuspendOnInput = true;
 	window.addEventListener("blur", (e) => {
 		if (g_disableBlur) {
 			e.stopImmediatePropagation();
 			e.preventDefault();
 		}
 	}, true);
+	var g_fakeFullscreen = false;
+	var realRequestFullscreen = Element.prototype.requestFullscreen;
+	var realExitFullscreen = () => Document.prototype.exitFullscreen.call(document);
+	Element.prototype.requestFullscreen = function(options) {
+		if (g_fakeFullscreen) return Promise.resolve();
+		return realRequestFullscreen.call(this, options);
+	};
+	document.exitFullscreen = function() {
+		if (g_fakeFullscreen) return Promise.resolve();
+		return realExitFullscreen();
+	};
 	window.addEventListener("message", (event) => {
 		const data = event.data;
 		if (data && typeof data === "object" && data.source === "xbox-vgamepad-content-script" && data.type === "SETTINGS_CHANGED") {
@@ -1293,6 +1305,8 @@
 			g_disableBlur = data.disableBlur;
 			const patch = data.patchRemoteMultigamepad;
 			localStorage.setItem("xvg-patchRemoteMultigamepad", patch ? "true" : "false");
+			g_autoSuspendOnInput = data.autoSuspendOnInput !== false;
+			g_fakeFullscreen = data.fakeFullscreen === true;
 		}
 	});
 	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
@@ -1443,6 +1457,7 @@
 		return Array.from(document.querySelectorAll(TEXT_INPUT_SELECTOR)).find((el) => el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).visibility !== "hidden" && window.getComputedStyle(el).display !== "none") || null;
 	}
 	function checkTextInputState() {
+		if (!g_autoSuspendOnInput) return;
 		const visible = findVisibleTextInput();
 		if (visible && !g_autoDisabled && !g_suspendSuppressed && isActive()) {
 			g_autoDisabled = true;

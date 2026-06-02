@@ -20,6 +20,8 @@ function sendSettingsToPage(settings: GlobalSettings): void {
       enableLogging: settings.enableLogging,
       disableBlur: settings.disableBlur,
       patchRemoteMultigamepad: settings.patchRemoteMultigamepad,
+      autoSuspendOnInput: settings.autoSuspendOnInput,
+      fakeFullscreen: settings.fakeFullscreen,
     } satisfies SettingsChangedMessage,
     '*'
   );

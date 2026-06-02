@@ -15,6 +15,7 @@ import './gamepad-simulator';
 
 // Blur suppression — always registered with capture, controlled by flag
 let g_disableBlur = false;
+let g_autoSuspendOnInput = true;
 window.addEventListener(
   'blur',
   (e: Event) => {
@@ -25,6 +26,27 @@ window.addEventListener(
   },
   true
 );
+
+// Fake fullscreen — intercept requestFullscreen/exitFullscreen
+let g_fakeFullscreen = false;
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const realRequestFullscreen = Element.prototype.requestFullscreen;
+const realExitFullscreen = () =>
+  Document.prototype.exitFullscreen.call(document);
+Element.prototype.requestFullscreen = function (
+  options?: FullscreenOptions
+): Promise<void> {
+  if (g_fakeFullscreen) {
+    return Promise.resolve();
+  }
+  return realRequestFullscreen.call(this, options);
+};
+document.exitFullscreen = function (): Promise<void> {
+  if (g_fakeFullscreen) {
+    return Promise.resolve();
+  }
+  return realExitFullscreen();
+};
 
 // Listen for settings changes at all times (before and after game detection)
 window.addEventListener('message', (event: MessageEvent) => {
@@ -45,6 +67,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       'xvg-patchRemoteMultigamepad',
       patch ? 'true' : 'false'
     );
+    g_autoSuspendOnInput =
+      (data as { autoSuspendOnInput?: boolean }).autoSuspendOnInput !== false;
+    g_fakeFullscreen =
+      (data as { fakeFullscreen?: boolean }).fakeFullscreen === true;
   }
 });
 
@@ -278,6 +304,9 @@ function findVisibleTextInput(): Element | null {
 }
 
 function checkTextInputState(): void {
+  if (!g_autoSuspendOnInput) {
+    return;
+  }
   const visible = findVisibleTextInput();
   if (
     visible &&

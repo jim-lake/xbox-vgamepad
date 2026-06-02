@@ -33,6 +33,8 @@ export interface SettingsChangedMessage {
   enableLogging: boolean;
   disableBlur: boolean;
   patchRemoteMultigamepad: boolean;
+  autoSuspendOnInput: boolean;
+  fakeFullscreen: boolean;
 }
 
 export interface DisableGamepadMessage {

@@ -50,4 +50,6 @@ runSuites([
   path.join(__dirname, 'suites', 'disable-blur.cjs'),
   path.join(__dirname, 'suites', 'backup-restore.cjs'),
   path.join(__dirname, 'suites', 'text-input-auto-disable.cjs'),
+  path.join(__dirname, 'suites', 'auto-suspend-setting.cjs'),
+  path.join(__dirname, 'suites', 'fake-fullscreen.cjs'),
 ]);
