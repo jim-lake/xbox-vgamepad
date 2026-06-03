@@ -8,19 +8,17 @@ import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
 import type { GamepadConfig } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
 
-const g_suspendedTabs = new Set<number>();
-
 // Per-tab state: loaded from chrome.storage on init, then independent
 interface TabState {
   enabled: boolean;
   activeConfig: string;
   gameName: string | null;
+  suspended: boolean;
 }
 const g_tabState = new Map<number, TabState>();
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   g_tabState.delete(tabId);
-  g_suspendedTabs.delete(tabId);
 });
 
 const ICONS_ENABLED = {
@@ -95,31 +93,40 @@ async function handleInitialized(
     msg: ActivateGamepadConfigMessage | DisableGamepadMessage
   ) => void
 ): Promise<void> {
-  const [syncData, gamePreset] = await Promise.all([
-    chrome.storage.sync.get(null),
-    gameName !== null ? getGamePreset(gameName) : Promise.resolve(undefined),
-  ]);
+  try {
+    const [syncData, gamePreset] = await Promise.all([
+      chrome.storage.sync.get(null),
+      gameName !== null ? getGamePreset(gameName) : Promise.resolve(undefined),
+    ]);
 
-  const isEnabled = (syncData['ENABLED'] as boolean | undefined) ?? true;
+    const isEnabled = (syncData['ENABLED'] as boolean | undefined) ?? true;
 
-  const { name, config } = gamePreset
-    ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
-    : getActiveConfig(syncData);
+    const { name, config } = gamePreset
+      ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
+      : getActiveConfig(syncData);
 
-  // Store per-tab state (loaded from global, then independent)
-  g_tabState.set(tabId, { enabled: isEnabled, activeConfig: name, gameName });
-  updateIcon(isEnabled, tabId);
-
-  if (isEnabled && config) {
-    sendResponse({
-      source: MSG_SOURCE,
-      type: 'ACTIVATE_GAMEPAD_CONFIG',
-      name,
-      gamepadConfig: config,
-      overlayMinimized:
-        (syncData['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
+    // Store per-tab state (loaded from global, then independent)
+    g_tabState.set(tabId, {
+      enabled: isEnabled,
+      activeConfig: name,
+      gameName,
+      suspended: false,
     });
-  } else {
+    updateIcon(isEnabled, tabId);
+
+    if (isEnabled && config) {
+      sendResponse({
+        source: MSG_SOURCE,
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name,
+        gamepadConfig: config,
+        overlayMinimized:
+          (syncData['OVERLAY_MINIMIZED'] as boolean | undefined) ?? false,
+      });
+    } else {
+      sendResponse({ source: MSG_SOURCE, type: 'DISABLE_GAMEPAD' });
+    }
+  } catch {
     sendResponse({ source: MSG_SOURCE, type: 'DISABLE_GAMEPAD' });
   }
 }
@@ -201,6 +208,7 @@ chrome.runtime.onMessage.addListener(
             enabled: message.enabled,
             activeConfig: message.activeConfig || 'default',
             gameName: null,
+            suspended: false,
           });
         }
         updateIcon(message.enabled, message.tabId);
@@ -212,6 +220,7 @@ chrome.runtime.onMessage.addListener(
           enabled: state?.enabled ?? true,
           activeConfig: state?.activeConfig ?? 'default',
           gameName: state?.gameName ?? null,
+          suspended: state?.suspended ?? false,
         });
         return true;
       }
@@ -258,11 +267,17 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'SCRIPT_COUNT') {
       const tabId = sender.tab.id;
-      if (tabId !== undefined && !g_suspendedTabs.has(tabId)) {
-        const text = message.count > 0 ? String(message.count) : '';
-        void chrome.action.setBadgeText({ text, tabId });
-        void chrome.action.setBadgeBackgroundColor({ color: '#ffffff', tabId });
-        void chrome.action.setBadgeTextColor({ color: '#16a34a', tabId });
+      if (tabId !== undefined) {
+        const tabState = g_tabState.get(tabId);
+        if (!tabState?.suspended) {
+          const text = message.count > 0 ? String(message.count) : '';
+          void chrome.action.setBadgeText({ text, tabId });
+          void chrome.action.setBadgeBackgroundColor({
+            color: '#ffffff',
+            tabId,
+          });
+          void chrome.action.setBadgeTextColor({ color: '#16a34a', tabId });
+        }
       }
       return false;
     }
@@ -270,8 +285,11 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'INPUT_SUSPENDED') {
       const tabId = sender.tab.id;
       if (tabId !== undefined) {
+        const tabState = g_tabState.get(tabId);
+        if (tabState) {
+          tabState.suspended = message.suspended;
+        }
         if (message.suspended) {
-          g_suspendedTabs.add(tabId);
           void chrome.action.setBadgeText({ text: 'X', tabId });
           void chrome.action.setBadgeBackgroundColor({
             color: '#dc2626',
@@ -279,7 +297,6 @@ chrome.runtime.onMessage.addListener(
           });
           void chrome.action.setBadgeTextColor({ color: '#ffffff', tabId });
         } else {
-          g_suspendedTabs.delete(tabId);
           void chrome.action.setBadgeText({ text: '', tabId });
         }
       }

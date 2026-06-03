@@ -3,6 +3,7 @@ import type {
   ActivateGamepadConfigMessage,
   ConfigChangedMessage,
   DisableGamepadMessage,
+  ExtensionMessage,
   PopupOpenedMessage,
   TabStateChangedMessage,
   ToggleGamepadMessage,
@@ -12,6 +13,14 @@ import type { GamepadConfig } from '@/types/gamepad';
 async function getActiveTabId(): Promise<number | undefined> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab?.id;
+}
+
+async function sendToActiveTab(msg: ExtensionMessage): Promise<void> {
+  const tabId = await getActiveTabId();
+  if (tabId === undefined) {
+    return;
+  }
+  await chrome.tabs.sendMessage(tabId, msg);
 }
 
 function notifyTabState(
@@ -85,25 +94,53 @@ export async function sendConfigChanged(
 }
 
 export async function sendPopupOpened(): Promise<void> {
-  const tabId = await getActiveTabId();
-  if (tabId === undefined) {
-    return;
-  }
   const msg: PopupOpenedMessage = { source: MSG_SOURCE, type: 'POPUP_OPENED' };
-  await chrome.tabs.sendMessage(tabId, msg);
+  await sendToActiveTab(msg);
 }
 
 export async function sendToggleGamepad(
   gamepadIndex: 0 | 1 | 2 | 3
 ): Promise<void> {
-  const tabId = await getActiveTabId();
-  if (tabId === undefined) {
-    return;
-  }
   const msg: ToggleGamepadMessage = {
     source: MSG_SOURCE,
     type: 'TOGGLE_GAMEPAD',
     gamepadIndex,
   };
-  await chrome.tabs.sendMessage(tabId, msg);
+  await sendToActiveTab(msg);
+}
+
+export async function getTabState(
+  tabId: number
+): Promise<{
+  enabled: boolean;
+  activeConfig: string;
+  gameName: string | null;
+  suspended: boolean;
+}> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { source: MSG_SOURCE, type: 'GET_TAB_STATE', tabId },
+      (
+        response:
+          | {
+              enabled: boolean;
+              activeConfig: string;
+              gameName: string | null;
+              suspended: boolean;
+            }
+          | undefined
+      ) => {
+        if (chrome.runtime.lastError || !response) {
+          resolve({
+            enabled: true,
+            activeConfig: 'default',
+            gameName: null,
+            suspended: false,
+          });
+        } else {
+          resolve(response);
+        }
+      }
+    );
+  });
 }

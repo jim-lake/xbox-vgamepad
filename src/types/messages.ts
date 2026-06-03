@@ -114,6 +114,15 @@ export interface TabStateResponseMessage {
   enabled: boolean;
   activeConfig: string;
   gameName: string | null;
+  suspended: boolean;
+}
+
+export function isExtensionMessage(data: unknown): data is ExtensionMessage {
+  return (
+    data !== null &&
+    typeof data === 'object' &&
+    (data as { source?: unknown }).source === MSG_SOURCE
+  );
 }
 
 export type PageToContentMessage =

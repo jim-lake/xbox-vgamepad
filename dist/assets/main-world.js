@@ -179,6 +179,9 @@
 	//#endregion
 	//#region src/types/messages.ts
 	var MSG_SOURCE = "xbox-vgamepad-content-script";
+	function isExtensionMessage(data) {
+		return data !== null && typeof data === "object" && data.source === "xbox-vgamepad-content-script";
+	}
 	//#endregion
 	//#region src/injected/game-detection.ts
 	function detectGame() {
@@ -1325,17 +1328,19 @@
 		log("[gamepad]: exitFullscreen passthrough");
 		return realExitFullscreen();
 	};
+	var g_gameActive = false;
+	function handleSettingsChanged(msg) {
+		setLoggingEnabled(msg.enableLogging);
+		localStorage.setItem("xvg-enableLogging", msg.enableLogging ? "true" : "false");
+		g_disableBlur = msg.disableBlur;
+		localStorage.setItem("xvg-patchRemoteMultigamepad", msg.patchRemoteMultigamepad ? "true" : "false");
+		g_autoSuspendOnInput = msg.autoSuspendOnInput;
+	}
 	window.addEventListener("message", (event) => {
 		const data = event.data;
-		if (data && typeof data === "object" && data.source === "xbox-vgamepad-content-script" && data.type === "SETTINGS_CHANGED") {
-			const logging = data.enableLogging;
-			setLoggingEnabled(logging);
-			localStorage.setItem("xvg-enableLogging", logging ? "true" : "false");
-			g_disableBlur = data.disableBlur;
-			const patch = data.patchRemoteMultigamepad;
-			localStorage.setItem("xvg-patchRemoteMultigamepad", patch ? "true" : "false");
-			g_autoSuspendOnInput = data.autoSuspendOnInput !== false;
-		}
+		if (!isExtensionMessage(data)) return;
+		if (data.type === "SETTINGS_CHANGED") handleSettingsChanged(data);
+		else if (g_gameActive) handleGameMessage(data);
 	});
 	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
 	var POLL_INTERVAL = 1e3;
@@ -1370,6 +1375,7 @@
 			g_fakeFullscreen = msg.gamepadConfig.fakeFullscreen === true;
 			if (document.hasFocus()) applyPendingConfig();
 		} else if (msg.type === "DISABLE_GAMEPAD") {
+			g_fakeFullscreen = false;
 			if (isActive()) showToast("Mouse/keyboard disabled");
 			deactivate();
 		}
@@ -1427,7 +1433,7 @@
 	}
 	function onGameDetected() {
 		const gameName = getGameName();
-		window.addEventListener("message", onWindowMessage);
+		g_gameActive = true;
 		sendMessage({
 			source: MSG_SOURCE,
 			type: "INITIALIZED",
@@ -1440,13 +1446,13 @@
 					clearInterval(pollTimer);
 					pollTimer = null;
 				}
+				g_gameActive = false;
 				deactivate();
 				sendMessage({
 					source: MSG_SOURCE,
 					type: "GAME_CHANGED",
 					gameName: null
 				});
-				window.removeEventListener("message", onWindowMessage);
 				startWaitingForGame();
 			} else {
 				const newGameName = getGameName();
@@ -1461,10 +1467,7 @@
 			}
 		}, POLL_INTERVAL);
 	}
-	function onWindowMessage(event) {
-		const data = event.data;
-		if (!data || typeof data !== "object" || data.source !== "xbox-vgamepad-content-script") return;
-		const msg = data;
+	function handleGameMessage(msg) {
 		if (msg.type === "ACTIVATE_GAMEPAD_CONFIG" || msg.type === "CONFIG_CHANGED" || msg.type === "DISABLE_GAMEPAD") handleMessage(msg);
 		else if (msg.type === "POPUP_OPENED") {
 			if (g_autoDisabled) {
@@ -1545,7 +1548,7 @@
 		startWaitingForGame();
 	});
 	window.addEventListener("focus", () => {
-		applyPendingConfig();
+		if (g_gameActive) applyPendingConfig();
 	});
 	startWaitingForGame();
 	//#endregion

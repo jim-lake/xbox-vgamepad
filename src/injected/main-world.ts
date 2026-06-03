@@ -3,8 +3,11 @@
 // chunk interceptor synchronously during module evaluation.
 import './coop-patch';
 
-import { MSG_SOURCE } from '@/types/messages';
-import type { ExtensionMessage } from '@/types/messages';
+import { MSG_SOURCE, isExtensionMessage } from '@/types/messages';
+import type {
+  ExtensionMessage,
+  SettingsChangedMessage,
+} from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
 import { detectGame, getGameName } from './game-detection';
 import * as inputProcessor from './input-processor';
@@ -64,27 +67,31 @@ document.exitFullscreen = function (): Promise<void> {
   return realExitFullscreen();
 };
 
-// Listen for settings changes at all times (before and after game detection)
+let g_gameActive = false;
+
+function handleSettingsChanged(msg: SettingsChangedMessage): void {
+  setLoggingEnabled(msg.enableLogging);
+  localStorage.setItem(
+    'xvg-enableLogging',
+    msg.enableLogging ? 'true' : 'false'
+  );
+  g_disableBlur = msg.disableBlur;
+  localStorage.setItem(
+    'xvg-patchRemoteMultigamepad',
+    msg.patchRemoteMultigamepad ? 'true' : 'false'
+  );
+  g_autoSuspendOnInput = msg.autoSuspendOnInput;
+}
+
 window.addEventListener('message', (event: MessageEvent) => {
   const data: unknown = event.data;
-  if (
-    data &&
-    typeof data === 'object' &&
-    (data as { source?: unknown }).source === MSG_SOURCE &&
-    (data as { type?: unknown }).type === 'SETTINGS_CHANGED'
-  ) {
-    const logging = (data as { enableLogging: boolean }).enableLogging;
-    setLoggingEnabled(logging);
-    localStorage.setItem('xvg-enableLogging', logging ? 'true' : 'false');
-    g_disableBlur = (data as { disableBlur: boolean }).disableBlur;
-    const patch = (data as { patchRemoteMultigamepad: boolean })
-      .patchRemoteMultigamepad;
-    localStorage.setItem(
-      'xvg-patchRemoteMultigamepad',
-      patch ? 'true' : 'false'
-    );
-    g_autoSuspendOnInput =
-      (data as { autoSuspendOnInput?: boolean }).autoSuspendOnInput !== false;
+  if (!isExtensionMessage(data)) {
+    return;
+  }
+  if (data.type === 'SETTINGS_CHANGED') {
+    handleSettingsChanged(data);
+  } else if (g_gameActive) {
+    handleGameMessage(data);
   }
 });
 
@@ -135,6 +142,7 @@ function handleMessage(msg: ExtensionMessage): void {
       applyPendingConfig();
     }
   } else if (msg.type === 'DISABLE_GAMEPAD') {
+    g_fakeFullscreen = false;
     if (inputProcessor.isActive()) {
       showToast('Mouse/keyboard disabled');
     }
@@ -234,7 +242,7 @@ function startWaitingForGame(): void {
 function onGameDetected(): void {
   const gameName = getGameName();
 
-  window.addEventListener('message', onWindowMessage);
+  g_gameActive = true;
 
   // Send INITIALIZED — if content script is already listening, it relays immediately.
   // If not, it will send CONTENT_READY when ready, and we re-send.
@@ -248,9 +256,9 @@ function onGameDetected(): void {
         clearInterval(pollTimer);
         pollTimer = null;
       }
+      g_gameActive = false;
       inputProcessor.deactivate();
       sendMessage({ source: MSG_SOURCE, type: 'GAME_CHANGED', gameName: null });
-      window.removeEventListener('message', onWindowMessage);
       startWaitingForGame();
     } else {
       const newGameName = getGameName();
@@ -266,16 +274,7 @@ function onGameDetected(): void {
   }, POLL_INTERVAL);
 }
 
-function onWindowMessage(event: MessageEvent): void {
-  const data: unknown = event.data;
-  if (
-    !data ||
-    typeof data !== 'object' ||
-    (data as { source?: unknown }).source !== MSG_SOURCE
-  ) {
-    return;
-  }
-  const msg = data as ExtensionMessage;
+function handleGameMessage(msg: ExtensionMessage): void {
   if (
     msg.type === 'ACTIVATE_GAMEPAD_CONFIG' ||
     msg.type === 'CONFIG_CHANGED' ||
@@ -391,7 +390,9 @@ window.addEventListener('pageshow', () => {
 });
 
 window.addEventListener('focus', () => {
-  applyPendingConfig();
+  if (g_gameActive) {
+    applyPendingConfig();
+  }
 });
 
 startWaitingForGame();

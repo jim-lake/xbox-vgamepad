@@ -12,9 +12,9 @@ import {
   sendDisableGamepad,
   sendPopupOpened,
   sendToggleGamepad,
+  getTabState,
 } from './messaging';
 import { setLoggingEnabled } from '@/tools/log';
-import { getTabState } from './storage';
 import {
   loadAllPopupConfigs,
   saveAndBroadcastPopupConfig,

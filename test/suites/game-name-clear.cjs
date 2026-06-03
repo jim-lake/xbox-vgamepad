@@ -1,4 +1,4 @@
-// Tests: gameName is cleared from storage when game ends (GAME_CHANGED with null)
+// Tests: gameName is tracked in transient tab state
 module.exports = async function ({
   page,
   browser,
@@ -8,12 +8,9 @@ module.exports = async function ({
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { setStorageSync, setStorageLocal, getStorageLocal, sendConfigToPage } =
-    helpers;
+  const { setStorageSync, getServiceWorker, sendConfigToPage } = helpers;
 
-  console.log(
-    '  [Game Name Clear - gameName removed from storage on game end]'
-  );
+  console.log('  [Game Name Clear - gameName in transient tab state]');
 
   await setStorageSync(browser, {
     'GP_CONF:default': DEFAULT_CONFIG,
@@ -21,8 +18,19 @@ module.exports = async function ({
     ENABLED: true,
   });
 
+  const swTarget = await getServiceWorker(browser);
+  const worker = await swTarget.worker();
+  await worker.evaluate(() => {
+    globalThis.__lastGameName = '__unset__';
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === 'GAME_CHANGED') {
+        globalThis.__lastGameName = msg.gameName;
+      }
+    });
+  });
+
   await assert(
-    'GAME_CHANGED with a name stores gameName in local storage',
+    'GAME_CHANGED with a name stores gameName in tab state',
     async () => {
       await page.evaluate(() => {
         window.postMessage(
@@ -36,13 +44,13 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const data = await getStorageLocal(browser, ['gameName']);
-      expect(data['gameName']).toBe('Halo Infinite');
+      const gameName = await worker.evaluate(() => globalThis.__lastGameName);
+      expect(gameName).toBe('Halo Infinite');
     }
   );
 
   await assert(
-    'GAME_CHANGED with null clears gameName from local storage',
+    'GAME_CHANGED with null clears gameName in tab state',
     async () => {
       await page.evaluate(() => {
         window.postMessage(
@@ -56,8 +64,8 @@ module.exports = async function ({
       });
       await new Promise((r) => setTimeout(r, 500));
 
-      const data = await getStorageLocal(browser, ['gameName']);
-      expect(data['gameName']).toBe(undefined);
+      const gameName = await worker.evaluate(() => globalThis.__lastGameName);
+      expect(gameName).toBe(null);
     }
   );
 

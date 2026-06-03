@@ -1,4 +1,4 @@
-import { MSG_SOURCE } from '@/types/messages';
+import { MSG_SOURCE, isExtensionMessage } from '@/types/messages';
 import type {
   ExtensionMessage,
   SettingsChangedMessage,
@@ -53,16 +53,20 @@ try {
   // Extension context invalidated
 }
 
+const FORWARD_TO_BACKGROUND: Set<ExtensionMessage['type']> = new Set([
+  'GAME_CHANGED',
+  'TOGGLE_ENABLED',
+  'SCRIPT_COUNT',
+  'INPUT_SUSPENDED',
+  'GAMEPAD_STATUS',
+]);
+
 window.addEventListener('message', (event: MessageEvent) => {
   const data: unknown = event.data;
-  if (
-    !data ||
-    typeof data !== 'object' ||
-    (data as { source?: unknown }).source !== MSG_SOURCE
-  ) {
+  if (!isExtensionMessage(data)) {
     return;
   }
-  const msg = data as ExtensionMessage;
+  const msg = data;
   if (msg.type === 'INITIALIZED') {
     try {
       chrome.runtime.sendMessage(
@@ -79,37 +83,13 @@ window.addEventListener('message', (event: MessageEvent) => {
     } catch {
       // Extension context invalidated
     }
-  } else if (msg.type === 'GAME_CHANGED') {
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
   } else if (msg.type === 'SET_OVERLAY_MINIMIZED') {
     try {
       void chrome.storage.sync.set({ OVERLAY_MINIMIZED: msg.minimized });
     } catch {
       // Extension context invalidated
     }
-  } else if (msg.type === 'TOGGLE_ENABLED') {
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
-  } else if (msg.type === 'SCRIPT_COUNT') {
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
-  } else if (msg.type === 'INPUT_SUSPENDED') {
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
-  } else if (msg.type === 'GAMEPAD_STATUS') {
+  } else if (FORWARD_TO_BACKGROUND.has(msg.type)) {
     try {
       void chrome.runtime.sendMessage(msg);
     } catch {

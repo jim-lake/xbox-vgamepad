@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xbox vGamepad",
-  "version": "0.0.514",
+  "version": "0.0.544",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
   "action": {
     "default_popup": "src/popup/index.html"
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-DDte_RMw.js"
+        "assets/index.ts-loader-C5Ol6N9f.js"
       ],
       "matches": [
         "https://xbox.com/*",
@@ -53,10 +53,10 @@
         "src/assets/img/*",
         "assets/log-CdX914LT.js",
         "assets/log-CdX914LT.js.map",
-        "assets/gamepad-G4Xl1Wcx.js",
-        "assets/gamepad-G4Xl1Wcx.js.map",
-        "assets/index.ts-BzJZHMlJ.js",
-        "assets/index.ts-BzJZHMlJ.js.map",
+        "assets/gamepad-Cb3Btwmr.js",
+        "assets/gamepad-Cb3Btwmr.js.map",
+        "assets/index.ts-C8_Q0qnB.js",
+        "assets/index.ts-C8_Q0qnB.js.map",
         "assets/main-world.js"
       ],
       "use_dynamic_url": false
