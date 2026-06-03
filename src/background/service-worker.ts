@@ -59,7 +59,4 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
     }
     return;
   }
-
-  // Forward SCRIPT_COUNT/INPUT_SUSPENDED to allow test listeners to observe
-  // (no-op for production, but tests attach listeners)
 });
