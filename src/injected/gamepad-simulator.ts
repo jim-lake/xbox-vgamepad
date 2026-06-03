@@ -246,7 +246,6 @@ export class GamepadSimulator {
 const g_simulators = new Map<number, GamepadSimulator>();
 const g_originalGetGamepads = navigator.getGamepads.bind(navigator);
 let g_virtualSlots = new Set<number>();
-// Stable mapping: physical pad ID → output slot (separate mode only)
 const g_physicalSlots = new Map<string, number>();
 let g_mode: 'combine' | 'separate' = 'separate';
 
@@ -259,7 +258,6 @@ export function getSimulator(index: 0 | 1 | 2 | 3): GamepadSimulator {
   return sim;
 }
 
-/** Assign a stable output slot for a physical pad, avoiding virtual slots and other physical pads. */
 function assignPhysicalSlot(padId: string): number {
   const existing = g_physicalSlots.get(padId);
   if (existing !== undefined && !g_virtualSlots.has(existing)) {
@@ -306,7 +304,7 @@ window.addEventListener(
       dispatchGamepadEvent('gamepadconnected', pad, slot);
     }
   },
-  true // capture — runs before page listeners
+  true
 );
 
 window.addEventListener(
@@ -326,7 +324,6 @@ window.addEventListener(
       return;
     }
 
-    // Separate mode: intercept and use stable slot
     e.stopImmediatePropagation();
     const slot = g_physicalSlots.get(pad.id);
     g_physicalSlots.delete(pad.id);
@@ -337,12 +334,6 @@ window.addEventListener(
   true
 );
 
-/**
- * Called when the set of virtual slots changes (config load/change).
- * In separate mode: remaps physical pads that conflict with new virtual slots,
- * and initializes non-conflicting physical pads to their native slots.
- * In combine mode: just updates g_virtualSlots (no slot management needed).
- */
 export function updateVirtualSlots(newVirtualSlots: Set<number>): void {
   g_virtualSlots = newVirtualSlots;
 

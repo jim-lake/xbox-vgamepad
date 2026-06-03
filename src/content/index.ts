@@ -12,9 +12,23 @@ import {
   CONFIG_PREFIX,
 } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
-import { setLoggingEnabled } from '@/tools/log';
+import { errorLog, setLoggingEnabled } from '@/tools/log';
 
-// --- Config Resolution (moved from service worker) ---
+function trySendMessage(msg: unknown): void {
+  try {
+    void chrome.runtime.sendMessage(msg);
+  } catch (e: unknown) {
+    errorLog('[content] sendMessage failed:', e);
+  }
+}
+
+function trySyncSet(data: Record<string, unknown>): void {
+  try {
+    void chrome.storage.sync.set(data);
+  } catch (e: unknown) {
+    errorLog('[content] storage.sync.set failed:', e);
+  }
+}
 
 function resolveConfig(
   syncData: Record<string, unknown>,
@@ -42,8 +56,6 @@ async function getGamePreset(gameName: string): Promise<string | undefined> {
   return gamePresets[gameName];
 }
 
-// --- Per-tab state (just this tab) ---
-
 interface TabState {
   enabled: boolean;
   activeConfig: string;
@@ -58,35 +70,19 @@ const state: TabState = {
   suspended: false,
 };
 
-// --- Service Worker icon/badge commands ---
-
 function sendSetIcon(enabled: boolean): void {
-  try {
-    void chrome.runtime.sendMessage({
-      source: MSG_SOURCE,
-      type: 'SET_ICON',
-      enabled,
-    });
-  } catch {
-    // Extension context invalidated
-  }
+  trySendMessage({ source: MSG_SOURCE, type: 'SET_ICON', enabled });
 }
 
 function sendSetBadge(text: string, color?: string, bgColor?: string): void {
-  try {
-    void chrome.runtime.sendMessage({
-      source: MSG_SOURCE,
-      type: 'SET_BADGE',
-      text,
-      color,
-      bgColor,
-    });
-  } catch {
-    // Extension context invalidated
-  }
+  trySendMessage({
+    source: MSG_SOURCE,
+    type: 'SET_BADGE',
+    text,
+    color,
+    bgColor,
+  });
 }
-
-// --- Handlers (moved from service worker) ---
 
 async function handleInitialized(gameName: string | null): Promise<void> {
   try {
@@ -189,8 +185,6 @@ async function handleToggleEnabled(enabled: boolean): Promise<void> {
   }
 }
 
-// --- Settings ---
-
 function parseSettings(data: Record<string, unknown>): GlobalSettings {
   const raw = data['GLOBAL_SETTINGS'] as Partial<GlobalSettings> | undefined;
   return { ...DEFAULT_GLOBAL_SETTINGS, ...raw };
@@ -216,8 +210,8 @@ try {
     setLoggingEnabled(settings.enableLogging);
     sendSettingsToPage(settings);
   });
-} catch {
-  // Extension context invalidated
+} catch (e: unknown) {
+  errorLog('[content] initial settings load failed:', e);
 }
 
 chrome.storage.sync.onChanged.addListener((changes) => {
@@ -231,15 +225,7 @@ chrome.storage.sync.onChanged.addListener((changes) => {
   }
 });
 
-// --- Notify service worker that content script is injected (enables action) ---
-
-try {
-  void chrome.runtime.sendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
-} catch {
-  // Extension context invalidated
-}
-
-// --- Page message handling ---
+trySendMessage({ source: MSG_SOURCE, type: 'INJECTED' });
 
 window.addEventListener('message', (event: MessageEvent) => {
   const data: unknown = event.data;
@@ -255,12 +241,7 @@ window.addEventListener('message', (event: MessageEvent) => {
     if (msg.gameName !== null) {
       void handleGameChanged(msg.gameName);
     }
-    // Forward to service worker (test observability)
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
+    trySendMessage(msg);
   } else if (msg.type === 'TOGGLE_ENABLED') {
     void handleToggleEnabled(msg.enabled);
   } else if (msg.type === 'SCRIPT_COUNT') {
@@ -268,12 +249,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       const text = msg.count > 0 ? String(msg.count) : '';
       sendSetBadge(text, '#16a34a', '#ffffff');
     }
-    // Forward to service worker (test observability)
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
+    trySendMessage(msg);
   } else if (msg.type === 'INPUT_SUSPENDED') {
     state.suspended = msg.suspended;
     if (msg.suspended) {
@@ -281,39 +257,20 @@ window.addEventListener('message', (event: MessageEvent) => {
     } else {
       sendSetBadge('');
     }
-    // Forward to service worker (test observability)
-    try {
-      void chrome.runtime.sendMessage(msg);
-    } catch {
-      // Extension context invalidated
-    }
+    trySendMessage(msg);
   } else if (msg.type === 'SET_OVERLAY_MINIMIZED') {
-    try {
-      void chrome.storage.sync.set({ OVERLAY_MINIMIZED: msg.minimized });
-    } catch {
-      // Extension context invalidated
-    }
+    trySyncSet({ OVERLAY_MINIMIZED: msg.minimized });
   } else if (msg.type === 'GAMEPAD_STATUS') {
-    // Broadcast to popup
-    try {
-      void chrome.runtime.sendMessage({ ...msg, source: MSG_SOURCE });
-    } catch {
-      // Extension context invalidated
-    }
+    trySendMessage({ ...msg, source: MSG_SOURCE });
   }
 });
 
-// --- Messages from popup (chrome.runtime.onMessage) ---
-
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
-  // Only process messages from background/popup (not from other tabs)
   if (sender.tab) {
     return;
   }
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');
 });
-
-// --- Content ready & meta tag ---
 
 window.postMessage({ source: MSG_SOURCE, type: 'CONTENT_READY' }, '*');
 

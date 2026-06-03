@@ -1,16 +1,6 @@
-/**
- * GameScript execution engine.
- *
- * Additive button model: each running script instance tracks which buttons/axes
- * it has pressed. "up" in a script only removes that script's contribution —
- * the button stays held if another source (keyboard or another script) is also
- * pressing it.
- */
-
 import type { GamepadAction, GameScript, ScriptAction } from '@/types/gamepad';
 import { executePress, executeUnpress } from './script-actions';
 
-/** Opaque handle returned by runScript; used to cancel a running script. */
 export interface ScriptHandle {
   cancel(): void;
 }
@@ -19,10 +9,6 @@ interface RunState {
   cancelled: boolean;
 }
 
-/**
- * Run a GameScript, returning a handle that can cancel it.
- * All buttons pressed by this script are released when it finishes or is cancelled.
- */
 export function runScript(script: GameScript): ScriptHandle {
   const state: RunState = { cancelled: false };
   const held: GamepadAction[] = [];
@@ -117,9 +103,6 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Manages per-key script state for all activation types.
- */
 export class ScriptManager {
   private readonly running = new Map<string, ScriptHandle>();
   private readonly toggleActive = new Set<string>();
@@ -189,7 +172,6 @@ export class ScriptManager {
     }
   }
 
-  /** Cancel all running scripts and clear all state. */
   cancelAll(): void {
     for (const handle of this.running.values()) {
       handle.cancel();

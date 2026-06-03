@@ -1,6 +1,4 @@
-// Install co-op patch FIRST — must be before any other imports that might
-// delay execution. This is a side-effect import that sets up the webpack
-// chunk interceptor synchronously during module evaluation.
+// Side-effect import: installs webpack chunk interceptor synchronously.
 import './coop-patch';
 
 import { MSG_SOURCE, isExtensionMessage } from '@/types/messages';
@@ -16,7 +14,7 @@ import { debugLog, log, setLoggingEnabled } from '../tools/log';
 
 import './gamepad-simulator';
 
-// Blur suppression — always registered with capture, controlled by flag
+// Blur suppression
 let g_disableBlur = false;
 let g_autoSuspendOnInput = true;
 window.addEventListener(
@@ -30,7 +28,6 @@ window.addEventListener(
   true
 );
 
-// Fake fullscreen — intercept requestFullscreen/exitFullscreen
 let g_fakeFullscreen = false;
 // eslint-disable-next-line @typescript-eslint/unbound-method
 const realRequestFullscreen = Element.prototype.requestFullscreen;
@@ -234,8 +231,6 @@ function initialize(): void {
   const gameName = getGameName();
   g_gameActive = detectGame();
 
-  // Send INITIALIZED immediately — if content script is already listening, it relays.
-  // If not, it will send CONTENT_READY when ready, and we re-send.
   sendMessage({ source: MSG_SOURCE, type: 'INITIALIZED', gameName });
 
   let currentGameName = gameName;
@@ -294,7 +289,6 @@ function handleGameMessage(msg: ExtensionMessage): void {
   }
 }
 
-// Auto-disable gamepad when a visible text input appears
 const TEXT_INPUT_SELECTOR =
   'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"], [role="textbox"]';
 
@@ -362,7 +356,6 @@ new MutationObserver(checkTextInputState).observe(document.documentElement, {
   ],
 });
 
-// Handle bfcache
 window.addEventListener('pageshow', () => {
   initialize();
 });

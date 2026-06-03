@@ -1,20 +1,6 @@
-/**
- * Co-op patch: Intercepts xCloud's webpack chunk loading to rewrite the
- * `onGamepadChanged` method, replacing hardcoded `0` with the `t` parameter.
- *
- * This file is a SIDE-EFFECT module — the interception installs immediately
- * when this module is evaluated (top-level code, no function wrapper).
- *
- * Mechanism: Uses Object.defineProperty on the array's .push property so that
- * when webpack overwrites .push with its jsonpCallback, we wrap THEIR callback
- * and patch module factories BEFORE webpack processes them.
- */
-
 import { log } from '@/tools/log';
 
 const TAG = '[COOP-PATCH]';
-
-// --- Patch logic ---
 
 function extractMethod(
   src: string,
@@ -150,7 +136,6 @@ function escapeRegExp(s: string): string {
 }
 
 function patchModuleSource(src: string): string | null {
-  // --- Patch onGamepadChanged (3 params: source, index, connected) ---
   const changed = extractMethod(src, 'onGamepadChanged', 3);
   if (!changed) {
     log(TAG, 'could not find onGamepadChanged(3) signature');
@@ -166,7 +151,6 @@ function patchModuleSource(src: string): string | null {
 
   log(TAG, 'Patching onGamepadChanged params:', changed.params.join(','));
 
-  // --- Patch onGamepadInput (4 params: source, timestamp, inputs, sendFlag) ---
   const input = extractMethod(result, 'onGamepadInput', 4);
   if (input) {
     const patchedInput = patchOnGamepadInput(
@@ -233,8 +217,6 @@ function scanAndPatchModules(
   return false;
 }
 
-// --- Top-level side effect: install interceptor immediately ---
-// Read setting synchronously — requires page reload to take effect
 if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
   log(TAG, 'patch disabled via settings (reload required to re-enable)');
 } else {
@@ -244,7 +226,6 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
 
   let patchApplied = false;
 
-  // The real backing array
   let realArray: unknown[][] =
     (g['__LOADABLE_LOADED_CHUNKS__'] as unknown[][] | undefined) ?? [];
 
@@ -269,8 +250,6 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
     }
   }
 
-  // Install defineProperty on the array's .push so we intercept webpack's
-  // jsonpCallback overwrite. This is the single interception point.
   function installPushTrap(arr: unknown[][]): void {
     const nativePush = arr.push.bind(arr);
     let currentPush: (...args: unknown[]) => number = (...args: unknown[]) =>
@@ -299,7 +278,6 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
 
   installPushTrap(realArray);
 
-  // Trap reassignment of the global __LOADABLE_LOADED_CHUNKS__
   Object.defineProperty(g, '__LOADABLE_LOADED_CHUNKS__', {
     configurable: true,
     get() {
@@ -309,7 +287,6 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
       if (Array.isArray(newVal)) {
         realArray = newVal as unknown[][];
         if (!patchApplied) {
-          // Scan existing entries in the new array
           processChunks(realArray);
           installPushTrap(realArray);
         }
@@ -317,8 +294,7 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
     },
   });
 
-  // Scan any chunks already in the array
   processChunks(realArray);
 
   log(TAG, 'interceptor installed, patchApplied:', String(patchApplied));
-} // end if patchEnabled
+}

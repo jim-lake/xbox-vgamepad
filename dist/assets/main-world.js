@@ -15,17 +15,6 @@
 	}
 	//#endregion
 	//#region src/injected/coop-patch.ts
-	/**
-	* Co-op patch: Intercepts xCloud's webpack chunk loading to rewrite the
-	* `onGamepadChanged` method, replacing hardcoded `0` with the `t` parameter.
-	*
-	* This file is a SIDE-EFFECT module — the interception installs immediately
-	* when this module is evaluated (top-level code, no function wrapper).
-	*
-	* Mechanism: Uses Object.defineProperty on the array's .push property so that
-	* when webpack overwrites .push with its jsonpCallback, we wrap THEIR callback
-	* and patch module factories BEFORE webpack processes them.
-	*/
 	var TAG = "[COOP-PATCH]";
 	function extractMethod(src, methodName, paramCount) {
 		const re = new RegExp("(?<!\\.)" + methodName + "\\s*\\(([^)]+)\\)\\s*\\{", "g");
@@ -415,7 +404,6 @@
 		}
 		return sim;
 	}
-	/** Assign a stable output slot for a physical pad, avoiding virtual slots and other physical pads. */
 	function assignPhysicalSlot(padId) {
 		const existing = g_physicalSlots.get(padId);
 		if (existing !== void 0 && !g_virtualSlots.has(existing)) return existing;
@@ -454,12 +442,6 @@
 		g_physicalSlots.delete(pad.id);
 		if (slot !== void 0) dispatchGamepadEvent("gamepaddisconnected", pad, slot);
 	}, true);
-	/**
-	* Called when the set of virtual slots changes (config load/change).
-	* In separate mode: remaps physical pads that conflict with new virtual slots,
-	* and initializes non-conflicting physical pads to their native slots.
-	* In combine mode: just updates g_virtualSlots (no slot management needed).
-	*/
 	function updateVirtualSlots(newVirtualSlots) {
 		g_virtualSlots = newVirtualSlots;
 		if (g_mode === "combine") return;
@@ -632,10 +614,6 @@
 	}
 	//#endregion
 	//#region src/injected/script-runner.ts
-	/**
-	* Run a GameScript, returning a handle that can cancel it.
-	* All buttons pressed by this script are released when it finishes or is cancelled.
-	*/
 	function runScript(script) {
 		const state = { cancelled: false };
 		const held = [];
@@ -692,9 +670,6 @@
 	function delay(ms) {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
-	/**
-	* Manages per-key script state for all activation types.
-	*/
 	var ScriptManager = class {
 		running = /* @__PURE__ */ new Map();
 		toggleActive = /* @__PURE__ */ new Set();
@@ -755,7 +730,6 @@
 				case "toggle": break;
 			}
 		}
-		/** Cancel all running scripts and clear all state. */
 		cancelAll() {
 			for (const handle of this.running.values()) handle.cancel();
 			this.running.clear();
@@ -1213,7 +1187,6 @@
 	function restoreOverlayIfDismissed() {
 		if (g_active && g_mouseTarget !== null) restoreIfDismissed();
 	}
-	/** Suspend input capture without disconnecting virtual gamepads. */
 	function suspend() {
 		if (!g_active) return;
 		g_scriptManager.cancelAll();
@@ -1224,12 +1197,10 @@
 		for (const idx of g_activeIndices) getSimulator(idx).resetState();
 		clearTimers();
 	}
-	/** Resume input capture after suspend (no-op if not active). */
 	function resume() {
 		if (!g_active || !g_config) return;
 		activate(g_config);
 	}
-	/** Toggle a single virtual gamepad slot on/off. */
 	function toggleGamepadIndex(index) {
 		const sim = getSimulator(index);
 		if (sim.isEnabled()) {
@@ -1240,7 +1211,6 @@
 			g_activeIndices.add(index);
 		}
 	}
-	/** Get connected status for all 4 gamepad slots. */
 	function getConnectedStatus() {
 		return [
 			getSimulator(0).isEnabled(),
@@ -1249,7 +1219,6 @@
 			getSimulator(3).isEnabled()
 		];
 	}
-	/** Toggle all virtual gamepads on/off simultaneously. */
 	function toggleAllGamepads() {
 		if (Array.from(g_activeIndices).some((i) => getSimulator(i).isEnabled())) for (const idx of g_activeIndices) getSimulator(idx).disable(idx);
 		else if (g_config) for (const idx of g_activeIndices) getSimulator(idx).enable(idx);

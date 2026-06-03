@@ -1,8 +1,3 @@
-/**
- * Shared press/unpress helpers used by both input-processor and script-runner.
- * Extracted to avoid circular imports.
- */
-
 import type { GamepadAction } from '@/types/gamepad';
 import { BUTTON_MAP, Direction } from '@/types/gamepad';
 import { AxisDirection, getSimulator } from './gamepad-simulator';

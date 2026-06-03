@@ -504,14 +504,12 @@ export function toggle(): void {
   }
 }
 
-/** Re-activate with the last known config (no-op if no config stored). */
 export function reactivate(): void {
   if (g_config) {
     activate(g_config);
   }
 }
 
-/** Suspend input capture without disconnecting virtual gamepads. */
 export function suspend(): void {
   if (!g_active) {
     return;
@@ -527,7 +525,6 @@ export function suspend(): void {
   clearTimers();
 }
 
-/** Resume input capture after suspend (no-op if not active). */
 export function resume(): void {
   if (!g_active || !g_config) {
     return;
@@ -535,7 +532,6 @@ export function resume(): void {
   activate(g_config);
 }
 
-/** Toggle a single virtual gamepad slot on/off. */
 export function toggleGamepadIndex(index: 0 | 1 | 2 | 3): void {
   const sim = getSimulator(index);
   if (sim.isEnabled()) {
@@ -547,7 +543,6 @@ export function toggleGamepadIndex(index: 0 | 1 | 2 | 3): void {
   }
 }
 
-/** Get connected status for all 4 gamepad slots. */
 export function getConnectedStatus(): [boolean, boolean, boolean, boolean] {
   return [
     getSimulator(0).isEnabled(),
@@ -557,7 +552,6 @@ export function getConnectedStatus(): [boolean, boolean, boolean, boolean] {
   ];
 }
 
-/** Toggle all virtual gamepads on/off simultaneously. */
 export function toggleAllGamepads(): void {
   const anyEnabled = Array.from(g_activeIndices).some((i) =>
     getSimulator(i).isEnabled()
