@@ -21,7 +21,7 @@ All four must pass before considering a change complete.
 
 Four runtime contexts communicate via message passing:
 
-- **Background service worker** (`src/background/service-worker.ts`): Central coordinator, reads config from storage, delivers to page on game start. Must be a single-file bundle.
+- **Background service worker** (`src/background/service-worker.ts`): Central coordinator, reads config from storage, delivers to page on game start. Maintains per-tab state (`enabled`, `activeConfig`) in memory — each tab is independent after initialization. Must be a single-file bundle.
 - **Content script** (`src/content/index.ts`): Bridge between extension APIs and page context. Relays messages between the page and background.
 - **Main-world script** (`src/injected/main-world.ts`): Declared in manifest with `"world": "MAIN"`, Chrome injects it directly into the page JS context. Patches `navigator.getGamepads()`, detects game start/stop, captures input, drives virtual gamepads.
 - **Popup UI** (`src/popup/`): React app for managing config presets, toggling enable/disable, binding keys.

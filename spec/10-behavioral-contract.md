@@ -106,22 +106,32 @@ These are the observable behaviors any conforming implementation must exhibit. T
 
 43. **Event counts**: `gamepadconnected` fires exactly once per virtual pad per enable. `gamepaddisconnected` fires exactly once per virtual pad per disable.
 
+## Per-Tab Isolation
+
+44. **Independent tab state**: Each tab maintains its own enabled/disabled state and active config. Toggling or switching config in one tab does not affect another tab.
+
+45. **Global storage is init-only**: `ENABLED` and `ACTIVE_GP_CONF` in `chrome.storage.sync` are read once at tab initialization. Subsequent changes to global storage do not propagate to already-initialized tabs.
+
+46. **Hotkey toggles are per-tab**: The `toggleExtension` keybinding in one tab does not disable other tabs. It only affects the tab where the key was pressed.
+
+47. **Popup targets active tab**: Popup enable/disable and config changes only affect the currently active tab, not all tabs.
+
 ## No Phantom Input
 
-44. **Idle state**: When no keys are pressed and the mouse is stationary, all virtual pad buttons must be unpressed and all axes at `0`.
+48. **Idle state**: When no keys are pressed and the mouse is stationary, all virtual pad buttons must be unpressed and all axes at `0`.
 
-45. **After disable/enable**: No phantom input after any number of disable/enable cycles.
+49. **After disable/enable**: No phantom input after any number of disable/enable cycles.
 
-46. **After config switch**: No phantom input from the previous config's bindings.
+50. **After config switch**: No phantom input from the previous config's bindings.
 
 ## Timing
 
-47. **Immediate response**: Button/axis state changes must be observable within one animation frame cycle.
+51. **Immediate response**: Button/axis state changes must be observable within one animation frame cycle.
 
-48. **Timestamp advances**: The gamepad's `timestamp` property must advance whenever input state changes.
+52. **Timestamp advances**: The gamepad's `timestamp` property must advance whenever input state changes.
 
 ## Validation
 
-49. **Escape forbidden**: The `"Escape"` key must never be bindable.
+53. **Escape forbidden**: The `"Escape"` key must never be bindable.
 
-50. **Invalid configs don't crash**: The extension must survive invalid configs, rapid switching, page reloads, and any combination of enable/disable cycles without crashing.
+54. **Invalid configs don't crash**: The extension must survive invalid configs, rapid switching, page reloads, and any combination of enable/disable cycles without crashing.

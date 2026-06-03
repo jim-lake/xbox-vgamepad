@@ -14,6 +14,7 @@ import {
   sendToggleGamepad,
 } from './messaging';
 import { setLoggingEnabled } from '@/tools/log';
+import { getTabState } from './storage';
 import {
   loadAllPopupConfigs,
   saveAndBroadcastPopupConfig,
@@ -25,7 +26,6 @@ import {
   exportPopupConfig,
   setActiveConfig,
   setEnabled,
-  getGameName,
   setGamePreset,
   clearStorage,
   saveGlobalSettings,
@@ -133,18 +133,29 @@ export default function App() {
   React.useEffect(() => {
     void sendPopupOpened();
     void (async () => {
-      const [data, name] = await Promise.all([
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      const tabId = tab?.id;
+      const [data, tabState] = await Promise.all([
         loadAllPopupConfigs(),
-        getGameName(),
+        tabId !== undefined
+          ? getTabState(tabId)
+          : Promise.resolve({
+              enabled: true,
+              activeConfig: 'default',
+              gameName: null,
+            }),
       ]);
-      setIsEnabled(data.isEnabled);
-      setActiveConfigName(data.activeConfig);
-      setRenameValue(data.activeConfig);
+      setIsEnabled(tabState.enabled);
+      setActiveConfigName(tabState.activeConfig);
+      setRenameValue(tabState.activeConfig);
       setConfigs(data.configs);
       setSavedConfig(
-        structuredClone(data.configs[data.activeConfig] ?? DEFAULT_POPUP)
+        structuredClone(data.configs[tabState.activeConfig] ?? DEFAULT_POPUP)
       );
-      setGameName(name);
+      setGameName(tabState.gameName);
       setActiveSlotTab(0);
       setActiveTab(0);
       setGlobalSettings(data.globalSettings);

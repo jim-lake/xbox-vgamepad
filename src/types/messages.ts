@@ -102,6 +102,20 @@ export interface TabStateChangedMessage {
   activeConfig: string;
 }
 
+export interface GetTabStateMessage {
+  source: typeof MSG_SOURCE;
+  type: 'GET_TAB_STATE';
+  tabId: number;
+}
+
+export interface TabStateResponseMessage {
+  source: typeof MSG_SOURCE;
+  type: 'TAB_STATE_RESPONSE';
+  enabled: boolean;
+  activeConfig: string;
+  gameName: string | null;
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
@@ -134,4 +148,6 @@ export type ExtensionMessage =
   | InputSuspendedMessage
   | GamepadStatusMessage
   | ToggleGamepadMessage
-  | TabStateChangedMessage;
+  | TabStateChangedMessage
+  | GetTabStateMessage
+  | TabStateResponseMessage;

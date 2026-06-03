@@ -24,12 +24,12 @@ The root object stored in persistent sync storage:
 }
 ```
 
-| Field             | Type             | Required | Description                                                                                                                 |
-| ----------------- | ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `ENABLED`         | `boolean`        | Yes      | Whether the virtual gamepad is active. When `false`, the extension does not intercept input.                                |
-| `ACTIVE_GP_CONF`  | `string`         | Yes      | Name of the currently active preset (matches the suffix in `GP_CONF:<name>` keys).                                          |
-| `GP_CONF:<name>`  | `GamepadConfig`  | Yes      | Each preset is stored as a separate key with the `GP_CONF:` prefix. Must always have a `GP_CONF:default` entry. Maximum 25. |
-| `GLOBAL_SETTINGS` | `GlobalSettings` | No       | Extension-wide settings that apply across all presets. Defaults applied when absent.                                        |
+| Field             | Type             | Required | Description                                                                                                                  |
+| ----------------- | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `ENABLED`         | `boolean`        | Yes      | Default enabled state for new tabs. Each tab loads this on initialization, then maintains its own independent enabled state. |
+| `ACTIVE_GP_CONF`  | `string`         | Yes      | Default active preset for new tabs. Each tab loads this on initialization, then maintains its own independent active preset. |
+| `GP_CONF:<name>`  | `GamepadConfig`  | Yes      | Each preset is stored as a separate key with the `GP_CONF:` prefix. Must always have a `GP_CONF:default` entry. Maximum 25.  |
+| `GLOBAL_SETTINGS` | `GlobalSettings` | No       | Extension-wide settings that apply across all presets. Defaults applied when absent.                                         |
 
 ## GlobalSettings
 
@@ -188,11 +188,11 @@ The `Gamepad.axes[]` array has 4 entries: `[leftStickX, leftStickY, rightStickX,
 
 #### Extension Actions
 
-| `action`              | Description                                                                                                                                                                                                |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"toggleGamepad"`     | Toggles the virtual gamepad at the specified `gamepadIndex` on/off. When toggled off, that pad disconnects. When toggled on, it reconnects with the current config.                                        |
-| `"toggleAllGamepads"` | Toggles all virtual gamepads on/off simultaneously. When toggled off, all virtual pads disconnect. When toggled on, they all reconnect with the current config. `gamepadIndex` is ignored for this action. |
-| `"toggleExtension"`   | Toggles the entire extension on/off (equivalent to flipping `isEnabled`). When toggled off, all virtual pads disconnect and input processing stops. `gamepadIndex` is ignored for this action.             |
+| `action`              | Description                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"toggleGamepad"`     | Toggles the virtual gamepad at the specified `gamepadIndex` on/off. When toggled off, that pad disconnects. When toggled on, it reconnects with the current config.                                                                   |
+| `"toggleAllGamepads"` | Toggles all virtual gamepads on/off simultaneously. When toggled off, all virtual pads disconnect. When toggled on, they all reconnect with the current config. `gamepadIndex` is ignored for this action.                            |
+| `"toggleExtension"`   | Toggles the extension on/off for the current tab only. When toggled off, all virtual pads in this tab disconnect and input processing stops. Does not affect other tabs or global storage. `gamepadIndex` is ignored for this action. |
 
 These toggle keybindings work regardless of whether the gamepad is currently connected — they are always listening.
 

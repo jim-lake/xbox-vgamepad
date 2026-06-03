@@ -14,6 +14,7 @@ const g_suspendedTabs = new Set<number>();
 interface TabState {
   enabled: boolean;
   activeConfig: string;
+  gameName: string | null;
 }
 const g_tabState = new Map<number, TabState>();
 
@@ -21,14 +22,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   g_tabState.delete(tabId);
   g_suspendedTabs.delete(tabId);
 });
-
-function storeGameName(gameName: string | null): void {
-  if (gameName !== null) {
-    void chrome.storage.local.set({ gameName });
-  } else {
-    void chrome.storage.local.remove('gameName');
-  }
-}
 
 const ICONS_ENABLED = {
   16: 'src/assets/img/icon16.png',
@@ -114,7 +107,7 @@ async function handleInitialized(
     : getActiveConfig(syncData);
 
   // Store per-tab state (loaded from global, then independent)
-  g_tabState.set(tabId, { enabled: isEnabled, activeConfig: name });
+  g_tabState.set(tabId, { enabled: isEnabled, activeConfig: name, gameName });
   updateIcon(isEnabled, tabId);
 
   if (isEnabled && config) {
@@ -207,9 +200,20 @@ chrome.runtime.onMessage.addListener(
           g_tabState.set(message.tabId, {
             enabled: message.enabled,
             activeConfig: message.activeConfig || 'default',
+            gameName: null,
           });
         }
         updateIcon(message.enabled, message.tabId);
+      } else if (message.type === 'GET_TAB_STATE') {
+        const state = g_tabState.get(message.tabId);
+        sendResponse({
+          source: MSG_SOURCE,
+          type: 'TAB_STATE_RESPONSE',
+          enabled: state?.enabled ?? true,
+          activeConfig: state?.activeConfig ?? 'default',
+          gameName: state?.gameName ?? null,
+        });
+        return true;
       }
       return false;
     }
@@ -222,7 +226,6 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'INITIALIZED') {
-      storeGameName(message.gameName);
       const tabId = sender.tab.id;
       if (tabId !== undefined) {
         void handleInitialized(message.gameName, tabId, sendResponse);
@@ -231,11 +234,16 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'GAME_CHANGED') {
-      storeGameName(message.gameName);
       const { gameName } = message;
       const tabId = sender.tab.id;
-      if (gameName !== null && tabId !== undefined) {
-        void handleGameChanged(gameName, tabId);
+      if (tabId !== undefined) {
+        const tabState = g_tabState.get(tabId);
+        if (tabState) {
+          tabState.gameName = gameName;
+        }
+        if (gameName !== null) {
+          void handleGameChanged(gameName, tabId);
+        }
       }
       return false;
     }

@@ -559,7 +559,6 @@ export function popupSetGlobalBinding(
 export {
   setActiveConfig,
   setEnabled,
-  getGameName,
   getGamePresets,
   setGamePreset,
   clearStorage,

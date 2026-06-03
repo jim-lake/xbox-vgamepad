@@ -59,9 +59,29 @@ export async function setEnabled(enabled: boolean): Promise<void> {
   await chrome.storage.sync.set({ ENABLED: enabled });
 }
 
-export async function getGameName(): Promise<string | null> {
-  const data = await chrome.storage.local.get('gameName');
-  return (data['gameName'] as string | null | undefined) ?? null;
+export async function getTabState(
+  tabId: number
+): Promise<{
+  enabled: boolean;
+  activeConfig: string;
+  gameName: string | null;
+}> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { source: 'xbox-vgamepad-content-script', type: 'GET_TAB_STATE', tabId },
+      (
+        response:
+          | { enabled: boolean; activeConfig: string; gameName: string | null }
+          | undefined
+      ) => {
+        if (chrome.runtime.lastError || !response) {
+          resolve({ enabled: true, activeConfig: 'default', gameName: null });
+        } else {
+          resolve(response);
+        }
+      }
+    );
+  });
 }
 
 export async function getGamePresets(): Promise<Record<string, string>> {
