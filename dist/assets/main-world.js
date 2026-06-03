@@ -1340,7 +1340,7 @@
 		const data = event.data;
 		if (!isExtensionMessage(data)) return;
 		if (data.type === "SETTINGS_CHANGED") handleSettingsChanged(data);
-		else if (g_gameActive) handleGameMessage(data);
+		else handleGameMessage(data);
 	});
 	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
 	var POLL_INTERVAL = 1e3;
@@ -1414,57 +1414,34 @@
 		}
 		if (e.cancelable) e.preventDefault();
 	}, true);
-	function startWaitingForGame() {
+	function initialize() {
 		if (pollTimer !== null) clearInterval(pollTimer);
-		pollTimer = setInterval(() => {
-			if (detectGame()) {
-				if (pollTimer !== null) {
-					clearInterval(pollTimer);
-					pollTimer = null;
-				}
-				onGameDetected();
-			}
-		}, POLL_INTERVAL);
-		if (detectGame()) {
-			clearInterval(pollTimer);
-			pollTimer = null;
-			onGameDetected();
-		}
-	}
-	function onGameDetected() {
 		const gameName = getGameName();
-		g_gameActive = true;
+		g_gameActive = detectGame();
 		sendMessage({
 			source: MSG_SOURCE,
 			type: "INITIALIZED",
 			gameName
 		});
 		let currentGameName = gameName;
+		let wasGameActive = g_gameActive;
 		pollTimer = setInterval(() => {
-			if (!detectGame()) {
-				if (pollTimer !== null) {
-					clearInterval(pollTimer);
-					pollTimer = null;
-				}
-				g_gameActive = false;
-				deactivate();
+			g_gameActive = detectGame();
+			const newGameName = getGameName();
+			if (wasGameActive && !g_gameActive) sendMessage({
+				source: MSG_SOURCE,
+				type: "GAME_CHANGED",
+				gameName: null
+			});
+			else if (newGameName !== currentGameName) {
+				currentGameName = newGameName;
 				sendMessage({
 					source: MSG_SOURCE,
 					type: "GAME_CHANGED",
-					gameName: null
+					gameName: newGameName
 				});
-				startWaitingForGame();
-			} else {
-				const newGameName = getGameName();
-				if (newGameName !== currentGameName) {
-					currentGameName = newGameName;
-					sendMessage({
-						source: MSG_SOURCE,
-						type: "GAME_CHANGED",
-						gameName: newGameName
-					});
-				}
 			}
+			wasGameActive = g_gameActive;
 		}, POLL_INTERVAL);
 	}
 	function handleGameMessage(msg) {
@@ -1545,12 +1522,12 @@
 		]
 	});
 	window.addEventListener("pageshow", () => {
-		startWaitingForGame();
+		initialize();
 	});
 	window.addEventListener("focus", () => {
-		if (g_gameActive) applyPendingConfig();
+		applyPendingConfig();
 	});
-	startWaitingForGame();
+	initialize();
 	//#endregion
 })();
 

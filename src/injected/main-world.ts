@@ -90,7 +90,7 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
   if (data.type === 'SETTINGS_CHANGED') {
     handleSettingsChanged(data);
-  } else if (g_gameActive) {
+  } else {
     handleGameMessage(data);
   }
 });
@@ -219,58 +219,36 @@ document.addEventListener(
   true
 );
 
-function startWaitingForGame(): void {
+function initialize(): void {
   if (pollTimer !== null) {
     clearInterval(pollTimer);
   }
-  pollTimer = setInterval(() => {
-    if (detectGame()) {
-      if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      onGameDetected();
-    }
-  }, POLL_INTERVAL);
-  if (detectGame()) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-    onGameDetected();
-  }
-}
-
-function onGameDetected(): void {
   const gameName = getGameName();
+  g_gameActive = detectGame();
 
-  g_gameActive = true;
-
-  // Send INITIALIZED — if content script is already listening, it relays immediately.
+  // Send INITIALIZED immediately — if content script is already listening, it relays.
   // If not, it will send CONTENT_READY when ready, and we re-send.
   sendMessage({ source: MSG_SOURCE, type: 'INITIALIZED', gameName });
 
   let currentGameName = gameName;
+  let wasGameActive = g_gameActive;
 
   pollTimer = setInterval(() => {
-    if (!detectGame()) {
-      if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      g_gameActive = false;
-      inputProcessor.deactivate();
+    g_gameActive = detectGame();
+    const newGameName = getGameName();
+
+    if (wasGameActive && !g_gameActive) {
       sendMessage({ source: MSG_SOURCE, type: 'GAME_CHANGED', gameName: null });
-      startWaitingForGame();
-    } else {
-      const newGameName = getGameName();
-      if (newGameName !== currentGameName) {
-        currentGameName = newGameName;
-        sendMessage({
-          source: MSG_SOURCE,
-          type: 'GAME_CHANGED',
-          gameName: newGameName,
-        });
-      }
+    } else if (newGameName !== currentGameName) {
+      currentGameName = newGameName;
+      sendMessage({
+        source: MSG_SOURCE,
+        type: 'GAME_CHANGED',
+        gameName: newGameName,
+      });
     }
+
+    wasGameActive = g_gameActive;
   }, POLL_INTERVAL);
 }
 
@@ -386,13 +364,11 @@ new MutationObserver(checkTextInputState).observe(document.documentElement, {
 
 // Handle bfcache
 window.addEventListener('pageshow', () => {
-  startWaitingForGame();
+  initialize();
 });
 
 window.addEventListener('focus', () => {
-  if (g_gameActive) {
-    applyPendingConfig();
-  }
+  applyPendingConfig();
 });
 
-startWaitingForGame();
+initialize();
