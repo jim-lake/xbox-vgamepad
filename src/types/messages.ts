@@ -98,12 +98,18 @@ export interface ToggleGamepadMessage {
   gamepadIndex: 0 | 1 | 2 | 3;
 }
 
-export interface TabStateChangedMessage {
+export interface SetIconMessage {
   source: typeof MSG_SOURCE;
-  type: 'TAB_STATE_CHANGED';
-  tabId: number;
+  type: 'SET_ICON';
   enabled: boolean;
-  activeConfig: string;
+}
+
+export interface SetBadgeMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SET_BADGE';
+  text: string;
+  color?: string;
+  bgColor?: string;
 }
 
 export function isExtensionMessage(data: unknown): data is ExtensionMessage {
@@ -146,4 +152,5 @@ export type ExtensionMessage =
   | InputSuspendedMessage
   | GamepadStatusMessage
   | ToggleGamepadMessage
-  | TabStateChangedMessage;
+  | SetIconMessage
+  | SetBadgeMessage;

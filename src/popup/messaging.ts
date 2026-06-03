@@ -5,7 +5,6 @@ import type {
   DisableGamepadMessage,
   ExtensionMessage,
   PopupOpenedMessage,
-  TabStateChangedMessage,
   ToggleGamepadMessage,
 } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
@@ -23,74 +22,38 @@ async function sendToActiveTab(msg: ExtensionMessage): Promise<void> {
   await chrome.tabs.sendMessage(tabId, msg);
 }
 
-function notifyTabState(
-  tabId: number,
-  enabled: boolean,
-  activeConfig: string
-): void {
-  void chrome.runtime.sendMessage({
-    source: MSG_SOURCE,
-    type: 'TAB_STATE_CHANGED',
-    tabId,
-    enabled,
-    activeConfig,
-  } satisfies TabStateChangedMessage);
-}
-
 export async function sendActivateConfig(
   name: string,
   config: GamepadConfig
 ): Promise<void> {
-  const tabId = await getActiveTabId();
-  if (tabId === undefined) {
-    return;
-  }
   const msg: ActivateGamepadConfigMessage = {
     source: MSG_SOURCE,
     type: 'ACTIVATE_GAMEPAD_CONFIG',
     name,
     gamepadConfig: config,
   };
-  await chrome.tabs.sendMessage(tabId, msg);
-  notifyTabState(tabId, true, name);
+  await sendToActiveTab(msg);
 }
 
 export async function sendDisableGamepad(): Promise<void> {
-  const tabId = await getActiveTabId();
-  if (tabId === undefined) {
-    return;
-  }
   const msg: DisableGamepadMessage = {
     source: MSG_SOURCE,
     type: 'DISABLE_GAMEPAD',
   };
-  await chrome.tabs.sendMessage(tabId, msg);
-  // Notify background: disabled but keep activeConfig unchanged
-  void chrome.runtime.sendMessage({
-    source: MSG_SOURCE,
-    type: 'TAB_STATE_CHANGED',
-    tabId,
-    enabled: false,
-    activeConfig: '',
-  } satisfies TabStateChangedMessage);
+  await sendToActiveTab(msg);
 }
 
 export async function sendConfigChanged(
   name: string,
   config: GamepadConfig
 ): Promise<void> {
-  const tabId = await getActiveTabId();
-  if (tabId === undefined) {
-    return;
-  }
   const msg: ConfigChangedMessage = {
     source: MSG_SOURCE,
     type: 'CONFIG_CHANGED',
     name,
     gamepadConfig: config,
   };
-  await chrome.tabs.sendMessage(tabId, msg);
-  notifyTabState(tabId, true, name);
+  await sendToActiveTab(msg);
 }
 
 export async function sendPopupOpened(): Promise<void> {
