@@ -8,7 +8,8 @@ import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
 import type { GamepadConfig } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
 
-// Per-tab state: loaded from chrome.storage on init, then independent
+// Per-tab state: in-memory only, used for service worker operational decisions.
+// Popup gets live state directly from main-world via GAMEPAD_STATUS.
 interface TabState {
   enabled: boolean;
   activeConfig: string;
@@ -105,7 +106,7 @@ async function handleInitialized(
       ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
       : getActiveConfig(syncData);
 
-    // Store per-tab state (loaded from global, then independent)
+    // Store per-tab state
     g_tabState.set(tabId, {
       enabled: isEnabled,
       activeConfig: name,
@@ -149,7 +150,6 @@ async function handleGameChanged(
   if (!config) {
     return;
   }
-  // Update per-tab state only
   if (tabState) {
     tabState.activeConfig = presetName;
   }
@@ -165,7 +165,6 @@ async function handleToggleEnabled(
   enabled: boolean,
   tabId: number
 ): Promise<void> {
-  // Update per-tab state only (don't write to global storage)
   const tabState = g_tabState.get(tabId);
   if (tabState) {
     tabState.enabled = enabled;
@@ -212,17 +211,6 @@ chrome.runtime.onMessage.addListener(
           });
         }
         updateIcon(message.enabled, message.tabId);
-      } else if (message.type === 'GET_TAB_STATE') {
-        const state = g_tabState.get(message.tabId);
-        sendResponse({
-          source: MSG_SOURCE,
-          type: 'TAB_STATE_RESPONSE',
-          enabled: state?.enabled ?? true,
-          activeConfig: state?.activeConfig ?? 'default',
-          gameName: state?.gameName ?? null,
-          suspended: state?.suspended ?? false,
-        });
-        return true;
       }
       return false;
     }

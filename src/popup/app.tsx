@@ -12,7 +12,6 @@ import {
   sendDisableGamepad,
   sendPopupOpened,
   sendToggleGamepad,
-  getTabState,
 } from './messaging';
 import { setLoggingEnabled } from '@/tools/log';
 import {
@@ -133,43 +132,40 @@ export default function App() {
   React.useEffect(() => {
     void sendPopupOpened();
     void (async () => {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      const tabId = tab?.id;
-      const [data, tabState] = await Promise.all([
-        loadAllPopupConfigs(),
-        tabId !== undefined
-          ? getTabState(tabId)
-          : Promise.resolve({
-              enabled: true,
-              activeConfig: 'default',
-              gameName: null,
-            }),
-      ]);
-      setIsEnabled(tabState.enabled);
-      setActiveConfigName(tabState.activeConfig);
-      setRenameValue(tabState.activeConfig);
+      const data = await loadAllPopupConfigs();
       setConfigs(data.configs);
-      setSavedConfig(
-        structuredClone(data.configs[tabState.activeConfig] ?? DEFAULT_POPUP)
-      );
-      setGameName(tabState.gameName);
-      setActiveSlotTab(0);
-      setActiveTab(0);
       setGlobalSettings(data.globalSettings);
       setLoggingEnabled(data.globalSettings.enableLogging);
-      setLoading(false);
+      setActiveSlotTab(0);
+      setActiveTab(0);
     })();
 
     const listener = (message: unknown) => {
       const msg = message as {
         type?: string;
         connected?: [boolean, boolean, boolean, boolean];
+        enabled?: boolean;
+        activeConfig?: string;
+        gameName?: string | null;
+        suspended?: boolean;
       };
       if (msg.type === 'GAMEPAD_STATUS' && msg.connected) {
         setGamepadConnected(msg.connected);
+        if (msg.enabled !== undefined) {
+          setIsEnabled(msg.enabled);
+        }
+        if (msg.activeConfig !== undefined) {
+          setActiveConfigName(msg.activeConfig);
+          setRenameValue(msg.activeConfig);
+          setSavedConfig((prev) => {
+            // Will be updated once configs are loaded
+            return prev;
+          });
+        }
+        if (msg.gameName !== undefined) {
+          setGameName(msg.gameName ?? null);
+        }
+        setLoading(false);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -177,6 +173,21 @@ export default function App() {
       chrome.runtime.onMessage.removeListener(listener);
     };
   }, []);
+
+  // Sync savedConfig when configs load or activeConfigName changes from status
+  const initializedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (
+      Object.keys(configs).length > 0 &&
+      activeConfigName &&
+      !initializedRef.current
+    ) {
+      initializedRef.current = true;
+      setSavedConfig(
+        structuredClone(configs[activeConfigName] ?? DEFAULT_POPUP)
+      );
+    }
+  }, [configs, activeConfigName]);
 
   const presetNames = React.useMemo(
     () =>

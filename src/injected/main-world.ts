@@ -110,6 +110,18 @@ function sendMessage(msg: ExtensionMessage): void {
   window.postMessage(msg, '*');
 }
 
+function sendGamepadStatus(): void {
+  sendMessage({
+    source: MSG_SOURCE,
+    type: 'GAMEPAD_STATUS',
+    connected: inputProcessor.getConnectedStatus(),
+    enabled: inputProcessor.isActive(),
+    activeConfig: g_activePresetName,
+    gameName: getGameName(),
+    suspended: g_autoDisabled,
+  });
+}
+
 function applyPendingConfig(): void {
   if (!pendingConfig) {
     return;
@@ -206,11 +218,7 @@ document.addEventListener(
           inputProcessor.toggleGamepadIndex(idx);
         }
       }
-      sendMessage({
-        source: MSG_SOURCE,
-        type: 'GAMEPAD_STATUS',
-        connected: inputProcessor.getConnectedStatus(),
-      });
+      sendGamepadStatus();
     }
     if (e.cancelable) {
       e.preventDefault();
@@ -272,18 +280,10 @@ function handleGameMessage(msg: ExtensionMessage): void {
       showToast(`'${g_activePresetName}' resumed`);
     }
     inputProcessor.restoreOverlayIfDismissed();
-    sendMessage({
-      source: MSG_SOURCE,
-      type: 'GAMEPAD_STATUS',
-      connected: inputProcessor.getConnectedStatus(),
-    });
+    sendGamepadStatus();
   } else if (msg.type === 'TOGGLE_GAMEPAD') {
     inputProcessor.toggleGamepadIndex(msg.gamepadIndex);
-    sendMessage({
-      source: MSG_SOURCE,
-      type: 'GAMEPAD_STATUS',
-      connected: inputProcessor.getConnectedStatus(),
-    });
+    sendGamepadStatus();
   } else if (msg.type === 'CONTENT_READY') {
     // Content script just loaded — re-send INITIALIZED so it can relay to background
     sendMessage({

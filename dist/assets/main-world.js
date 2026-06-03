@@ -1350,6 +1350,17 @@
 	function sendMessage(msg) {
 		window.postMessage(msg, "*");
 	}
+	function sendGamepadStatus() {
+		sendMessage({
+			source: MSG_SOURCE,
+			type: "GAMEPAD_STATUS",
+			connected: getConnectedStatus(),
+			enabled: isActive(),
+			activeConfig: g_activePresetName,
+			gameName: getGameName(),
+			suspended: g_autoDisabled
+		});
+	}
 	function applyPendingConfig() {
 		if (!pendingConfig) return;
 		const { name, gamepadConfig } = pendingConfig;
@@ -1406,11 +1417,7 @@
 				enabled: !isActive()
 			});
 			else if (action.startsWith("toggleGamepad:")) toggleGamepadIndex(Number(action.slice(14)));
-			sendMessage({
-				source: MSG_SOURCE,
-				type: "GAMEPAD_STATUS",
-				connected: getConnectedStatus()
-			});
+			sendGamepadStatus();
 		}
 		if (e.cancelable) e.preventDefault();
 	}, true);
@@ -1459,18 +1466,10 @@
 				showToast(`'${g_activePresetName}' resumed`);
 			}
 			restoreOverlayIfDismissed();
-			sendMessage({
-				source: MSG_SOURCE,
-				type: "GAMEPAD_STATUS",
-				connected: getConnectedStatus()
-			});
+			sendGamepadStatus();
 		} else if (msg.type === "TOGGLE_GAMEPAD") {
 			toggleGamepadIndex(msg.gamepadIndex);
-			sendMessage({
-				source: MSG_SOURCE,
-				type: "GAMEPAD_STATUS",
-				connected: getConnectedStatus()
-			});
+			sendGamepadStatus();
 		} else if (msg.type === "CONTENT_READY") sendMessage({
 			source: MSG_SOURCE,
 			type: "INITIALIZED",

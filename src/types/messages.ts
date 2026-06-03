@@ -86,6 +86,10 @@ export interface GamepadStatusMessage {
   source: typeof MSG_SOURCE;
   type: 'GAMEPAD_STATUS';
   connected: [boolean, boolean, boolean, boolean];
+  enabled: boolean;
+  activeConfig: string;
+  gameName: string | null;
+  suspended: boolean;
 }
 
 export interface ToggleGamepadMessage {
@@ -100,21 +104,6 @@ export interface TabStateChangedMessage {
   tabId: number;
   enabled: boolean;
   activeConfig: string;
-}
-
-export interface GetTabStateMessage {
-  source: typeof MSG_SOURCE;
-  type: 'GET_TAB_STATE';
-  tabId: number;
-}
-
-export interface TabStateResponseMessage {
-  source: typeof MSG_SOURCE;
-  type: 'TAB_STATE_RESPONSE';
-  enabled: boolean;
-  activeConfig: string;
-  gameName: string | null;
-  suspended: boolean;
 }
 
 export function isExtensionMessage(data: unknown): data is ExtensionMessage {
@@ -157,6 +146,4 @@ export type ExtensionMessage =
   | InputSuspendedMessage
   | GamepadStatusMessage
   | ToggleGamepadMessage
-  | TabStateChangedMessage
-  | GetTabStateMessage
-  | TabStateResponseMessage;
+  | TabStateChangedMessage;

@@ -108,39 +108,3 @@ export async function sendToggleGamepad(
   };
   await sendToActiveTab(msg);
 }
-
-export async function getTabState(
-  tabId: number
-): Promise<{
-  enabled: boolean;
-  activeConfig: string;
-  gameName: string | null;
-  suspended: boolean;
-}> {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      { source: MSG_SOURCE, type: 'GET_TAB_STATE', tabId },
-      (
-        response:
-          | {
-              enabled: boolean;
-              activeConfig: string;
-              gameName: string | null;
-              suspended: boolean;
-            }
-          | undefined
-      ) => {
-        if (chrome.runtime.lastError || !response) {
-          resolve({
-            enabled: true,
-            activeConfig: 'default',
-            gameName: null,
-            suspended: false,
-          });
-        } else {
-          resolve(response);
-        }
-      }
-    );
-  });
-}
