@@ -44,6 +44,7 @@ async function launchBrowserWithExtension() {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-background-timer-throttling',
     ],
   });
   const page = await browser.newPage();
@@ -144,6 +145,19 @@ async function waitForButton(page, buttonIndex, pressed, timeout = 3000) {
   );
 }
 
+// Background-tab safe version: reads gamepad API directly (not DOM which needs rAF)
+async function waitForButtonBg(page, buttonIndex, pressed, timeout = 3000) {
+  await page.waitForFunction(
+    (idx, val) => {
+      const gp = navigator.getGamepads()[0];
+      return gp ? gp.buttons[idx]?.pressed === val : !val;
+    },
+    { timeout, polling: 100 },
+    buttonIndex,
+    pressed
+  );
+}
+
 async function waitForAxis(
   page,
   axisIndex,
@@ -183,10 +197,11 @@ async function waitForAxesCentered(page, timeout = 3000) {
 async function waitForStatus(page, status, timeout = 10000) {
   await page.waitForFunction(
     (s) => document.getElementById('status')?.textContent === s,
-    { timeout },
+    { timeout, polling: 100 },
     status
   );
   if (status === 'connected') {
+    // Wait for poll to run and populate DOM attributes
     await page.waitForFunction(
       () =>
         document.getElementById('status')?.getAttribute('data-ready') ===
@@ -430,6 +445,7 @@ module.exports = {
   getConnectionStatus,
   getEventCounts,
   waitForButton,
+  waitForButtonBg,
   waitForAxis,
   waitForAxesCentered,
   waitForStatus,

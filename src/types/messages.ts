@@ -34,7 +34,6 @@ export interface SettingsChangedMessage {
   disableBlur: boolean;
   patchRemoteMultigamepad: boolean;
   autoSuspendOnInput: boolean;
-  fakeFullscreen: boolean;
 }
 
 export interface DisableGamepadMessage {
@@ -83,19 +82,41 @@ export interface InputSuspendedMessage {
   suspended: boolean;
 }
 
+export interface GamepadStatusMessage {
+  source: typeof MSG_SOURCE;
+  type: 'GAMEPAD_STATUS';
+  connected: [boolean, boolean, boolean, boolean];
+}
+
+export interface ToggleGamepadMessage {
+  source: typeof MSG_SOURCE;
+  type: 'TOGGLE_GAMEPAD';
+  gamepadIndex: 0 | 1 | 2 | 3;
+}
+
+export interface TabStateChangedMessage {
+  source: typeof MSG_SOURCE;
+  type: 'TAB_STATE_CHANGED';
+  tabId: number;
+  enabled: boolean;
+  activeConfig: string;
+}
+
 export type PageToContentMessage =
   | InitializedMessage
   | GameChangedMessage
   | SetOverlayMinimizedMessage
   | ToggleEnabledMessage
   | ScriptCountMessage
-  | InputSuspendedMessage;
+  | InputSuspendedMessage
+  | GamepadStatusMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
   | DisableGamepadMessage
   | ConfigChangedMessage
-  | SettingsChangedMessage;
+  | SettingsChangedMessage
+  | ToggleGamepadMessage;
 
 export type ExtensionMessage =
   | InjectedMessage
@@ -110,4 +131,7 @@ export type ExtensionMessage =
   | ConfigChangedMessage
   | SettingsChangedMessage
   | ScriptCountMessage
-  | InputSuspendedMessage;
+  | InputSuspendedMessage
+  | GamepadStatusMessage
+  | ToggleGamepadMessage
+  | TabStateChangedMessage;

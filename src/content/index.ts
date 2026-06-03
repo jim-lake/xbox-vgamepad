@@ -21,7 +21,6 @@ function sendSettingsToPage(settings: GlobalSettings): void {
       disableBlur: settings.disableBlur,
       patchRemoteMultigamepad: settings.patchRemoteMultigamepad,
       autoSuspendOnInput: settings.autoSuspendOnInput,
-      fakeFullscreen: settings.fakeFullscreen,
     } satisfies SettingsChangedMessage,
     '*'
   );
@@ -105,6 +104,12 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Extension context invalidated
     }
   } else if (msg.type === 'INPUT_SUSPENDED') {
+    try {
+      void chrome.runtime.sendMessage(msg);
+    } catch {
+      // Extension context invalidated
+    }
+  } else if (msg.type === 'GAMEPAD_STATUS') {
     try {
       void chrome.runtime.sendMessage(msg);
     } catch {

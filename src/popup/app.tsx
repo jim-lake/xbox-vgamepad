@@ -8,7 +8,11 @@ import type {
 } from '@/types/gamepad';
 import { DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
 import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
-import { sendDisableGamepad, sendPopupOpened } from './messaging';
+import {
+  sendDisableGamepad,
+  sendPopupOpened,
+  sendToggleGamepad,
+} from './messaging';
 import { setLoggingEnabled } from '@/tools/log';
 import {
   loadAllPopupConfigs,
@@ -122,6 +126,10 @@ export default function App() {
     setListeningScriptEntry(null);
   }
 
+  const [gamepadConnected, setGamepadConnected] = React.useState<
+    [boolean, boolean, boolean, boolean]
+  >([false, false, false, false]);
+
   React.useEffect(() => {
     void sendPopupOpened();
     void (async () => {
@@ -143,6 +151,20 @@ export default function App() {
       setLoggingEnabled(data.globalSettings.enableLogging);
       setLoading(false);
     })();
+
+    const listener = (message: unknown) => {
+      const msg = message as {
+        type?: string;
+        connected?: [boolean, boolean, boolean, boolean];
+      };
+      if (msg.type === 'GAMEPAD_STATUS' && msg.connected) {
+        setGamepadConnected(msg.connected);
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+    };
   }, []);
 
   const presetNames = React.useMemo(
@@ -493,6 +515,7 @@ export default function App() {
         <GamepadTabs
           slots={activePopup.slots}
           activeIndex={activeTab}
+          gamepadConnected={gamepadConnected}
           onSelect={(i) => {
             setActiveSlotTab(i);
             setActiveTab(i);
@@ -524,10 +547,14 @@ export default function App() {
               scripts={activePopup.scripts}
               usedIndices={activeSlots}
               gamepadCount={activeSlots.length}
+              isConnected={gamepadConnected[activeSlot.gamepadIndex]}
               editingScriptId={editingScriptId}
               listeningScriptEntry={listeningScriptEntry}
               onEditingScriptIdChange={setEditingScriptId}
               onListeningScriptEntryChange={setListeningScriptEntry}
+              onToggleConnected={() => {
+                void sendToggleGamepad(activeSlot.gamepadIndex);
+              }}
               onChangeIndex={(next) => {
                 handleChangeSlotIndex(activeSlotIndex, next);
               }}
@@ -545,6 +572,10 @@ export default function App() {
               onChangeGlobalBinding={handleChangeGlobalBinding}
               otherGamepadMode={activePopup.otherGamepadMode}
               onChangeOtherGamepadMode={handleChangeOtherGamepadMode}
+              fakeFullscreen={activePopup.fakeFullscreen}
+              onChangeFakeFullscreen={(v) => {
+                updateActivePopup((popup) => ({ ...popup, fakeFullscreen: v }));
+              }}
               renameValue={renameValue}
               onRenameValueChange={setRenameValue}
               onRenameSubmit={() => void handleRenameSubmit()}

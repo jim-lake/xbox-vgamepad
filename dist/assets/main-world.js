@@ -1237,6 +1237,15 @@
 			g_activeIndices.add(index);
 		}
 	}
+	/** Get connected status for all 4 gamepad slots. */
+	function getConnectedStatus() {
+		return [
+			getSimulator(0).isEnabled(),
+			getSimulator(1).isEnabled(),
+			getSimulator(2).isEnabled(),
+			getSimulator(3).isEnabled()
+		];
+	}
 	/** Toggle all virtual gamepads on/off simultaneously. */
 	function toggleAllGamepads() {
 		if (Array.from(g_activeIndices).some((i) => getSimulator(i).isEnabled())) for (const idx of g_activeIndices) getSimulator(idx).disable(idx);
@@ -1289,11 +1298,31 @@
 	var realRequestFullscreen = Element.prototype.requestFullscreen;
 	var realExitFullscreen = () => Document.prototype.exitFullscreen.call(document);
 	Element.prototype.requestFullscreen = function(options) {
-		if (g_fakeFullscreen) return Promise.resolve();
+		if (g_fakeFullscreen) {
+			log("[gamepad]: requestFullscreen intercepted (blocked/faked)");
+			Object.defineProperty(document, "fullscreenElement", {
+				value: this,
+				writable: true,
+				configurable: true
+			});
+			document.dispatchEvent(new Event("fullscreenchange"));
+			return Promise.resolve();
+		}
+		log("[gamepad]: requestFullscreen passthrough");
 		return realRequestFullscreen.call(this, options);
 	};
 	document.exitFullscreen = function() {
-		if (g_fakeFullscreen) return Promise.resolve();
+		if (g_fakeFullscreen) {
+			log("[gamepad]: exitFullscreen intercepted (blocked/faked)");
+			Object.defineProperty(document, "fullscreenElement", {
+				value: null,
+				writable: true,
+				configurable: true
+			});
+			document.dispatchEvent(new Event("fullscreenchange"));
+			return Promise.resolve();
+		}
+		log("[gamepad]: exitFullscreen passthrough");
 		return realExitFullscreen();
 	};
 	window.addEventListener("message", (event) => {
@@ -1306,7 +1335,6 @@
 			const patch = data.patchRemoteMultigamepad;
 			localStorage.setItem("xvg-patchRemoteMultigamepad", patch ? "true" : "false");
 			g_autoSuspendOnInput = data.autoSuspendOnInput !== false;
-			g_fakeFullscreen = data.fakeFullscreen === true;
 		}
 	});
 	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
@@ -1330,6 +1358,7 @@
 		if (msg.type === "ACTIVATE_GAMEPAD_CONFIG") {
 			const activateMsg = msg;
 			g_activePresetName = activateMsg.name;
+			g_fakeFullscreen = activateMsg.gamepadConfig.fakeFullscreen === true;
 			updateToggleCodes(activateMsg.gamepadConfig);
 			showToast(`'${activateMsg.name}' preset activated`);
 			activate(activateMsg.gamepadConfig, activateMsg.overlayMinimized !== void 0 ? { overlayMinimized: activateMsg.overlayMinimized } : void 0);
@@ -1338,6 +1367,7 @@
 				name: msg.name,
 				gamepadConfig: msg.gamepadConfig
 			};
+			g_fakeFullscreen = msg.gamepadConfig.fakeFullscreen === true;
 			if (document.hasFocus()) applyPendingConfig();
 		} else if (msg.type === "DISABLE_GAMEPAD") {
 			if (isActive()) showToast("Mouse/keyboard disabled");
@@ -1370,6 +1400,11 @@
 				enabled: !isActive()
 			});
 			else if (action.startsWith("toggleGamepad:")) toggleGamepadIndex(Number(action.slice(14)));
+			sendMessage({
+				source: MSG_SOURCE,
+				type: "GAMEPAD_STATUS",
+				connected: getConnectedStatus()
+			});
 		}
 		if (e.cancelable) e.preventDefault();
 	}, true);
@@ -1444,6 +1479,18 @@
 				showToast(`'${g_activePresetName}' resumed`);
 			}
 			restoreOverlayIfDismissed();
+			sendMessage({
+				source: MSG_SOURCE,
+				type: "GAMEPAD_STATUS",
+				connected: getConnectedStatus()
+			});
+		} else if (msg.type === "TOGGLE_GAMEPAD") {
+			toggleGamepadIndex(msg.gamepadIndex);
+			sendMessage({
+				source: MSG_SOURCE,
+				type: "GAMEPAD_STATUS",
+				connected: getConnectedStatus()
+			});
 		} else if (msg.type === "CONTENT_READY") sendMessage({
 			source: MSG_SOURCE,
 			type: "INITIALIZED",

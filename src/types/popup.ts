@@ -54,4 +54,5 @@ export interface PopupConfig {
   scripts: PopupScript[];
   globalBindings: GlobalBindings;
   otherGamepadMode: OtherGamepadMode;
+  fakeFullscreen: boolean;
 }

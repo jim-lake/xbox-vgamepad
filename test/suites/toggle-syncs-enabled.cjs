@@ -1,4 +1,4 @@
-// Tests: toggleExtension keybinding syncs the ENABLED storage flag
+// Tests: toggleExtension keybinding toggles per-tab state (not global storage)
 module.exports = async function ({
   page,
   browser,
@@ -33,23 +33,23 @@ module.exports = async function ({
   console.log('  [Toggle Syncs Enabled State]');
 
   await assert(
-    'F8 (toggleExtension) sets ENABLED to false in storage',
+    'F8 (toggleExtension) disconnects gamepad without writing ENABLED to storage',
     async () => {
       await releaseAll(page);
       await waitForStatus(page, 'connected', 5000);
 
       await page.keyboard.press('F8');
       await waitForStatus(page, 'disconnected', 5000);
-      // Give time for the message to propagate to background
       await new Promise((r) => setTimeout(r, 500));
 
+      // Per-tab toggle should NOT write to global storage
       const data = await getStorageSync(browser, ['ENABLED']);
-      expect(data.ENABLED).toBeFalse();
+      expect(data.ENABLED).toBeTrue();
     }
   );
 
   await assert(
-    'F8 (toggleExtension) sets ENABLED to true in storage on reconnect',
+    'F8 (toggleExtension) reconnects gamepad without writing ENABLED to storage',
     async () => {
       await page.keyboard.press('F8');
       await waitForStatus(page, 'connected', 5000);
@@ -60,35 +60,28 @@ module.exports = async function ({
     }
   );
 
-  await assert('Multiple toggles correctly track ENABLED state', async () => {
-    await releaseAll(page);
+  await assert(
+    'Multiple toggles correctly cycle connect/disconnect',
+    async () => {
+      await releaseAll(page);
 
-    // Toggle off
-    await page.keyboard.press('F8');
-    await waitForStatus(page, 'disconnected', 5000);
-    await new Promise((r) => setTimeout(r, 500));
-    let data = await getStorageSync(browser, ['ENABLED']);
-    expect(data.ENABLED).toBeFalse();
+      // Toggle off
+      await page.keyboard.press('F8');
+      await waitForStatus(page, 'disconnected', 5000);
 
-    // Toggle on
-    await page.keyboard.press('F8');
-    await waitForStatus(page, 'connected', 5000);
-    await new Promise((r) => setTimeout(r, 500));
-    data = await getStorageSync(browser, ['ENABLED']);
-    expect(data.ENABLED).toBeTrue();
+      // Toggle on
+      await page.keyboard.press('F8');
+      await waitForStatus(page, 'connected', 5000);
 
-    // Toggle off again
-    await page.keyboard.press('F8');
-    await waitForStatus(page, 'disconnected', 5000);
-    await new Promise((r) => setTimeout(r, 500));
-    data = await getStorageSync(browser, ['ENABLED']);
-    expect(data.ENABLED).toBeFalse();
+      // Toggle off again
+      await page.keyboard.press('F8');
+      await waitForStatus(page, 'disconnected', 5000);
 
-    // Restore
-    await page.keyboard.press('F8');
-    await waitForStatus(page, 'connected', 5000);
-    await new Promise((r) => setTimeout(r, 500));
-  });
+      // Restore
+      await page.keyboard.press('F8');
+      await waitForStatus(page, 'connected', 5000);
+    }
+  );
 
   // Restore default config for subsequent suites
   await releaseAll(page);

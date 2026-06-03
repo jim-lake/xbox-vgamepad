@@ -26,8 +26,8 @@ const styles = StyleSheet.create({
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingLeft: '1.2rem',
-    paddingRight: '1.2rem',
+    paddingLeft: '0.6rem',
+    paddingRight: '0.6rem',
     paddingTop: '0.8rem',
     paddingBottom: '0.8rem',
     alignSelf: 'stretch',
@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
     fontSize: '1.3rem',
     fontWeight: '500',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   tabTextActive: { color: 'var(--text-primary)' },
   gearSlot: { justifyContent: 'center', alignItems: 'center' },
@@ -65,6 +66,7 @@ const styles = StyleSheet.create({
 interface Props {
   slots: PopupConfig['slots'];
   activeIndex: 0 | 1 | 2 | 3 | 'settings';
+  gamepadConnected: [boolean, boolean, boolean, boolean];
   onSelect: (i: 0 | 1 | 2 | 3) => void;
   onSelectSettings: () => void;
   onAdd: () => void;
@@ -73,6 +75,7 @@ interface Props {
 export default function GamepadTabs({
   slots,
   activeIndex,
+  gamepadConnected,
   onSelect,
   onSelectSettings,
   onAdd,
@@ -85,6 +88,7 @@ export default function GamepadTabs({
         const idx = i as 0 | 1 | 2 | 3;
         if (slot.active) {
           const active = idx === activeIndex;
+          const icon = gamepadConnected[slot.gamepadIndex] ? '🔗' : '🚫';
           return (
             <View key={i} style={styles.slot}>
               <TouchableWithoutFeedback
@@ -100,7 +104,7 @@ export default function GamepadTabs({
                       : styles.tabText
                   }
                 >
-                  {`GAMEPAD ${String(idx + 1)}`}
+                  {`${icon} GAMEPAD ${String(idx + 1)}`}
                 </Text>
               </TouchableWithoutFeedback>
             </View>

@@ -52,4 +52,5 @@ runSuites([
   path.join(__dirname, 'suites', 'text-input-auto-disable.cjs'),
   path.join(__dirname, 'suites', 'auto-suspend-setting.cjs'),
   path.join(__dirname, 'suites', 'fake-fullscreen.cjs'),
+  path.join(__dirname, 'suites', 'per-tab-isolation.cjs'),
 ]);

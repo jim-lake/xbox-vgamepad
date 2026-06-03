@@ -129,15 +129,6 @@ export default function GlobalSettingsPanel({
           }}
         />
       </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Fake Fullscreen</Text>
-        <Switch
-          value={settings.fakeFullscreen}
-          onValueChange={(v) => {
-            onChange({ ...settings, fakeFullscreen: v });
-          }}
-        />
-      </View>
       <View style={styles.buttonRow}>
         <TextButton text='Backup All' onPress={handleBackupAll} />
         <TextButton text='Restore All' onPress={handleRestoreAll} />

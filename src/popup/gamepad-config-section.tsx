@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
 import Select from '@/components/select';
+import Switch from '@/components/switch';
 import TextButton from '@/components/buttons/text_button';
 import MouseSettings from '@/components/popup/mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
@@ -42,10 +43,12 @@ interface Props {
   scripts: PopupScript[];
   usedIndices: (0 | 1 | 2 | 3)[];
   gamepadCount: number;
+  isConnected: boolean;
   editingScriptId: string | null;
   listeningScriptEntry: ScriptEntry | null;
   onEditingScriptIdChange: (id: string | null) => void;
   onListeningScriptEntryChange: (entry: ScriptEntry | null) => void;
+  onToggleConnected: () => void;
   onChangeIndex: (next: 0 | 1 | 2 | 3) => void;
   onChangeBinding: (
     action: GamepadActionName,
@@ -73,10 +76,12 @@ export default function GamepadConfigSection({
   scripts,
   usedIndices,
   gamepadCount,
+  isConnected,
   editingScriptId,
   listeningScriptEntry,
   onEditingScriptIdChange,
   onListeningScriptEntryChange,
+  onToggleConnected,
   onChangeIndex,
   onChangeBinding,
   onChangeScripts,
@@ -98,6 +103,10 @@ export default function GamepadConfigSection({
     <>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Config</Text>
+        <View style={styles.row}>
+          <Text style={styles.label}>Connected</Text>
+          <Switch value={isConnected} onValueChange={onToggleConnected} />
+        </View>
         <View style={styles.row}>
           <Text style={styles.label}>Gamepad Number</Text>
           <Select

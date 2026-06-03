@@ -37,14 +37,30 @@ Element.prototype.requestFullscreen = function (
   options?: FullscreenOptions
 ): Promise<void> {
   if (g_fakeFullscreen) {
+    log('[gamepad]: requestFullscreen intercepted (blocked/faked)');
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: this,
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
     return Promise.resolve();
   }
+  log('[gamepad]: requestFullscreen passthrough');
   return realRequestFullscreen.call(this, options);
 };
 document.exitFullscreen = function (): Promise<void> {
   if (g_fakeFullscreen) {
+    log('[gamepad]: exitFullscreen intercepted (blocked/faked)');
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      writable: true,
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
     return Promise.resolve();
   }
+  log('[gamepad]: exitFullscreen passthrough');
   return realExitFullscreen();
 };
 
@@ -69,8 +85,6 @@ window.addEventListener('message', (event: MessageEvent) => {
     );
     g_autoSuspendOnInput =
       (data as { autoSuspendOnInput?: boolean }).autoSuspendOnInput !== false;
-    g_fakeFullscreen =
-      (data as { fakeFullscreen?: boolean }).fakeFullscreen === true;
   }
 });
 
@@ -105,6 +119,7 @@ function handleMessage(msg: ExtensionMessage): void {
   if (msg.type === 'ACTIVATE_GAMEPAD_CONFIG') {
     const activateMsg = msg;
     g_activePresetName = activateMsg.name;
+    g_fakeFullscreen = activateMsg.gamepadConfig.fakeFullscreen === true;
     updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(
@@ -115,6 +130,7 @@ function handleMessage(msg: ExtensionMessage): void {
     );
   } else if (msg.type === 'CONFIG_CHANGED') {
     pendingConfig = { name: msg.name, gamepadConfig: msg.gamepadConfig };
+    g_fakeFullscreen = msg.gamepadConfig.fakeFullscreen === true;
     if (document.hasFocus()) {
       applyPendingConfig();
     }
@@ -182,6 +198,11 @@ document.addEventListener(
           inputProcessor.toggleGamepadIndex(idx);
         }
       }
+      sendMessage({
+        source: MSG_SOURCE,
+        type: 'GAMEPAD_STATUS',
+        connected: inputProcessor.getConnectedStatus(),
+      });
     }
     if (e.cancelable) {
       e.preventDefault();
@@ -274,6 +295,18 @@ function onWindowMessage(event: MessageEvent): void {
       showToast(`'${g_activePresetName}' resumed`);
     }
     inputProcessor.restoreOverlayIfDismissed();
+    sendMessage({
+      source: MSG_SOURCE,
+      type: 'GAMEPAD_STATUS',
+      connected: inputProcessor.getConnectedStatus(),
+    });
+  } else if (msg.type === 'TOGGLE_GAMEPAD') {
+    inputProcessor.toggleGamepadIndex(msg.gamepadIndex);
+    sendMessage({
+      source: MSG_SOURCE,
+      type: 'GAMEPAD_STATUS',
+      connected: inputProcessor.getConnectedStatus(),
+    });
   } else if (msg.type === 'CONTENT_READY') {
     // Content script just loaded — re-send INITIALIZED so it can relay to background
     sendMessage({

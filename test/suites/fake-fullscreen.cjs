@@ -1,73 +1,39 @@
-// Tests: fakeFullscreen global setting intercepts requestFullscreen/exitFullscreen
+// Tests: fakeFullscreen per-profile setting intercepts requestFullscreen/exitFullscreen
 module.exports = async function ({
   page,
-  browser,
   assert,
   expect,
   helpers,
   releaseAll,
   DEFAULT_CONFIG,
 }) {
-  const { setStorageSync, sendConfigToPage } = helpers;
+  const { sendConfigToPage, waitForStatus } = helpers;
 
   console.log(
     '  [Fake Fullscreen - requestFullscreen/exitFullscreen interception]'
   );
 
-  // Activate config so extension is running
-  await sendConfigToPage(page, {
-    type: 'ACTIVATE_GAMEPAD_CONFIG',
-    name: 'default',
-    gamepadConfig: DEFAULT_CONFIG,
-  });
-  await new Promise((r) => setTimeout(r, 300));
-
-  async function setFakeFullscreen(enabled) {
-    await setStorageSync(browser, {
-      GLOBAL_SETTINGS: {
-        patchRemoteMultigamepad: true,
-        enableLogging: false,
-        disableBlur: false,
-        autoSuspendOnInput: true,
-        fakeFullscreen: enabled,
-      },
+  async function activateWithFakeFullscreen(enabled) {
+    await sendConfigToPage(page, {
+      type: 'ACTIVATE_GAMEPAD_CONFIG',
+      name: 'test',
+      gamepadConfig: { ...DEFAULT_CONFIG, fakeFullscreen: enabled },
     });
-    await new Promise((r) => setTimeout(r, 500));
+    await waitForStatus(page, 'connected', 5000);
   }
+
+  await activateWithFakeFullscreen(false);
 
   await assert(
     'requestFullscreen passes through to real API when fakeFullscreen is false',
     async () => {
-      await setFakeFullscreen(false);
       const called = await page.evaluate(() => {
         return new Promise((resolve) => {
-          // Track if the real API was invoked by listening for fullscreenchange/error
-          let realCalled = false;
-          const handler = () => {
-            realCalled = true;
-          };
-          document.addEventListener('fullscreenchange', handler);
-          document.addEventListener('fullscreenerror', handler);
           document.documentElement.requestFullscreen().then(
-            () => {
-              // resolved — real API was called
-              document.removeEventListener('fullscreenchange', handler);
-              document.removeEventListener('fullscreenerror', handler);
-              resolve(true);
-            },
-            () => {
-              // rejected — real API was called (rejected for lack of user gesture)
-              document.removeEventListener('fullscreenchange', handler);
-              document.removeEventListener('fullscreenerror', handler);
-              resolve(true);
-            }
+            () => resolve(true),
+            () => resolve(true)
           );
-          // If neither resolves/rejects quickly, the fake intercepted it
-          setTimeout(() => {
-            document.removeEventListener('fullscreenchange', handler);
-            document.removeEventListener('fullscreenerror', handler);
-            resolve(realCalled);
-          }, 200);
+          setTimeout(() => resolve(false), 200);
         });
       });
       expect(called).toBe(true);
@@ -77,37 +43,67 @@ module.exports = async function ({
   await assert(
     'requestFullscreen resolves immediately when fakeFullscreen is true',
     async () => {
-      await setFakeFullscreen(true);
+      await activateWithFakeFullscreen(true);
       const result = await page.evaluate(() => {
         const start = performance.now();
+        let eventFired = false;
+        document.addEventListener(
+          'fullscreenchange',
+          () => {
+            eventFired = true;
+          },
+          { once: true }
+        );
         return document.documentElement.requestFullscreen().then(() => {
-          return { resolved: true, fast: performance.now() - start < 50 };
+          return {
+            resolved: true,
+            fast: performance.now() - start < 50,
+            eventFired,
+            fullscreenElement:
+              document.fullscreenElement === document.documentElement,
+          };
         });
       });
       expect(result.resolved).toBe(true);
       expect(result.fast).toBe(true);
+      expect(result.eventFired).toBe(true);
+      expect(result.fullscreenElement).toBe(true);
     }
   );
 
   await assert(
     'exitFullscreen resolves immediately when fakeFullscreen is true',
     async () => {
-      await setFakeFullscreen(true);
       const result = await page.evaluate(() => {
         const start = performance.now();
+        let eventFired = false;
+        document.addEventListener(
+          'fullscreenchange',
+          () => {
+            eventFired = true;
+          },
+          { once: true }
+        );
         return document.exitFullscreen().then(() => {
-          return { resolved: true, fast: performance.now() - start < 50 };
+          return {
+            resolved: true,
+            fast: performance.now() - start < 50,
+            eventFired,
+            fullscreenElement: document.fullscreenElement === null,
+          };
         });
       });
       expect(result.resolved).toBe(true);
       expect(result.fast).toBe(true);
+      expect(result.eventFired).toBe(true);
+      expect(result.fullscreenElement).toBe(true);
     }
   );
 
   await assert(
     'exitFullscreen passes through to real API when fakeFullscreen is false',
     async () => {
-      await setFakeFullscreen(false);
+      await activateWithFakeFullscreen(false);
       const called = await page.evaluate(() => {
         return new Promise((resolve) => {
           document.exitFullscreen().then(
@@ -122,10 +118,16 @@ module.exports = async function ({
   );
 
   await assert(
-    'toggling fakeFullscreen dynamically switches behavior',
+    'CONFIG_CHANGED with fakeFullscreen updates interception dynamically',
     async () => {
-      // Enable fake — should resolve fast without fullscreen events
-      await setFakeFullscreen(true);
+      // Switch to fakeFullscreen via CONFIG_CHANGED
+      await sendConfigToPage(page, {
+        type: 'CONFIG_CHANGED',
+        name: 'test',
+        gamepadConfig: { ...DEFAULT_CONFIG, fakeFullscreen: true },
+      });
+      await new Promise((r) => setTimeout(r, 200));
+
       const fakeResult = await page.evaluate(() => {
         let eventFired = false;
         const handler = () => {
@@ -140,28 +142,23 @@ module.exports = async function ({
         });
       });
       expect(fakeResult.resolved).toBe(true);
-      expect(fakeResult.eventFired).toBe(false);
+      expect(fakeResult.eventFired).toBe(true);
 
-      // Disable fake — real API is called (events may fire)
-      await setFakeFullscreen(false);
+      // Switch back to real
+      await sendConfigToPage(page, {
+        type: 'CONFIG_CHANGED',
+        name: 'test',
+        gamepadConfig: { ...DEFAULT_CONFIG, fakeFullscreen: false },
+      });
+      await new Promise((r) => setTimeout(r, 200));
+
       const realResult = await page.evaluate(() => {
         return new Promise((resolve) => {
-          let settled = false;
           document.documentElement.requestFullscreen().then(
-            () => {
-              settled = true;
-              resolve({ passedThrough: true });
-            },
-            () => {
-              settled = true;
-              resolve({ passedThrough: true });
-            }
+            () => resolve({ passedThrough: true }),
+            () => resolve({ passedThrough: true })
           );
-          setTimeout(() => {
-            if (!settled) {
-              resolve({ passedThrough: false });
-            }
-          }, 200);
+          setTimeout(() => resolve({ passedThrough: false }), 200);
         });
       });
       expect(realResult.passedThrough).toBe(true);

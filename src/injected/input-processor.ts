@@ -547,6 +547,16 @@ export function toggleGamepadIndex(index: 0 | 1 | 2 | 3): void {
   }
 }
 
+/** Get connected status for all 4 gamepad slots. */
+export function getConnectedStatus(): [boolean, boolean, boolean, boolean] {
+  return [
+    getSimulator(0).isEnabled(),
+    getSimulator(1).isEnabled(),
+    getSimulator(2).isEnabled(),
+    getSimulator(3).isEnabled(),
+  ];
+}
+
 /** Toggle all virtual gamepads on/off simultaneously. */
 export function toggleAllGamepads(): void {
   const anyEnabled = Array.from(g_activeIndices).some((i) =>

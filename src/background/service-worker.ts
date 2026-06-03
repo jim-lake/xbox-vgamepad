@@ -10,6 +10,18 @@ import { validateConfig } from '@/popup/validate';
 
 const g_suspendedTabs = new Set<number>();
 
+// Per-tab state: loaded from chrome.storage on init, then independent
+interface TabState {
+  enabled: boolean;
+  activeConfig: string;
+}
+const g_tabState = new Map<number, TabState>();
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  g_tabState.delete(tabId);
+  g_suspendedTabs.delete(tabId);
+});
+
 function storeGameName(gameName: string | null): void {
   if (gameName !== null) {
     void chrome.storage.local.set({ gameName });
@@ -30,10 +42,13 @@ const ICONS_DISABLED = {
   128: 'src/assets/img/icon128_disabled.png',
 };
 
-function updateIcon(enabled: boolean): void {
-  void chrome.action.setIcon({
-    path: enabled ? ICONS_ENABLED : ICONS_DISABLED,
-  });
+function updateIcon(enabled: boolean, tabId?: number): void {
+  const path = enabled ? ICONS_ENABLED : ICONS_DISABLED;
+  if (tabId !== undefined) {
+    void chrome.action.setIcon({ path, tabId });
+  } else {
+    void chrome.action.setIcon({ path });
+  }
 }
 
 function resolveConfig(
@@ -75,12 +90,14 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.storage.sync.onChanged.addListener((changes) => {
   if (changes['ENABLED']) {
+    // Update icon globally for tabs without per-tab state (e.g. popup default)
     updateIcon(changes['ENABLED'].newValue as boolean);
   }
 });
 
 async function handleInitialized(
   gameName: string | null,
+  tabId: number,
   sendResponse: (
     msg: ActivateGamepadConfigMessage | DisableGamepadMessage
   ) => void
@@ -96,9 +113,9 @@ async function handleInitialized(
     ? { name: gamePreset, config: resolveConfig(syncData, gamePreset) }
     : getActiveConfig(syncData);
 
-  if (gamePreset) {
-    await chrome.storage.sync.set({ ACTIVE_GP_CONF: name });
-  }
+  // Store per-tab state (loaded from global, then independent)
+  g_tabState.set(tabId, { enabled: isEnabled, activeConfig: name });
+  updateIcon(isEnabled, tabId);
 
   if (isEnabled && config) {
     sendResponse({
@@ -123,7 +140,8 @@ async function handleGameChanged(
     return;
   }
   const syncData = await chrome.storage.sync.get(null);
-  const isEnabled = (syncData['ENABLED'] as boolean | undefined) ?? true;
+  const tabState = g_tabState.get(tabId);
+  const isEnabled = tabState?.enabled ?? true;
   if (!isEnabled) {
     return;
   }
@@ -131,7 +149,10 @@ async function handleGameChanged(
   if (!config) {
     return;
   }
-  await chrome.storage.sync.set({ ACTIVE_GP_CONF: presetName });
+  // Update per-tab state only
+  if (tabState) {
+    tabState.activeConfig = presetName;
+  }
   void chrome.tabs.sendMessage(tabId, {
     source: MSG_SOURCE,
     type: 'ACTIVATE_GAMEPAD_CONFIG',
@@ -144,15 +165,22 @@ async function handleToggleEnabled(
   enabled: boolean,
   tabId: number
 ): Promise<void> {
-  await chrome.storage.sync.set({ ENABLED: enabled });
+  // Update per-tab state only (don't write to global storage)
+  const tabState = g_tabState.get(tabId);
+  if (tabState) {
+    tabState.enabled = enabled;
+  }
+  updateIcon(enabled, tabId);
+
   if (enabled) {
     const syncData = await chrome.storage.sync.get(null);
-    const { name, config } = getActiveConfig(syncData);
+    const configName = tabState?.activeConfig ?? 'default';
+    const config = resolveConfig(syncData, configName);
     if (config) {
       void chrome.tabs.sendMessage(tabId, {
         source: MSG_SOURCE,
         type: 'ACTIVATE_GAMEPAD_CONFIG',
-        name,
+        name: configName,
         gamepadConfig: config,
       } satisfies ActivateGamepadConfigMessage);
     }
@@ -166,7 +194,23 @@ async function handleToggleEnabled(
 
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage, sender, sendResponse) => {
+    // Handle messages from popup (no sender.tab)
     if (!sender.tab) {
+      if (message.type === 'TAB_STATE_CHANGED') {
+        const state = g_tabState.get(message.tabId);
+        if (state) {
+          state.enabled = message.enabled;
+          if (message.activeConfig) {
+            state.activeConfig = message.activeConfig;
+          }
+        } else {
+          g_tabState.set(message.tabId, {
+            enabled: message.enabled,
+            activeConfig: message.activeConfig || 'default',
+          });
+        }
+        updateIcon(message.enabled, message.tabId);
+      }
       return false;
     }
 
@@ -179,7 +223,10 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'INITIALIZED') {
       storeGameName(message.gameName);
-      void handleInitialized(message.gameName, sendResponse);
+      const tabId = sender.tab.id;
+      if (tabId !== undefined) {
+        void handleInitialized(message.gameName, tabId, sendResponse);
+      }
       return true;
     }
 

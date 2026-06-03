@@ -69,6 +69,7 @@ export interface GamepadConfig {
   mouseConfig: GamepadMouseConfig;
   otherGamepadMode?: OtherGamepadMode;
   unboundScripts?: GameScript[];
+  fakeFullscreen?: boolean;
 }
 
 export interface GlobalSettings {
@@ -76,7 +77,6 @@ export interface GlobalSettings {
   enableLogging: boolean;
   disableBlur: boolean;
   autoSuspendOnInput: boolean;
-  fakeFullscreen: boolean;
 }
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -84,7 +84,6 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   enableLogging: false,
   disableBlur: false,
   autoSuspendOnInput: true,
-  fakeFullscreen: false,
 };
 
 export interface StorageData {

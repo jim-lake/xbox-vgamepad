@@ -25,21 +25,31 @@ const styles = StyleSheet.create({
     marginLeft: '0.2rem',
     marginRight: '0.2rem',
   },
+  disabled: { opacity: 0.5, cursor: 'default' },
 });
 
 interface Props {
   value: boolean;
-  onValueChange: (value: boolean) => void;
+  onValueChange?: (value: boolean) => void;
+  disabled?: boolean;
 }
 
-export default function Switch({ value, onValueChange }: Props) {
+export default function Switch({ value, onValueChange, disabled }: Props) {
   return (
     <TouchableWithoutFeedback
       onPress={() => {
-        onValueChange(!value);
+        if (!disabled) {
+          onValueChange?.(!value);
+        }
       }}
     >
-      <View style={[styles.toggle, value ? styles.toggleOn : styles.toggleOff]}>
+      <View
+        style={[
+          styles.toggle,
+          value ? styles.toggleOn : styles.toggleOff,
+          disabled ? styles.disabled : undefined,
+        ]}
+      >
         <View style={styles.knob} />
       </View>
     </TouchableWithoutFeedback>

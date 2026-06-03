@@ -11,7 +11,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'var(--row-border)',
   },
-  label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
+  label: {
+    width: '12rem',
+    color: 'var(--text-muted)',
+    fontSize: '1.4rem',
+    marginRight: '0.8rem',
+  },
 });
 
 interface Props {

@@ -6,6 +6,8 @@ import {
 } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import Select from '@/components/select';
+import Switch from '@/components/switch';
+import FormRow from './form-row';
 import type { GamepadActionName, OtherGamepadMode } from '@/types/gamepad';
 import type { GlobalBindings } from '@/types/popup';
 import GlobalBindingEditor from '@/popup/global-binding-editor';
@@ -19,15 +21,6 @@ const styles = StyleSheet.create({
     marginBottom: '0.4rem',
     textTransform: 'uppercase',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  label: { width: '10rem', color: 'var(--text-muted)', fontSize: '1.4rem' },
   renameInput: {
     flex: 1,
     marginRight: '1.5rem',
@@ -57,6 +50,8 @@ interface Props {
   ) => void;
   otherGamepadMode: OtherGamepadMode;
   onChangeOtherGamepadMode: (value: string) => void;
+  fakeFullscreen: boolean;
+  onChangeFakeFullscreen: (value: boolean) => void;
   renameValue: string;
   onRenameValueChange: (value: string) => void;
   onRenameSubmit: () => void;
@@ -74,6 +69,8 @@ export default function AdvancedSection({
   onChangeGlobalBinding,
   otherGamepadMode,
   onChangeOtherGamepadMode,
+  fakeFullscreen,
+  onChangeFakeFullscreen,
   renameValue,
   onRenameValueChange,
   onRenameSubmit,
@@ -92,8 +89,7 @@ export default function AdvancedSection({
         globalBindings={globalBindings}
         onChange={onChangeGlobalBinding}
       />
-      <View style={styles.row}>
-        <Text style={styles.label}>Physical Gamepads</Text>
+      <FormRow label='Physical Gamepads'>
         <Select
           value={otherGamepadMode}
           options={[
@@ -102,9 +98,11 @@ export default function AdvancedSection({
           ]}
           onChange={onChangeOtherGamepadMode}
         />
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Rename Profile</Text>
+      </FormRow>
+      <FormRow label='Fake Fullscreen'>
+        <Switch value={fakeFullscreen} onValueChange={onChangeFakeFullscreen} />
+      </FormRow>
+      <FormRow label='Rename Profile'>
         <TextInput
           style={styles.renameInput}
           value={renameValue}
@@ -112,7 +110,7 @@ export default function AdvancedSection({
           onSubmitEditing={onRenameSubmit}
         />
         <TextButton type='green' text='Save' onPress={onRenameSubmit} />
-      </View>
+      </FormRow>
       <View style={styles.buttons}>
         <TextButton text='Copy' onPress={onCopy} />
         <TextButton text='Import' onPress={onImport} />

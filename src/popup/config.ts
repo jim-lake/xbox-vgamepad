@@ -188,6 +188,7 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
     scripts,
     globalBindings,
     otherGamepadMode: cfg.otherGamepadMode ?? 'separate',
+    fakeFullscreen: cfg.fakeFullscreen ?? false,
   };
 }
 
@@ -269,6 +270,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
     mouseConfig: { mouseControls },
     otherGamepadMode: popup.otherGamepadMode,
     ...(unboundScripts.length > 0 ? { unboundScripts } : {}),
+    ...(popup.fakeFullscreen ? { fakeFullscreen: true } : {}),
   };
 }
 

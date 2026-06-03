@@ -221,6 +221,7 @@ function makePopupConfig(
     scripts: [ps],
     globalBindings: emptySlotBindings(),
     otherGamepadMode: 'separate',
+    fakeFullscreen: false,
     slots: [0, 1, 2, 3].map((i) => {
       const keyCodes = scriptBindingsBySlot[i as 0 | 1 | 2 | 3];
       return {

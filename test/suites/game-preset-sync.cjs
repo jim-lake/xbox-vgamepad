@@ -1,4 +1,4 @@
-// Tests: Game matching updates ACTIVE_GP_CONF so popup stays in sync
+// Tests: Game matching activates config per-tab without updating global ACTIVE_GP_CONF
 module.exports = async function ({
   page,
   browser,
@@ -17,7 +17,7 @@ module.exports = async function ({
     waitForButton,
   } = helpers;
 
-  console.log('  [Game Preset Sync - ACTIVE_GP_CONF updated on game match]');
+  console.log('  [Game Preset Sync - per-tab activation without global write]');
 
   const fpsConfig = makeConfig({
     mouseConfig: { mouseControls: 1, sensitivity: 10 },
@@ -34,7 +34,7 @@ module.exports = async function ({
   await setStorageLocal(browser, { gamePresets: { 'Halo Infinite': 'fps' } });
 
   await assert(
-    'GAME_CHANGED with matched game updates ACTIVE_GP_CONF in storage',
+    'GAME_CHANGED with matched game does NOT update ACTIVE_GP_CONF in storage',
     async () => {
       // Send GAME_CHANGED as if the injected script detected a new game
       await page.evaluate(() => {
@@ -48,11 +48,12 @@ module.exports = async function ({
         );
       });
 
-      // Wait for background to process and update storage
+      // Wait for background to process
       await new Promise((r) => setTimeout(r, 1000));
 
+      // Global storage should remain unchanged (per-tab only)
       const data = await getStorageSync(browser, ['ACTIVE_GP_CONF']);
-      expect(data['ACTIVE_GP_CONF']).toBe('fps');
+      expect(data['ACTIVE_GP_CONF']).toBe('default');
     }
   );
 
@@ -67,8 +68,6 @@ module.exports = async function ({
   await assert(
     'GAME_CHANGED with no matching preset does not change ACTIVE_GP_CONF',
     async () => {
-      // Reset to default
-      await setStorageSync(browser, { ACTIVE_GP_CONF: 'default' });
       await sendConfigToPage(page, {
         type: 'ACTIVATE_GAMEPAD_CONFIG',
         name: 'default',
