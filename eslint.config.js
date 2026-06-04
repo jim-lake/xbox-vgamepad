@@ -49,6 +49,15 @@ export default defineConfig([
         'error',
         { allowIndexSignaturePropertyAccess: false },
       ],
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+          allowBoolean: false,
+          allowAny: false,
+          allowNullish: false,
+        },
+      ],
     },
   },
 ]);
