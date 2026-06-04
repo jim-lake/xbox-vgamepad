@@ -31,15 +31,14 @@ export interface XY {
   x: number;
   y: number;
 }
-
 export interface XYPadProps {
   style?: StyleInput;
   handleStyle?: StyleInput;
   snaps?: Snaps;
   value: XY;
   onChange?: (pos: Readonly<XY>) => void | Promise<void>;
+  onDragDone?: (pos: Readonly<XY>) => void;
 }
-
 export default function XYPad(props: XYPadProps) {
   const padRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -128,6 +127,9 @@ export default function XYPad(props: XYPadProps) {
       _update(e.clientX, e.clientY);
     }
   );
+  const _onPointerUp = useLatestCallback(() => {
+    props.onDragDone?.({ ...valueRef.current });
+  });
 
   const xyPadResolved = resolveStyle([styles.xyPad, props.style]);
   const handleResolved = resolveStyle([styles.handle, props.handleStyle]);
@@ -138,6 +140,7 @@ export default function XYPad(props: XYPadProps) {
       className={xyPadResolved.className}
       onPointerDown={_onPointerDown}
       onPointerMove={_onPointerMove}
+      onPointerUp={_onPointerUp}
     >
       <div
         ref={handleRef}
