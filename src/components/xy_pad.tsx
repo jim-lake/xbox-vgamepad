@@ -25,6 +25,8 @@ const styles = StyleSheet.create({
   },
 });
 
+export type Snaps = 4 | 8;
+
 export interface XY {
   x: number;
   y: number;
@@ -33,6 +35,7 @@ export interface XY {
 export interface XYPadProps {
   style?: StyleInput;
   handleStyle?: StyleInput;
+  snaps?: Snaps;
   value: XY;
   onChange?: (pos: Readonly<XY>) => void | Promise<void>;
 }
@@ -95,6 +98,13 @@ export default function XYPad(props: XYPadProps) {
     const rect = pad.getBoundingClientRect();
     const px = Math.max(0, Math.min(rect.width, clientX - rect.left));
     const py = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    let x = (px / rect.width) * 2 - 1;
+    let y = 1 - (py / rect.height) * 2;
+
+    if (props.snaps) {
+      ({ x, y } = _applySnap(x, y, props.snaps));
+    }
+
     valueRef.current = {
       x: (px / rect.width) * 2 - 1,
       y: 1 - (py / rect.height) * 2,
@@ -136,4 +146,14 @@ export default function XYPad(props: XYPadProps) {
       />
     </div>
   );
+}
+function _applySnap(x: number, y: number, snaps: Snaps): XY {
+  const len = Math.sqrt(x * x + y * y);
+  if (len === 0) {
+    return { x: 0, y: 0 };
+  }
+  const angle = Math.atan2(y, x);
+  const step = (Math.PI * 2) / snaps;
+  const snappedAngle = Math.round(angle / step) * step;
+  return { x: Math.cos(snappedAngle) * len, y: Math.sin(snappedAngle) * len };
 }
