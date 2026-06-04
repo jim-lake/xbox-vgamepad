@@ -259,7 +259,7 @@ export default function ScriptActionRow({
         gamepadIndex,
         stick: 'left',
         x: 0,
-        y: 0,
+        y: -1,
       });
     } else if (val === 'rotate') {
       onChange(index, {
