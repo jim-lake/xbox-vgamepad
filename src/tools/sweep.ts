@@ -10,6 +10,9 @@ export function calcSweepMag(pos: XY): AM {
 }
 const TAU = Math.PI * 2;
 
+/**
+ * @param t - Interpolation factor in [0, 1], where 0 returns start and 1 returns end
+ */
 export function calcSweepPos(
   start: AM,
   end: AM,
