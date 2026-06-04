@@ -262,7 +262,7 @@ export function firstInfiniteIndex(actions: PopupScriptAction[]): number {
     if (a?.type === 'turbo') {
       return i;
     }
-    if (a?.type === 'hold' || a?.type === 'suspend') {
+    if (a?.type === 'suspend') {
       return i;
     }
     if (a?.type === 'delay' && a.durationMs === 'infinite') {
