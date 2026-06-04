@@ -4,8 +4,10 @@ import type {
   ScriptAction,
 } from '@/types/gamepad';
 import type {
+  HoldAction,
   PopupGameScript,
   PopupScriptAction,
+  SuspendAction,
   TapAction,
   TurboAction,
 } from '@/types/popup';
@@ -229,10 +231,15 @@ export function freeSentinel(
 /**
  * Returns true if the action list is effectively infinite — i.e. it contains
  * a forever loop, or a finite loop whose child actions are themselves infinite.
+ * Note: bare `delay "infinite"` is not counted here — it's detected separately
+ * by `firstInfiniteIndex` at the top level only.
  */
 export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
   for (const a of actions) {
     if (a.type === 'turbo') {
+      return true;
+    }
+    if (a.type === 'hold' || a.type === 'suspend') {
       return true;
     }
     if (a.type === 'loop') {
@@ -246,12 +253,19 @@ export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
 
 /**
  * Returns the index of the first action that makes the list infinite
- * (a forever loop, or a finite loop with infinite children), or -1 if none.
+ * (a forever loop, a delay "infinite", hold, suspend, or a finite loop
+ * with infinite children), or -1 if none.
  */
 export function firstInfiniteIndex(actions: PopupScriptAction[]): number {
   for (let i = 0; i < actions.length; i++) {
     const a = actions[i];
     if (a?.type === 'turbo') {
+      return i;
+    }
+    if (a?.type === 'hold' || a?.type === 'suspend') {
+      return i;
+    }
+    if (a?.type === 'delay' && a.durationMs === 'infinite') {
       return i;
     }
     if (
@@ -287,6 +301,12 @@ function remapActions(
         buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
       };
     }
+    if (a.type === 'hold') {
+      return {
+        ...a,
+        buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
+      };
+    }
     if (a.type === 'loop') {
       return { ...a, actions: remapActions(a.actions, slotIndex) };
     }
@@ -302,7 +322,7 @@ export function copyScriptForSlot(
   return { ...script, actions: remapActions(script.actions, slotIndex) };
 }
 
-/** Expand PopupScriptAction[] to ScriptAction[], flattening tap and turbo nodes. */
+/** Expand PopupScriptAction[] to ScriptAction[], flattening tap, turbo, hold, and suspend nodes. */
 export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
   const result: ScriptAction[] = [];
   for (const a of actions) {
@@ -324,17 +344,178 @@ export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
           { type: 'delay', durationMs: half },
         ],
       });
+    } else if (a.type === 'hold') {
+      result.push({ type: 'down', buttons: a.buttons });
+      // Trailing delay "infinite" is added after all actions are processed
+    } else if (a.type === 'suspend') {
+      result.push({ type: 'delay', durationMs: 'infinite' });
     } else if (a.type === 'loop') {
       result.push({ ...a, actions: flattenActions(a.actions) });
     } else {
       result.push(a);
     }
   }
+  // If any hold actions were present, ensure trailing delay "infinite"
+  const hasHold = actions.some((a) => a.type === 'hold');
+  if (hasHold) {
+    // Only add if there isn't already a trailing delay "infinite"
+    const last = result[result.length - 1];
+    if (!(last?.type === 'delay' && last.durationMs === 'infinite')) {
+      result.push({ type: 'delay', durationMs: 'infinite' });
+    }
+  }
   return result;
 }
 
-/** Collapse ScriptAction[] to PopupScriptAction[], lifting tap and turbo sequences. */
+/** Collapse ScriptAction[] to PopupScriptAction[], lifting tap, turbo, hold, and suspend sequences. */
 export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
+  // First check for hold/suspend pattern: trailing delay "infinite"
+  const last = actions[actions.length - 1];
+  if (last?.type === 'delay' && last.durationMs === 'infinite') {
+    // Find unmatched downs (no corresponding up at this level)
+    const actionsWithoutTrailing = actions.slice(0, -1);
+    const unmatchedDownIndices = findUnmatchedDowns(actionsWithoutTrailing);
+
+    if (unmatchedDownIndices.size > 0) {
+      // Lift with hold: unmatched downs become hold, trailing delay consumed
+      const result: PopupScriptAction[] = [];
+      let i = 0;
+      while (i < actionsWithoutTrailing.length) {
+        const a = actionsWithoutTrailing[i];
+        const b = actionsWithoutTrailing[i + 1];
+        const c = actionsWithoutTrailing[i + 2];
+        // Tap detection (only for matched downs)
+        if (
+          a?.type === 'down' &&
+          !unmatchedDownIndices.has(i) &&
+          a.buttons.length > 0 &&
+          b?.type === 'delay' &&
+          b.durationMs !== 'infinite' &&
+          c?.type === 'up' &&
+          a.buttons.length === c.buttons.length &&
+          a.buttons.every((btn, j) => {
+            const cBtn = c.buttons[j];
+            return (
+              cBtn !== undefined &&
+              btn.action === cBtn.action &&
+              btn.gamepadIndex === cBtn.gamepadIndex
+            );
+          })
+        ) {
+          const tap: TapAction = {
+            type: 'tap',
+            buttons: a.buttons,
+            durationMs: b.durationMs,
+          };
+          result.push(tap);
+          i += 3;
+        } else if (a?.type === 'down' && unmatchedDownIndices.has(i)) {
+          const hold: HoldAction = { type: 'hold', buttons: a.buttons };
+          result.push(hold);
+          i++;
+        } else if (a?.type === 'loop') {
+          // Detect turbo pattern
+          if (a.count === 'infinite' && a.actions.length === 4) {
+            const [la, lb, lc, ld] = a.actions;
+            if (
+              la?.type === 'down' &&
+              lb?.type === 'delay' &&
+              lb.durationMs !== 'infinite' &&
+              lc?.type === 'up' &&
+              ld?.type === 'delay' &&
+              ld.durationMs !== 'infinite' &&
+              lb.durationMs === ld.durationMs &&
+              la.buttons.length > 0 &&
+              la.buttons.length === lc.buttons.length &&
+              la.buttons.every((btn, j) => {
+                const cBtn = lc.buttons[j];
+                return (
+                  cBtn !== undefined &&
+                  btn.action === cBtn.action &&
+                  btn.gamepadIndex === cBtn.gamepadIndex
+                );
+              })
+            ) {
+              const turbo: TurboAction = {
+                type: 'turbo',
+                buttons: la.buttons,
+                speed: lb.durationMs * 2,
+              };
+              result.push(turbo);
+              i++;
+              continue;
+            }
+          }
+          result.push({ ...a, actions: liftActions(a.actions) });
+          i++;
+        } else if (a !== undefined) {
+          result.push(a);
+          i++;
+        } else {
+          i++;
+        }
+      }
+      return result;
+    } else {
+      // No unmatched downs — lift trailing delay as suspend
+      const result = liftActionsBasic(actionsWithoutTrailing);
+      const suspend: SuspendAction = { type: 'suspend' };
+      result.push(suspend);
+      return result;
+    }
+  }
+
+  return liftActionsBasic(actions);
+}
+
+/** Find indices of down actions that have no matching up at the same level. */
+function findUnmatchedDowns(actions: ScriptAction[]): Set<number> {
+  const downIndices: number[] = [];
+  const matchedDownIndices = new Set<number>();
+
+  for (let i = 0; i < actions.length; i++) {
+    const a = actions[i];
+    if (a?.type === 'down') {
+      downIndices.push(i);
+    } else if (a?.type === 'up') {
+      // Find if any prior down has all its buttons matched by this up
+      for (const di of downIndices) {
+        if (matchedDownIndices.has(di)) {
+          continue;
+        }
+        const downAction = actions[di];
+        if (downAction?.type !== 'down') {
+          continue;
+        }
+        if (
+          downAction.buttons.length === a.buttons.length &&
+          downAction.buttons.every((btn, j) => {
+            const uBtn = a.buttons[j];
+            return (
+              uBtn !== undefined &&
+              btn.action === uBtn.action &&
+              btn.gamepadIndex === uBtn.gamepadIndex
+            );
+          })
+        ) {
+          matchedDownIndices.add(di);
+          break;
+        }
+      }
+    }
+  }
+
+  const unmatched = new Set<number>();
+  for (const di of downIndices) {
+    if (!matchedDownIndices.has(di)) {
+      unmatched.add(di);
+    }
+  }
+  return unmatched;
+}
+
+/** Basic lift without hold/suspend detection (used as inner helper). */
+function liftActionsBasic(actions: ScriptAction[]): PopupScriptAction[] {
   const result: PopupScriptAction[] = [];
   let i = 0;
   while (i < actions.length) {
@@ -345,6 +526,7 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
       a?.type === 'down' &&
       a.buttons.length > 0 &&
       b?.type === 'delay' &&
+      b.durationMs !== 'infinite' &&
       c?.type === 'up' &&
       a.buttons.length === c.buttons.length &&
       a.buttons.every((btn, j) => {
@@ -370,8 +552,10 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
         if (
           la?.type === 'down' &&
           lb?.type === 'delay' &&
+          lb.durationMs !== 'infinite' &&
           lc?.type === 'up' &&
           ld?.type === 'delay' &&
+          ld.durationMs !== 'infinite' &&
           lb.durationMs === ld.durationMs &&
           la.buttons.length > 0 &&
           la.buttons.length === lc.buttons.length &&

@@ -643,6 +643,10 @@
 						for (const btn of step.buttons) releaseAction(btn);
 						break;
 					case "delay": {
+						if (step.durationMs === "infinite") {
+							await new Promise(() => {});
+							return;
+						}
 						scheduledMs += step.durationMs;
 						const remaining = startTime + scheduledMs - Date.now();
 						if (remaining > 0) await delay(remaining);

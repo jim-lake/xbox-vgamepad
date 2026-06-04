@@ -233,12 +233,49 @@ These toggle keybindings work regardless of whether the gamepad is currently con
 
 #### ScriptAction
 
-| Shape                                                              | Description                                                                                                         |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `{ "type": "down", "buttons": [GamepadAction, ...] }`              | Press the listed buttons (does not release them).                                                                   |
-| `{ "type": "up",   "buttons": [GamepadAction, ...] }`              | Release the listed buttons.                                                                                         |
-| `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step.                                                                |
-| `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled. |
+| Shape                                                              | Description                                                                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ "type": "down", "buttons": [GamepadAction, ...] }`              | Press the listed buttons (does not release them).                                                                                                                   |
+| `{ "type": "up",   "buttons": [GamepadAction, ...] }`              | Release the listed buttons.                                                                                                                                         |
+| `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step. `durationMs` may also be `"infinite"` — the delay never resolves, suspending the script until it is cancelled. |
+| `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled.                                                 |
+
+#### Hold Pattern
+
+A `"down"` followed by `{ "type": "delay", "durationMs": "infinite" }` as the last action implements the "hold" pattern — buttons stay pressed until the script is cancelled (via key up for `"held"`, second press for `"toggle"`, or restart for `"on_down"`). Example:
+
+```json
+{
+  "type": "script",
+  "activationType": "held",
+  "actions": [
+    {
+      "type": "down",
+      "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+    },
+    { "type": "delay", "durationMs": "infinite" }
+  ]
+}
+```
+
+Multiple buttons can be held, with intermediate delays between them:
+
+```json
+{
+  "actions": [
+    {
+      "type": "down",
+      "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "a" }]
+    },
+    { "type": "delay", "durationMs": 100 },
+    {
+      "type": "down",
+      "buttons": [{ "type": "action", "gamepadIndex": 0, "action": "b" }]
+    },
+    { "type": "delay", "durationMs": "infinite" }
+  ]
+}
+```
 
 ### Additive Button Press Model
 

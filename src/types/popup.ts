@@ -19,7 +19,13 @@ export type TurboAction = {
   speed: number;
 };
 
-export type PopupScriptAction = ScriptAction<TapAction | TurboAction>;
+export type HoldAction = { type: 'hold'; buttons: GamepadAction[] };
+
+export type SuspendAction = { type: 'suspend' };
+
+export type PopupScriptAction = ScriptAction<
+  TapAction | TurboAction | HoldAction | SuspendAction
+>;
 export type PopupGameScript = GameScript<PopupScriptAction>;
 
 export type SlotBindings = Record<GamepadActionName, string[]>;

@@ -37,7 +37,7 @@ export interface GamepadAction {
 export type ScriptAction<T = never> =
   | { type: 'down'; buttons: GamepadAction[] }
   | { type: 'up'; buttons: GamepadAction[] }
-  | { type: 'delay'; durationMs: number }
+  | { type: 'delay'; durationMs: number | 'infinite' }
   | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction<T>[] }
   | T;
 

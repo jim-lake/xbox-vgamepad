@@ -203,7 +203,10 @@ export default function ScriptActionRow({
   function handleTypeChange(val: string) {
     if (val === 'tap') {
       const existingButtons =
-        action.type === 'down' || action.type === 'up' || action.type === 'tap'
+        action.type === 'down' ||
+        action.type === 'up' ||
+        action.type === 'tap' ||
+        action.type === 'hold'
           ? action.buttons
           : [];
       onChange(index, {
@@ -216,10 +219,23 @@ export default function ScriptActionRow({
         action.type === 'down' ||
         action.type === 'up' ||
         action.type === 'tap' ||
-        action.type === 'turbo'
+        action.type === 'turbo' ||
+        action.type === 'hold'
           ? action.buttons
           : [];
       onChange(index, { type: 'turbo', buttons: existingButtons, speed: 100 });
+    } else if (val === 'hold') {
+      const existingButtons =
+        action.type === 'down' ||
+        action.type === 'up' ||
+        action.type === 'tap' ||
+        action.type === 'turbo' ||
+        action.type === 'hold'
+          ? action.buttons
+          : [];
+      onChange(index, { type: 'hold', buttons: existingButtons });
+    } else if (val === 'suspend') {
+      onChange(index, { type: 'suspend' });
     } else if (val === 'delay') {
       onChange(index, { type: 'delay', durationMs: 100 });
     } else if (val === 'down' || val === 'up') {
@@ -363,7 +379,7 @@ export default function ScriptActionRow({
           <Text style={styles.paramLabel}>Milliseconds</Text>
           <NumericInput
             style={styles.numInput}
-            value={action.durationMs}
+            value={action.durationMs as number}
             min={0}
             onChange={(n) => {
               onChange(index, { type: 'delay', durationMs: n });
@@ -404,6 +420,62 @@ export default function ScriptActionRow({
             onChange(index, { ...action, actions: nested });
           })}
         </View>
+      </View>
+    );
+  }
+
+  if (action.type === 'hold') {
+    const { buttons } = action;
+    const usedActions = new Set(buttons.map((b) => b.action));
+    return (
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='hold'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Buttons</Text>
+          <ButtonPicker
+            buttons={buttons}
+            gamepadIndex={gamepadIndex}
+            addOptions={ACTION_OPTIONS.map((o) => ({
+              ...o,
+              disabled: usedActions.has(o.value),
+            }))}
+            onRemoveButton={(bi) => {
+              onChange(index, {
+                ...action,
+                buttons: buttons.filter((_, j) => j !== bi),
+              });
+            }}
+            onAddButton={(a) => {
+              onChange(index, {
+                ...action,
+                buttons: [
+                  ...buttons,
+                  { type: 'action', gamepadIndex, action: a },
+                ],
+              });
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (action.type === 'suspend') {
+    return (
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='suspend'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
       </View>
     );
   }

@@ -55,6 +55,12 @@ export function runScript(script: GameScript): ScriptHandle {
           }
           break;
         case 'delay': {
+          if (step.durationMs === 'infinite') {
+            await new Promise<void>(() => {
+              /* never resolves — cancel via releaseAll */
+            });
+            return;
+          }
           scheduledMs += step.durationMs;
           const remaining = startTime + scheduledMs - Date.now();
           if (remaining > 0) {
