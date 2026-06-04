@@ -71,6 +71,8 @@ function collectScriptIndices(
       for (const btn of step.buttons) {
         indices.add(btn.gamepadIndex);
       }
+    } else if (step.type === 'point' || step.type === 'rotate') {
+      indices.add(step.gamepadIndex);
     } else if (step.type === 'loop') {
       collectScriptIndices(step.actions, indices);
     }

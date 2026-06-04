@@ -45,6 +45,7 @@ runSuites([
   path.join(__dirname, 'suites', 'gamescript-extended.cjs'),
   path.join(__dirname, 'suites', 'gamescript-timing.cjs'),
   path.join(__dirname, 'suites', 'gamescript-hold.cjs'),
+  path.join(__dirname, 'suites', 'gamescript-stick.cjs'),
   path.join(__dirname, 'suites', 'game-preset-sync.cjs'),
   path.join(__dirname, 'suites', 'game-name-clear.cjs'),
   path.join(__dirname, 'suites', 'script-badge.cjs'),

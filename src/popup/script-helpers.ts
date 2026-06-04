@@ -307,6 +307,12 @@ function remapActions(
         buttons: a.buttons.map((b) => ({ ...b, gamepadIndex: slotIndex })),
       };
     }
+    if (a.type === 'point') {
+      return { ...a, gamepadIndex: slotIndex };
+    }
+    if (a.type === 'rotate') {
+      return { ...a, gamepadIndex: slotIndex };
+    }
     if (a.type === 'loop') {
       return { ...a, actions: remapActions(a.actions, slotIndex) };
     }

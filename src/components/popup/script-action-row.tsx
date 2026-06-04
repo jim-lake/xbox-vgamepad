@@ -12,6 +12,7 @@ import { Badge } from '@/components/popup/binding-badges';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupScriptAction } from '@/types/popup';
 import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
+import StickInput from '@/components/popup/stick-input';
 
 import closeIcon from '@/assets/img/close.svg';
 
@@ -252,6 +253,27 @@ export default function ScriptActionRow({
         count: 'infinite',
         actions: action.type === 'loop' ? action.actions : [],
       });
+    } else if (val === 'point') {
+      onChange(index, {
+        type: 'point',
+        gamepadIndex,
+        stick: 'left',
+        x: 0,
+        y: 0,
+      });
+    } else if (val === 'rotate') {
+      onChange(index, {
+        type: 'rotate',
+        gamepadIndex,
+        stick: 'left',
+        startX: 0,
+        startY: 1,
+        endX: 0,
+        endY: 1,
+        directions: 8,
+        rotateMs: 500,
+        clockwise: true,
+      });
     }
   }
 
@@ -476,6 +498,126 @@ export default function ScriptActionRow({
             onRemove(index);
           }}
         />
+      </View>
+    );
+  }
+
+  if (action.type === 'point') {
+    const STICK_OPTIONS = [
+      { value: 'left', text: 'Left' },
+      { value: 'right', text: 'Right' },
+    ];
+    return (
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='point'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Stick</Text>
+          <Select
+            value={action.stick}
+            options={STICK_OPTIONS}
+            onChange={(v) => {
+              onChange(index, { ...action, stick: v as 'left' | 'right' });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>X/Y</Text>
+          <StickInput
+            value={{ x: action.x, y: action.y }}
+            onChange={(pos) => {
+              onChange(index, { ...action, x: pos.x, y: pos.y });
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (action.type === 'rotate') {
+    const STICK_OPTIONS = [
+      { value: 'left', text: 'Left' },
+      { value: 'right', text: 'Right' },
+    ];
+    const DIR_OPTIONS = [
+      { value: '4', text: '4' },
+      { value: '8', text: '8' },
+      { value: 'infinite', text: 'Smooth' },
+    ];
+    return (
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value='rotate'
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Stick</Text>
+          <Select
+            value={action.stick}
+            options={STICK_OPTIONS}
+            onChange={(v) => {
+              onChange(index, { ...action, stick: v as 'left' | 'right' });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Clockwise</Text>
+          <input
+            type='checkbox'
+            checked={action.clockwise}
+            onChange={(e) => {
+              onChange(index, { ...action, clockwise: e.target.checked });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Start X/Y</Text>
+          <StickInput
+            value={{ x: action.startX, y: action.startY }}
+            onChange={(pos) => {
+              onChange(index, { ...action, startX: pos.x, startY: pos.y });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>End X/Y</Text>
+          <StickInput
+            value={{ x: action.endX, y: action.endY }}
+            onChange={(pos) => {
+              onChange(index, { ...action, endX: pos.x, endY: pos.y });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Directions</Text>
+          <Select
+            value={String(action.directions)}
+            options={DIR_OPTIONS}
+            onChange={(v) => {
+              const d = v === 'infinite' ? 'infinite' : (Number(v) as 4 | 8);
+              onChange(index, { ...action, directions: d });
+            }}
+          />
+        </View>
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Duration (ms)</Text>
+          <NumericInput
+            style={styles.numInput}
+            value={action.rotateMs}
+            min={1}
+            onChange={(n) => {
+              onChange(index, { ...action, rotateMs: n });
+            }}
+          />
+        </View>
       </View>
     );
   }

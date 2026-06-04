@@ -39,6 +39,25 @@ export type ScriptAction<T = never> =
   | { type: 'up'; buttons: GamepadAction[] }
   | { type: 'delay'; durationMs: number | 'infinite' }
   | { type: 'loop'; count: number | 'infinite'; actions: ScriptAction<T>[] }
+  | {
+      type: 'point';
+      gamepadIndex: 0 | 1 | 2 | 3;
+      stick: 'left' | 'right';
+      x: number;
+      y: number;
+    }
+  | {
+      type: 'rotate';
+      gamepadIndex: 0 | 1 | 2 | 3;
+      stick: 'left' | 'right';
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+      directions: 4 | 8 | 'infinite';
+      rotateMs: number;
+      clockwise: boolean;
+    }
   | T;
 
 export type GameScript<T = ScriptAction> = {

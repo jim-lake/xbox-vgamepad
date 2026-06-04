@@ -613,10 +613,41 @@
 		if (axisInfo) sim.unpressDirection(axisInfo.stick, directionToAxis[axisInfo.direction]);
 	}
 	//#endregion
+	//#region src/tools/sweep.ts
+	function calcSweepMag(pos) {
+		return {
+			angle: Math.atan2(pos.y, pos.x),
+			magnitude: Math.max(Math.abs(pos.x), Math.abs(pos.y))
+		};
+	}
+	var TAU = Math.PI * 2;
+	/**
+	* @param t - Interpolation factor in [0, 1], where 0 returns start and 1 returns end
+	*/
+	function calcSweepPos(start, end, clockwise, t) {
+		let delta = end.angle - start.angle;
+		if (clockwise && delta > 0) delta -= TAU;
+		else if (!clockwise && delta < 0) delta += TAU;
+		const angle = start.angle + delta * t;
+		const mag = start.magnitude + (end.magnitude - start.magnitude) * t;
+		let x = Math.cos(angle);
+		let y = Math.sin(angle);
+		const s = 1 / Math.max(Math.abs(x), Math.abs(y));
+		x *= s;
+		y *= s;
+		return {
+			x: x * mag,
+			y: y * mag
+		};
+	}
+	//#endregion
 	//#region src/injected/script-runner.ts
+	var FPS_MS = 1e3 / 60;
 	function runScript(script) {
 		const state = { cancelled: false };
 		const held = [];
+		const pointedSticks = [];
+		const rotationTimeouts = [];
 		const startTime = Date.now();
 		let scheduledMs = 0;
 		function pressAction(action) {
@@ -631,6 +662,106 @@
 		function releaseAll() {
 			for (const action of [...held].reverse()) executeUnpress(action);
 			held.length = 0;
+			for (const p of pointedSticks) getSimulator(p.gamepadIndex).moveStick(p.stick, 0, 0);
+			pointedSticks.length = 0;
+			for (const tid of rotationTimeouts) clearTimeout(tid);
+			rotationTimeouts.length = 0;
+		}
+		function stickIndex(stick) {
+			return stick === "left" ? 0 : 1;
+		}
+		function executeRotate(step) {
+			const sIdx = stickIndex(step.stick);
+			const sim = getSimulator(step.gamepadIndex);
+			const rotIdx = rotationTimeouts.length;
+			rotationTimeouts.push(void 0);
+			pointedSticks.push({
+				gamepadIndex: step.gamepadIndex,
+				stick: sIdx
+			});
+			if (step.directions === "infinite") {
+				const startAM = calcSweepMag({
+					x: step.startX,
+					y: step.startY
+				});
+				let endAM = calcSweepMag({
+					x: step.endX,
+					y: step.endY
+				});
+				if (step.startX === step.endX && step.startY === step.endY) {
+					const delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+					endAM = {
+						angle: startAM.angle + delta,
+						magnitude: endAM.magnitude
+					};
+				}
+				const t0 = Date.now();
+				sim.moveStick(sIdx, step.startX, step.startY);
+				function tick() {
+					if (state.cancelled) return;
+					const t = (Date.now() - t0) / step.rotateMs;
+					if (t >= 1) {
+						sim.moveStick(sIdx, step.endX, step.endY);
+						return;
+					}
+					const pos = calcSweepPos(startAM, endAM, step.clockwise, t);
+					sim.moveStick(sIdx, pos.x, pos.y);
+					rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
+				}
+				rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
+			} else {
+				const n = step.directions;
+				const startAngle = Math.atan2(step.startY, step.startX);
+				let delta = Math.atan2(step.endY, step.endX) - startAngle;
+				if (step.clockwise && delta > 0) delta -= Math.PI * 2;
+				if (!step.clockwise && delta < 0) delta += Math.PI * 2;
+				if (step.startX === step.endX && step.startY === step.endY) delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+				const snapStep = Math.PI * 2 / n;
+				const positions = [{
+					x: step.startX,
+					y: step.startY
+				}];
+				const dir = step.clockwise ? -1 : 1;
+				let firstSnap;
+				if (step.clockwise) {
+					firstSnap = Math.floor(startAngle / snapStep) * snapStep;
+					if (firstSnap >= startAngle) firstSnap -= snapStep;
+				} else {
+					firstSnap = Math.ceil(startAngle / snapStep) * snapStep;
+					if (firstSnap <= startAngle) firstSnap += snapStep;
+				}
+				let current = firstSnap;
+				const absTotal = Math.abs(delta);
+				while (true) {
+					if (Math.abs(current - startAngle) >= absTotal - 1e-4) break;
+					const mag = 1;
+					const cos = Math.cos(current);
+					const sin = Math.sin(current);
+					const s = 1 / Math.max(Math.abs(cos), Math.abs(sin));
+					positions.push({
+						x: Math.round(cos * s * mag * 1e3) / 1e3,
+						y: Math.round(sin * s * mag * 1e3) / 1e3
+					});
+					current += dir * snapStep;
+				}
+				positions.push({
+					x: step.endX,
+					y: step.endY
+				});
+				const stepInterval = step.rotateMs / (positions.length - 1);
+				let posIdx = 0;
+				const first = positions[0];
+				if (first) sim.moveStick(sIdx, first.x, first.y);
+				function tick() {
+					if (state.cancelled) return;
+					posIdx++;
+					if (posIdx >= positions.length) return;
+					const p = positions[posIdx];
+					if (p) sim.moveStick(sIdx, p.x, p.y);
+					if (posIdx < positions.length - 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+				}
+				if (positions.length > 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+			}
 		}
 		async function runActions(actions) {
 			for (const step of actions) {
@@ -652,6 +783,18 @@
 						if (remaining > 0) await delay(remaining);
 						break;
 					}
+					case "point": {
+						const sIdx = stickIndex(step.stick);
+						getSimulator(step.gamepadIndex).moveStick(sIdx, step.x, step.y);
+						pointedSticks.push({
+							gamepadIndex: step.gamepadIndex,
+							stick: sIdx
+						});
+						break;
+					}
+					case "rotate":
+						executeRotate(step);
+						break;
 					case "loop":
 						if (step.count === "infinite") while (!state.cancelled) await runActions(step.actions);
 						else for (let i = 0; i < step.count; i++) {
@@ -932,6 +1075,7 @@
 	}
 	function collectScriptIndices(actions, indices) {
 		for (const step of actions) if (step.type === "down" || step.type === "up") for (const btn of step.buttons) indices.add(btn.gamepadIndex);
+		else if (step.type === "point" || step.type === "rotate") indices.add(step.gamepadIndex);
 		else if (step.type === "loop") collectScriptIndices(step.actions, indices);
 	}
 	function getActiveGamepadIndices(config) {

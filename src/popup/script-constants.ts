@@ -67,6 +67,8 @@ export const TYPE_OPTIONS = [
   { value: 'loop', text: 'Repeat' },
   { value: 'loop_forever', text: 'Forever' },
   { value: 'delay', text: 'Delay' },
+  { value: 'point', text: 'Point' },
+  { value: 'rotate', text: 'Rotate' },
   { value: 'down', text: 'Press Key' },
   { value: 'up', text: 'Release Key' },
 ];
