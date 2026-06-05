@@ -2,7 +2,7 @@ import React from 'react';
 import { TextInput } from '@/components/base_components';
 import type { StyleInput } from '@/components/base_components';
 
-interface NumericInputProps {
+interface NumberInputProps {
   style?: StyleInput;
   value: number;
   min?: number;
@@ -11,14 +11,14 @@ interface NumericInputProps {
   onChange: (n: number) => void;
 }
 
-export default function NumericInput({
+export default function NumberInput({
   style,
   value,
   min,
   max,
   integer = false,
   onChange,
-}: NumericInputProps) {
+}: NumberInputProps) {
   const [state, setState] = React.useState({ text: String(value), value });
 
   if (value !== state.value) {

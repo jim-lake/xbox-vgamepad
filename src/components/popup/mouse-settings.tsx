@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View } from '@/components/base_components';
+import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
-import Range from '@/components/range';
+import RangeNumberInput from './range-number-input';
 import FormRow from './form-row';
 import type { MouseControlTarget } from '@/types/gamepad';
 import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
@@ -17,12 +17,6 @@ const styles = StyleSheet.create({
   optionInactiveText: { color: 'var(--text-primary)' },
   optionActive: { backgroundColor: 'var(--chip-active-bg)' },
   optionActiveText: { color: 'var(--text-on-color)' },
-  sensitivityValue: {
-    color: 'var(--text-primary)',
-    fontSize: '1.4rem',
-    width: '3rem',
-  },
-  rangeInput: { flex: 1, margin: '0.6rem 0' },
 });
 
 interface Props {
@@ -74,8 +68,7 @@ export default function MouseSettings({
         </View>
       </FormRow>
       <FormRow label='Sensitivity'>
-        <Range
-          style={styles.rangeInput}
+        <RangeNumberInput
           min={1}
           max={1000}
           value={displaySensitivity}
@@ -83,7 +76,6 @@ export default function MouseSettings({
             onChangeSensitivity(1001 - v);
           }}
         />
-        <Text style={styles.sensitivityValue}>{displaySensitivity}</Text>
       </FormRow>
     </View>
   );

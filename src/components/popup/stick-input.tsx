@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from '@/components/base_components';
 import XYPad from '@/components/xy_pad';
 import type { XY } from '@/components/xy_pad';
-import NumericInput from '@/components/numeric-input';
+import NumberInput from '@/components/number-input';
 import React from 'react';
 
 interface StickInputProps {
@@ -48,7 +48,7 @@ export default function StickInput({ value, onChange }: StickInputProps) {
       <View style={styles.fields}>
         <View style={styles.fieldRow}>
           <Text style={styles.label}>X</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={local.x}
             min={-1}
@@ -60,7 +60,7 @@ export default function StickInput({ value, onChange }: StickInputProps) {
         </View>
         <View style={styles.fieldRow}>
           <Text style={styles.label}>Y</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={local.y}
             min={-1}

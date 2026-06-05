@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
 import Switch from '@/components/switch';
-import NumericInput from '@/components/numeric-input';
+import NumberInput from '@/components/number-input';
 import { Badge } from '@/components/popup/binding-badges';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupScriptAction } from '@/types/popup';
@@ -251,7 +251,7 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={action.durationMs}
             min={0}
@@ -304,7 +304,7 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Speed (ms)</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={action.speed}
             min={64}
@@ -357,7 +357,7 @@ export default function ScriptActionRow({
         />
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Milliseconds</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={action.durationMs as number}
             min={0}
@@ -384,7 +384,7 @@ export default function ScriptActionRow({
         {!isForever && (
           <View style={styles.params}>
             <Text style={styles.paramLabel}>Times</Text>
-            <NumericInput
+            <NumberInput
               style={styles.numInput}
               value={action.count as number}
               min={1}
@@ -553,7 +553,7 @@ export default function ScriptActionRow({
         </View>
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Duration (ms)</Text>
-          <NumericInput
+          <NumberInput
             style={styles.numInput}
             value={action.rotateMs}
             min={1}
