@@ -1,13 +1,9 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-} from '@/components/base_components';
-import type { StyleInput } from '@/components/base_components';
+import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
+import Switch from '@/components/switch';
+import NumericInput from '@/components/numeric-input';
 import { Badge } from '@/components/popup/binding-badges';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupScriptAction } from '@/types/popup';
@@ -16,54 +12,16 @@ import StickInput from '@/components/popup/stick-input';
 
 import closeIcon from '@/assets/img/close.svg';
 
-interface NumericInputProps {
-  style?: StyleInput;
-  value: number;
-  min?: number;
-  max?: number;
-  integer?: boolean;
-  onChange: (n: number) => void;
-}
+const STICK_OPTIONS = [
+  { value: 'left', text: 'Left' },
+  { value: 'right', text: 'Right' },
+];
 
-function NumericInput({
-  style,
-  value,
-  min,
-  max,
-  integer = false,
-  onChange,
-}: NumericInputProps) {
-  const [state, setState] = React.useState({ text: String(value), value });
-
-  if (value !== state.value) {
-    const parsed = integer ? parseInt(state.text, 10) : parseFloat(state.text);
-    if (parsed !== value) {
-      setState({ text: String(value), value });
-    } else {
-      setState({ text: state.text, value });
-    }
-  }
-
-  return (
-    <TextInput
-      style={style}
-      value={state.text}
-      onChangeText={(v) => {
-        const n = integer ? parseInt(v, 10) : parseFloat(v);
-        if (
-          !isNaN(n) &&
-          (min === undefined || n >= min) &&
-          (max === undefined || n <= max)
-        ) {
-          setState({ text: v, value: n });
-          onChange(n);
-        } else {
-          setState({ text: v, value: state.value });
-        }
-      }}
-    />
-  );
-}
+const DIR_OPTIONS = [
+  { value: '4', text: '4' },
+  { value: '8', text: '8' },
+  { value: 'infinite', text: 'Smooth' },
+];
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', paddingTop: '0.5rem' },
@@ -503,10 +461,6 @@ export default function ScriptActionRow({
   }
 
   if (action.type === 'point') {
-    const STICK_OPTIONS = [
-      { value: 'left', text: 'Left' },
-      { value: 'right', text: 'Right' },
-    ];
     return (
       <View style={[styles.container, wrap]}>
         <ActionHeader
@@ -540,15 +494,6 @@ export default function ScriptActionRow({
   }
 
   if (action.type === 'rotate') {
-    const STICK_OPTIONS = [
-      { value: 'left', text: 'Left' },
-      { value: 'right', text: 'Right' },
-    ];
-    const DIR_OPTIONS = [
-      { value: '4', text: '4' },
-      { value: '8', text: '8' },
-      { value: 'infinite', text: 'Smooth' },
-    ];
     return (
       <View style={[styles.container, wrap]}>
         <ActionHeader
@@ -570,11 +515,10 @@ export default function ScriptActionRow({
         </View>
         <View style={styles.params}>
           <Text style={styles.paramLabel}>Clockwise</Text>
-          <input
-            type='checkbox'
-            checked={action.clockwise}
-            onChange={(e) => {
-              onChange(index, { ...action, clockwise: e.target.checked });
+          <Switch
+            value={action.clockwise}
+            onValueChange={(v) => {
+              onChange(index, { ...action, clockwise: v });
             }}
           />
         </View>
