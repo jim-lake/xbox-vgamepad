@@ -190,6 +190,214 @@ module.exports = async function ({
     expect(last).toBe(0);
   });
 
+  // --- Finite script completion decrements badge ---
+
+  // Config with a finite on_down script (press X, delay, release X)
+  const finiteOnDownConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'on_down',
+          actions: [
+            {
+              type: 'down',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+            { type: 'delay', durationMs: 80 },
+            {
+              type: 'up',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  console.log('  [Script Badge - finite script completion]');
+
+  await assert(
+    'on_down finite script: badge decrements to 0 after script completes',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-finite-test',
+        gamepadConfig: finiteOnDownConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+      // Should go to 1 when started, then back to 0 when done
+      const counts = await waitForCount(0, 3000);
+      expect(counts.includes(1)).toBeTrue();
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
+  // Config with a finite on_up script
+  const finiteOnUpConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'on_up',
+          actions: [
+            {
+              type: 'down',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+            { type: 'delay', durationMs: 80 },
+            {
+              type: 'up',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  await assert(
+    'on_up finite script: badge decrements to 0 after script completes',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-finite-up-test',
+        gamepadConfig: finiteOnUpConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+      // on_up fires on key release — should go to 1 then back to 0
+      const counts = await waitForCount(0, 3000);
+      expect(counts.includes(1)).toBeTrue();
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
+  // Config with a finite toggle script
+  const finiteToggleConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'toggle',
+          actions: [
+            {
+              type: 'down',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+            { type: 'delay', durationMs: 80 },
+            {
+              type: 'up',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  await assert(
+    'toggle finite script: badge decrements to 0 after script completes',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-finite-toggle-test',
+        gamepadConfig: finiteToggleConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+      // Should go to 1 then back to 0 when done
+      const counts = await waitForCount(0, 3000);
+      expect(counts.includes(1)).toBeTrue();
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
+  await assert(
+    'toggle finite script: can re-fire after natural completion',
+    async () => {
+      // Script already completed above — pressing again should start fresh
+      await clearRecordedCounts();
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+      // Should go to 1 (restarted) then back to 0 (completed again)
+      const counts = await waitForCount(0, 3000);
+      expect(counts.includes(1)).toBeTrue();
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
+  // Config with a finite held script (longer delay so we can test key-up after completion)
+  const finiteHeldConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'held',
+          actions: [
+            {
+              type: 'down',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+            { type: 'delay', durationMs: 80 },
+            {
+              type: 'up',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'x' }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  await assert(
+    'held finite script: badge decrements to 0 when script finishes while key held',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-finite-held-test',
+        gamepadConfig: finiteHeldConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      // Hold key down — script starts and finishes while key is still held
+      await page.keyboard.down('t');
+      const counts = await waitForCount(0, 3000);
+      expect(counts.includes(1)).toBeTrue();
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+
+      // Release key after script already finished — should not error or change count
+      await clearRecordedCounts();
+      await page.keyboard.up('t');
+      await new Promise((r) => setTimeout(r, 100));
+      const afterRelease = await getRecordedCounts();
+      // Count stays at 0 (the notifyCount from key-up is harmless)
+      const finalCount =
+        afterRelease.length > 0 ? afterRelease[afterRelease.length - 1] : 0;
+      expect(finalCount).toBe(0);
+    }
+  );
+
   // Cleanup
   await releaseAll(page);
 };

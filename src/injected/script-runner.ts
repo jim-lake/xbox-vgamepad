@@ -5,6 +5,7 @@ import { calcSweepMag, calcSweepPos } from '@/tools/sweep';
 
 export interface ScriptHandle {
   cancel(): void;
+  onDone: (() => void) | undefined;
 }
 
 interface RunState {
@@ -249,13 +250,8 @@ export function runScript(script: GameScript): ScriptHandle {
     }
   }
 
-  void runActions(script.actions).then(() => {
-    if (!state.cancelled) {
-      releaseAll();
-    }
-  });
-
-  return {
+  const handle: ScriptHandle = {
+    onDone: undefined,
     cancel(): void {
       if (state.cancelled) {
         return;
@@ -264,6 +260,16 @@ export function runScript(script: GameScript): ScriptHandle {
       releaseAll();
     },
   };
+
+  void runActions(script.actions).then(() => {
+    if (!state.cancelled) {
+      releaseAll();
+      state.cancelled = true;
+      handle.onDone?.();
+    }
+  });
+
+  return handle;
 }
 
 function delay(ms: number): Promise<void> {
@@ -290,6 +296,10 @@ export class ScriptManager {
         const handle = runScript(script);
         this.running.set(key, handle);
         this.notifyCount();
+        handle.onDone = () => {
+          this.running.delete(key);
+          this.notifyCount();
+        };
         break;
       }
       case 'toggle': {
@@ -303,6 +313,11 @@ export class ScriptManager {
           this.running.set(key, handle);
           this.toggleActive.add(key);
           this.notifyCount();
+          handle.onDone = () => {
+            this.running.delete(key);
+            this.toggleActive.delete(key);
+            this.notifyCount();
+          };
         }
         break;
       }
@@ -311,6 +326,10 @@ export class ScriptManager {
         const handle = runScript(script);
         this.running.set(key, handle);
         this.notifyCount();
+        handle.onDone = () => {
+          this.running.delete(key);
+          this.notifyCount();
+        };
         break;
       }
       case 'on_up':
@@ -325,6 +344,10 @@ export class ScriptManager {
         const handle = runScript(script);
         this.running.set(key, handle);
         this.notifyCount();
+        handle.onDone = () => {
+          this.running.delete(key);
+          this.notifyCount();
+        };
         break;
       }
       case 'held': {

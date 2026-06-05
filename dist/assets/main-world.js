@@ -806,14 +806,22 @@
 				}
 			}
 		}
+		const handle = {
+			onDone: void 0,
+			cancel() {
+				if (state.cancelled) return;
+				state.cancelled = true;
+				releaseAll();
+			}
+		};
 		runActions(script.actions).then(() => {
-			if (!state.cancelled) releaseAll();
+			if (!state.cancelled) {
+				releaseAll();
+				state.cancelled = true;
+				handle.onDone?.();
+			}
 		});
-		return { cancel() {
-			if (state.cancelled) return;
-			state.cancelled = true;
-			releaseAll();
-		} };
+		return handle;
 	}
 	function delay(ms) {
 		return new Promise((resolve) => setTimeout(resolve, ms));
@@ -835,6 +843,10 @@
 					const handle = runScript(script);
 					this.running.set(key, handle);
 					this.notifyCount();
+					handle.onDone = () => {
+						this.running.delete(key);
+						this.notifyCount();
+					};
 					break;
 				}
 				case "toggle":
@@ -848,6 +860,11 @@
 						this.running.set(key, handle);
 						this.toggleActive.add(key);
 						this.notifyCount();
+						handle.onDone = () => {
+							this.running.delete(key);
+							this.toggleActive.delete(key);
+							this.notifyCount();
+						};
 					}
 					break;
 				case "held": {
@@ -855,6 +872,10 @@
 					const handle = runScript(script);
 					this.running.set(key, handle);
 					this.notifyCount();
+					handle.onDone = () => {
+						this.running.delete(key);
+						this.notifyCount();
+					};
 					break;
 				}
 				case "on_up": break;
@@ -867,6 +888,10 @@
 					const handle = runScript(script);
 					this.running.set(key, handle);
 					this.notifyCount();
+					handle.onDone = () => {
+						this.running.delete(key);
+						this.notifyCount();
+					};
 					break;
 				}
 				case "held":
