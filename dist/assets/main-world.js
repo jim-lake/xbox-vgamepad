@@ -648,6 +648,7 @@
 		const held = [];
 		const pointedSticks = [];
 		const rotationTimeouts = [];
+		const rotationPromises = [];
 		const startTime = Date.now();
 		let scheduledMs = 0;
 		function pressAction(action) {
@@ -680,89 +681,103 @@
 				stick: sIdx
 			});
 			const cw = !step.clockwise;
-			if (step.directions === "infinite") {
-				const startAM = calcSweepMag({
-					x: step.startX,
-					y: step.startY
-				});
-				let endAM = calcSweepMag({
-					x: step.endX,
-					y: step.endY
-				});
-				if (step.startX === step.endX && step.startY === step.endY) {
-					const delta = cw ? -Math.PI * 2 : Math.PI * 2;
-					endAM = {
-						angle: startAM.angle + delta,
-						magnitude: endAM.magnitude
-					};
-				}
-				const t0 = Date.now();
-				sim.moveStick(sIdx, step.startX, step.startY);
-				function tick() {
-					if (state.cancelled) return;
-					const t = (Date.now() - t0) / step.rotateMs;
-					if (t >= 1) {
-						sim.moveStick(sIdx, step.endX, step.endY);
-						return;
-					}
-					const pos = calcSweepPos(startAM, endAM, cw, t);
-					sim.moveStick(sIdx, pos.x, pos.y);
-					rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
-				}
-				rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
-			} else {
-				const n = step.directions;
-				const startAngle = Math.atan2(step.startY, step.startX);
-				let delta = Math.atan2(step.endY, step.endX) - startAngle;
-				if (cw && delta > 0) delta -= Math.PI * 2;
-				if (!cw && delta < 0) delta += Math.PI * 2;
-				if (step.startX === step.endX && step.startY === step.endY) delta = cw ? -Math.PI * 2 : Math.PI * 2;
-				const snapStep = Math.PI * 2 / n;
-				const positions = [{
-					x: step.startX,
-					y: step.startY
-				}];
-				const dir = cw ? -1 : 1;
-				let firstSnap;
-				if (cw) {
-					firstSnap = Math.floor(startAngle / snapStep) * snapStep;
-					if (firstSnap >= startAngle) firstSnap -= snapStep;
-				} else {
-					firstSnap = Math.ceil(startAngle / snapStep) * snapStep;
-					if (firstSnap <= startAngle) firstSnap += snapStep;
-				}
-				let current = firstSnap;
-				const absTotal = Math.abs(delta);
-				while (true) {
-					if (Math.abs(current - startAngle) >= absTotal - 1e-4) break;
-					const mag = 1;
-					const cos = Math.cos(current);
-					const sin = Math.sin(current);
-					const s = 1 / Math.max(Math.abs(cos), Math.abs(sin));
-					positions.push({
-						x: Math.round(cos * s * mag * 1e3) / 1e3,
-						y: Math.round(sin * s * mag * 1e3) / 1e3
+			return new Promise((resolve) => {
+				if (step.directions === "infinite") {
+					const startAM = calcSweepMag({
+						x: step.startX,
+						y: step.startY
 					});
-					current += dir * snapStep;
+					let endAM = calcSweepMag({
+						x: step.endX,
+						y: step.endY
+					});
+					if (step.startX === step.endX && step.startY === step.endY) {
+						const delta = cw ? -Math.PI * 2 : Math.PI * 2;
+						endAM = {
+							angle: startAM.angle + delta,
+							magnitude: endAM.magnitude
+						};
+					}
+					const t0 = Date.now();
+					sim.moveStick(sIdx, step.startX, step.startY);
+					function tick() {
+						if (state.cancelled) {
+							resolve();
+							return;
+						}
+						const t = (Date.now() - t0) / step.rotateMs;
+						if (t >= 1) {
+							sim.moveStick(sIdx, step.endX, step.endY);
+							resolve();
+							return;
+						}
+						const pos = calcSweepPos(startAM, endAM, cw, t);
+						sim.moveStick(sIdx, pos.x, pos.y);
+						rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
+					}
+					rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
+				} else {
+					const n = step.directions;
+					const startAngle = Math.atan2(step.startY, step.startX);
+					let delta = Math.atan2(step.endY, step.endX) - startAngle;
+					if (cw && delta > 0) delta -= Math.PI * 2;
+					if (!cw && delta < 0) delta += Math.PI * 2;
+					if (step.startX === step.endX && step.startY === step.endY) delta = cw ? -Math.PI * 2 : Math.PI * 2;
+					const snapStep = Math.PI * 2 / n;
+					const positions = [{
+						x: step.startX,
+						y: step.startY
+					}];
+					const dir = cw ? -1 : 1;
+					let firstSnap;
+					if (cw) {
+						firstSnap = Math.floor(startAngle / snapStep) * snapStep;
+						if (firstSnap >= startAngle) firstSnap -= snapStep;
+					} else {
+						firstSnap = Math.ceil(startAngle / snapStep) * snapStep;
+						if (firstSnap <= startAngle) firstSnap += snapStep;
+					}
+					let current = firstSnap;
+					const absTotal = Math.abs(delta);
+					while (true) {
+						if (Math.abs(current - startAngle) >= absTotal - 1e-4) break;
+						const mag = 1;
+						const cos = Math.cos(current);
+						const sin = Math.sin(current);
+						const s = 1 / Math.max(Math.abs(cos), Math.abs(sin));
+						positions.push({
+							x: Math.round(cos * s * mag * 1e3) / 1e3,
+							y: Math.round(sin * s * mag * 1e3) / 1e3
+						});
+						current += dir * snapStep;
+					}
+					positions.push({
+						x: step.endX,
+						y: step.endY
+					});
+					const stepInterval = step.rotateMs / (positions.length - 1);
+					let posIdx = 0;
+					const first = positions[0];
+					if (first) sim.moveStick(sIdx, first.x, first.y);
+					function tick() {
+						if (state.cancelled) {
+							resolve();
+							return;
+						}
+						posIdx++;
+						if (posIdx >= positions.length) {
+							resolve();
+							return;
+						}
+						const p = positions[posIdx];
+						if (p) sim.moveStick(sIdx, p.x, p.y);
+						if (posIdx < positions.length - 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+						else resolve();
+					}
+					if (positions.length > 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+					else resolve();
 				}
-				positions.push({
-					x: step.endX,
-					y: step.endY
-				});
-				const stepInterval = step.rotateMs / (positions.length - 1);
-				let posIdx = 0;
-				const first = positions[0];
-				if (first) sim.moveStick(sIdx, first.x, first.y);
-				function tick() {
-					if (state.cancelled) return;
-					posIdx++;
-					if (posIdx >= positions.length) return;
-					const p = positions[posIdx];
-					if (p) sim.moveStick(sIdx, p.x, p.y);
-					if (posIdx < positions.length - 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
-				}
-				if (positions.length > 1) rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
-			}
+			});
 		}
 		async function runActions(actions) {
 			for (const step of actions) {
@@ -794,7 +809,7 @@
 						break;
 					}
 					case "rotate":
-						executeRotate(step);
+						rotationPromises.push(executeRotate(step));
 						break;
 					case "loop":
 						if (step.count === "infinite") while (!state.cancelled) await runActions(step.actions);
@@ -814,7 +829,8 @@
 				releaseAll();
 			}
 		};
-		runActions(script.actions).then(() => {
+		runActions(script.actions).then(async () => {
+			if (!state.cancelled && rotationPromises.length > 0) await Promise.all(rotationPromises);
 			if (!state.cancelled) {
 				releaseAll();
 				state.cancelled = true;

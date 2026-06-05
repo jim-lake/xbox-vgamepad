@@ -19,6 +19,7 @@ export function runScript(script: GameScript): ScriptHandle {
   const held: GamepadAction[] = [];
   const pointedSticks: { gamepadIndex: 0 | 1 | 2 | 3; stick: number }[] = [];
   const rotationTimeouts: ReturnType<typeof setTimeout>[] = [];
+  const rotationPromises: Promise<void>[] = [];
   const startTime = Date.now();
   let scheduledMs = 0;
 
@@ -59,7 +60,7 @@ export function runScript(script: GameScript): ScriptHandle {
 
   function executeRotate(
     step: Extract<ScriptAction, { type: 'rotate' }>
-  ): void {
+  ): Promise<void> {
     const sIdx = stickIndex(step.stick);
     const sim = getSimulator(step.gamepadIndex);
     const rotIdx = rotationTimeouts.length;
@@ -73,122 +74,132 @@ export function runScript(script: GameScript): ScriptHandle {
     // Gamepad Y is inverted (up = -1), so negate clockwise to match visual direction
     const cw = !step.clockwise;
 
-    if (step.directions === 'infinite') {
-      const startAM = calcSweepMag({ x: step.startX, y: step.startY });
-      let endAM = calcSweepMag({ x: step.endX, y: step.endY });
-      // Full circle when start === end
-      if (step.startX === step.endX && step.startY === step.endY) {
-        const delta = cw ? -Math.PI * 2 : Math.PI * 2;
-        endAM = { angle: startAM.angle + delta, magnitude: endAM.magnitude };
-      }
-      const t0 = Date.now();
-      sim.moveStick(sIdx, step.startX, step.startY);
+    return new Promise<void>((resolve) => {
+      if (step.directions === 'infinite') {
+        const startAM = calcSweepMag({ x: step.startX, y: step.startY });
+        let endAM = calcSweepMag({ x: step.endX, y: step.endY });
+        // Full circle when start === end
+        if (step.startX === step.endX && step.startY === step.endY) {
+          const delta = cw ? -Math.PI * 2 : Math.PI * 2;
+          endAM = { angle: startAM.angle + delta, magnitude: endAM.magnitude };
+        }
+        const t0 = Date.now();
+        sim.moveStick(sIdx, step.startX, step.startY);
 
-      function tick(): void {
-        if (state.cancelled) {
-          return;
+        function tick(): void {
+          if (state.cancelled) {
+            resolve();
+            return;
+          }
+          const t = (Date.now() - t0) / step.rotateMs;
+          if (t >= 1) {
+            sim.moveStick(sIdx, step.endX, step.endY);
+            resolve();
+            return;
+          }
+          const pos = calcSweepPos(startAM, endAM, cw, t);
+          sim.moveStick(sIdx, pos.x, pos.y);
+          rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
         }
-        const t = (Date.now() - t0) / step.rotateMs;
-        if (t >= 1) {
-          sim.moveStick(sIdx, step.endX, step.endY);
-          return;
-        }
-        const pos = calcSweepPos(startAM, endAM, cw, t);
-        sim.moveStick(sIdx, pos.x, pos.y);
         rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
-      }
-      rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
-    } else {
-      // Discrete mode (4 or 8)
-      const n = step.directions;
-      const startAngle = Math.atan2(step.startY, step.startX);
-      const endAngle = Math.atan2(step.endY, step.endX);
-
-      // Compute sweep delta
-      let delta = endAngle - startAngle;
-      if (cw && delta > 0) {
-        delta -= Math.PI * 2;
-      }
-      if (!cw && delta < 0) {
-        delta += Math.PI * 2;
-      }
-      // Full circle when start === end
-      if (step.startX === step.endX && step.startY === step.endY) {
-        delta = cw ? -Math.PI * 2 : Math.PI * 2;
-      }
-
-      // Build snap positions
-      const snapStep = (Math.PI * 2) / n;
-      const positions: { x: number; y: number }[] = [
-        { x: step.startX, y: step.startY },
-      ];
-
-      // Walk from startAngle in direction, collecting snap angles until we pass endAngle
-      const dir = cw ? -1 : 1;
-      // Find first snap after startAngle in the rotation direction
-      let firstSnap: number;
-      if (cw) {
-        firstSnap = Math.floor(startAngle / snapStep) * snapStep;
-        if (firstSnap >= startAngle) {
-          firstSnap -= snapStep;
-        }
       } else {
-        firstSnap = Math.ceil(startAngle / snapStep) * snapStep;
-        if (firstSnap <= startAngle) {
-          firstSnap += snapStep;
-        }
-      }
+        // Discrete mode (4 or 8)
+        const n = step.directions;
+        const startAngle = Math.atan2(step.startY, step.startX);
+        const endAngle = Math.atan2(step.endY, step.endX);
 
-      let current = firstSnap;
-      const absTotal = Math.abs(delta);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      while (true) {
-        const traveled = Math.abs(current - startAngle);
-        if (traveled >= absTotal - 0.0001) {
-          break;
+        // Compute sweep delta
+        let delta = endAngle - startAngle;
+        if (cw && delta > 0) {
+          delta -= Math.PI * 2;
         }
-        const mag = 1;
-        const cos = Math.cos(current);
-        const sin = Math.sin(current);
-        const s = 1 / Math.max(Math.abs(cos), Math.abs(sin));
-        positions.push({
-          x: Math.round(cos * s * mag * 1000) / 1000,
-          y: Math.round(sin * s * mag * 1000) / 1000,
-        });
-        current += dir * snapStep;
-      }
-
-      positions.push({ x: step.endX, y: step.endY });
-
-      const stepInterval = step.rotateMs / (positions.length - 1);
-      let posIdx = 0;
-
-      const first = positions[0];
-      if (first) {
-        sim.moveStick(sIdx, first.x, first.y);
-      }
-
-      function tick(): void {
-        if (state.cancelled) {
-          return;
+        if (!cw && delta < 0) {
+          delta += Math.PI * 2;
         }
-        posIdx++;
-        if (posIdx >= positions.length) {
-          return;
+        // Full circle when start === end
+        if (step.startX === step.endX && step.startY === step.endY) {
+          delta = cw ? -Math.PI * 2 : Math.PI * 2;
         }
-        const p = positions[posIdx];
-        if (p) {
-          sim.moveStick(sIdx, p.x, p.y);
+
+        // Build snap positions
+        const snapStep = (Math.PI * 2) / n;
+        const positions: { x: number; y: number }[] = [
+          { x: step.startX, y: step.startY },
+        ];
+
+        // Walk from startAngle in direction, collecting snap angles until we pass endAngle
+        const dir = cw ? -1 : 1;
+        // Find first snap after startAngle in the rotation direction
+        let firstSnap: number;
+        if (cw) {
+          firstSnap = Math.floor(startAngle / snapStep) * snapStep;
+          if (firstSnap >= startAngle) {
+            firstSnap -= snapStep;
+          }
+        } else {
+          firstSnap = Math.ceil(startAngle / snapStep) * snapStep;
+          if (firstSnap <= startAngle) {
+            firstSnap += snapStep;
+          }
         }
-        if (posIdx < positions.length - 1) {
+
+        let current = firstSnap;
+        const absTotal = Math.abs(delta);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        while (true) {
+          const traveled = Math.abs(current - startAngle);
+          if (traveled >= absTotal - 0.0001) {
+            break;
+          }
+          const mag = 1;
+          const cos = Math.cos(current);
+          const sin = Math.sin(current);
+          const s = 1 / Math.max(Math.abs(cos), Math.abs(sin));
+          positions.push({
+            x: Math.round(cos * s * mag * 1000) / 1000,
+            y: Math.round(sin * s * mag * 1000) / 1000,
+          });
+          current += dir * snapStep;
+        }
+
+        positions.push({ x: step.endX, y: step.endY });
+
+        const stepInterval = step.rotateMs / (positions.length - 1);
+        let posIdx = 0;
+
+        const first = positions[0];
+        if (first) {
+          sim.moveStick(sIdx, first.x, first.y);
+        }
+
+        function tick(): void {
+          if (state.cancelled) {
+            resolve();
+            return;
+          }
+          posIdx++;
+          if (posIdx >= positions.length) {
+            resolve();
+            return;
+          }
+          const p = positions[posIdx];
+          if (p) {
+            sim.moveStick(sIdx, p.x, p.y);
+          }
+          if (posIdx < positions.length - 1) {
+            rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+          } else {
+            resolve();
+          }
+        }
+
+        if (positions.length > 1) {
           rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
+        } else {
+          resolve();
         }
       }
-
-      if (positions.length > 1) {
-        rotationTimeouts[rotIdx] = setTimeout(tick, stepInterval);
-      }
-    }
+    });
   }
 
   async function runActions(actions: ScriptAction[]): Promise<void> {
@@ -228,7 +239,7 @@ export function runScript(script: GameScript): ScriptHandle {
           break;
         }
         case 'rotate':
-          executeRotate(step);
+          rotationPromises.push(executeRotate(step));
           break;
         case 'loop':
           if (step.count === 'infinite') {
@@ -261,7 +272,10 @@ export function runScript(script: GameScript): ScriptHandle {
     },
   };
 
-  void runActions(script.actions).then(() => {
+  void runActions(script.actions).then(async () => {
+    if (!state.cancelled && rotationPromises.length > 0) {
+      await Promise.all(rotationPromises);
+    }
     if (!state.cancelled) {
       releaseAll();
       state.cancelled = true;

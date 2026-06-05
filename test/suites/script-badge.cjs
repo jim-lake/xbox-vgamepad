@@ -398,6 +398,118 @@ module.exports = async function ({
     }
   );
 
+  // --- Rotate-only script: badge must not decrement until rotation finishes ---
+
+  // A rotate with no delay — badge should stay at 1 during rotation, then go to 0
+  const rotateOnlyConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'on_down',
+          actions: [
+            {
+              type: 'rotate',
+              gamepadIndex: 0,
+              stick: 'left',
+              startX: 0,
+              startY: 1,
+              endX: 0,
+              endY: 1,
+              directions: 'infinite',
+              rotateMs: 200,
+              clockwise: true,
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  console.log('  [Script Badge - rotate completion]');
+
+  await assert(
+    'on_down rotate-only script: badge stays 1 during rotation then decrements to 0',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-rotate-test',
+        gamepadConfig: rotateOnlyConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+
+      // Badge should be 1 initially (script running)
+      await waitForCount(1);
+      const midCounts = await getRecordedCounts();
+      expect(midCounts.includes(1)).toBeTrue();
+
+      // After rotation finishes (~200ms), badge should decrement to 0
+      const counts = await waitForCount(0, 3000);
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
+  // Rotate followed by a button press (no delay) — both run, then script ends
+  const rotateWithButtonConfig = {
+    mouseConfig: { mouseControls: [] },
+    keyboardConfig: {
+      KeyT: [
+        {
+          type: 'script',
+          activationType: 'on_down',
+          actions: [
+            {
+              type: 'rotate',
+              gamepadIndex: 0,
+              stick: 'left',
+              startX: 1,
+              startY: 0,
+              endX: -1,
+              endY: 0,
+              directions: 'infinite',
+              rotateMs: 200,
+              clockwise: true,
+            },
+            {
+              type: 'down',
+              buttons: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  await assert(
+    'on_down rotate+button script: badge decrements only after rotate finishes',
+    async () => {
+      await sendConfigToPage(page, {
+        type: 'ACTIVATE_GAMEPAD_CONFIG',
+        name: 'badge-rotate-btn-test',
+        gamepadConfig: rotateWithButtonConfig,
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      await clearRecordedCounts();
+
+      await page.keyboard.down('t');
+      await page.keyboard.up('t');
+
+      // Badge goes to 1
+      await waitForCount(1);
+
+      // After rotation completes, badge goes to 0
+      const counts = await waitForCount(0, 3000);
+      const last = counts[counts.length - 1];
+      expect(last).toBe(0);
+    }
+  );
+
   // Cleanup
   await releaseAll(page);
 };
