@@ -30,12 +30,13 @@ const styles = StyleSheet.create({
 
 interface BadgeProps {
   text: string;
+  title?: string;
   onRemove: () => void;
 }
 
-export function Badge({ text, onRemove }: BadgeProps) {
+export function Badge({ text, title, onRemove }: BadgeProps) {
   return (
-    <View style={styles.badge}>
+    <View style={styles.badge} {...(title !== undefined ? { title } : {})}>
       <Text style={styles.badgeText}>{text}</Text>
       <IconButton
         style={styles.deleteBtn}
@@ -49,22 +50,34 @@ export function Badge({ text, onRemove }: BadgeProps) {
 
 interface Props {
   codes: string[];
+  codeToLabels?: Record<string, string[]>;
   onAdd: () => void;
   onRemove: (code: string) => void;
 }
 
-export default function BindingBadges({ codes, onAdd, onRemove }: Props) {
+export default function BindingBadges({
+  codes,
+  codeToLabels,
+  onAdd,
+  onRemove,
+}: Props) {
   return (
     <View style={styles.container}>
-      {codes.map((code) => (
-        <Badge
-          key={code}
-          text={formatCode(code)}
-          onRemove={() => {
-            onRemove(code);
-          }}
-        />
-      ))}
+      {codes.map((code) => {
+        const labels = codeToLabels?.[code];
+        const title =
+          labels && labels.length > 1 ? labels.join(', ') : undefined;
+        return (
+          <Badge
+            key={code}
+            text={formatCode(code)}
+            {...(title !== undefined ? { title } : {})}
+            onRemove={() => {
+              onRemove(code);
+            }}
+          />
+        );
+      })}
       <IconButton
         style={styles.addBtn}
         source={plusIcon}

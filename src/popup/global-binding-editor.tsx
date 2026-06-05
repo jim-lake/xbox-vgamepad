@@ -30,6 +30,16 @@ export default function GlobalBindingEditor({
     null
   );
 
+  const codeToLabels = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const { action, label } of GLOBAL_ACTIONS) {
+      for (const code of globalBindings[action]) {
+        (map[code] ??= []).push(label);
+      }
+    }
+    return map;
+  }, [globalBindings]);
+
   React.useEffect(() => {
     if (listening === null) {
       return;
@@ -61,6 +71,7 @@ export default function GlobalBindingEditor({
           <FormRow key={action} label={label}>
             <BindingBadges
               codes={codes}
+              codeToLabels={codeToLabels}
               onAdd={() => {
                 setListening(action);
               }}

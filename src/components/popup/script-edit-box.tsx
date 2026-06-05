@@ -51,6 +51,7 @@ interface Props {
   script: PopupGameScript;
   boundKeys: string[];
   gamepadIndex: 0 | 1 | 2 | 3;
+  codeToLabels: Record<string, string[]>;
   onChange: (script: PopupGameScript) => void;
   onAddBinding: () => void;
   onRemoveBinding: (code: string) => void;
@@ -62,6 +63,7 @@ export default function ScriptEditBox({
   script,
   boundKeys,
   gamepadIndex,
+  codeToLabels,
   onChange,
   onAddBinding,
   onRemoveBinding,
@@ -82,6 +84,7 @@ export default function ScriptEditBox({
       <FormRow label='Buttons' style={styles.tallRow}>
         <BindingBadges
           codes={boundKeys}
+          codeToLabels={codeToLabels}
           onAdd={onAddBinding}
           onRemove={onRemoveBinding}
         />

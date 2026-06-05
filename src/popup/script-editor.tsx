@@ -21,6 +21,7 @@ interface Props {
   scriptBindings: ScriptBinding[];
   scripts: PopupScript[];
   gamepadIndex: 0 | 1 | 2 | 3;
+  codeToLabels: Record<string, string[]>;
   editingScriptId: string | null;
   listeningEntry: ScriptEntry | null;
   onEditingScriptIdChange: (id: string | null) => void;
@@ -35,6 +36,7 @@ export default function ScriptEditor({
   scriptBindings,
   scripts,
   gamepadIndex,
+  codeToLabels,
   editingScriptId,
   listeningEntry,
   onEditingScriptIdChange,
@@ -164,6 +166,7 @@ export default function ScriptEditor({
               script={entry.script}
               boundKeys={keyCodes}
               gamepadIndex={gamepadIndex}
+              codeToLabels={codeToLabels}
               onChange={(s) => {
                 handleScriptChange(ps.scriptId, s);
               }}
@@ -186,6 +189,7 @@ export default function ScriptEditor({
           <ScriptRow
             key={ps.scriptId}
             entry={entry}
+            codeToLabels={codeToLabels}
             onEdit={() => {
               onEditingScriptIdChange(ps.scriptId);
             }}

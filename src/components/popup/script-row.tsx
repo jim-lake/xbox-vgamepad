@@ -11,6 +11,7 @@ const styles = StyleSheet.create({
 
 interface Props {
   entry: ScriptEntry;
+  codeToLabels: Record<string, string[]>;
   onEdit: () => void;
   onAddBinding: () => void;
   onRemoveBinding: (code: string) => void;
@@ -18,6 +19,7 @@ interface Props {
 
 export default function ScriptRow({
   entry,
+  codeToLabels,
   onEdit,
   onAddBinding,
   onRemoveBinding,
@@ -27,6 +29,7 @@ export default function ScriptRow({
     <FormRow label={entry.script.name || '(unnamed)'}>
       <BindingBadges
         codes={boundKeys}
+        codeToLabels={codeToLabels}
         onAdd={onAddBinding}
         onRemove={onRemoveBinding}
       />

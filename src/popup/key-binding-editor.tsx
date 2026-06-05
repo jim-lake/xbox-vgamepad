@@ -5,40 +5,13 @@ import type { SlotBindings } from '@/types/popup';
 import BindingBadges from '@/components/popup/binding-badges';
 import FormRow from '@/components/popup/form-row';
 import KeyCaptureModal from '@/components/popup/key-capture-modal';
-
-const ACTION_LABELS: { action: GamepadActionName; label: string }[] = [
-  { action: 'a', label: 'A' },
-  { action: 'b', label: 'B' },
-  { action: 'x', label: 'X' },
-  { action: 'y', label: 'Y' },
-  { action: 'leftShoulder', label: 'LB' },
-  { action: 'rightShoulder', label: 'RB' },
-  { action: 'leftTrigger', label: 'LT' },
-  { action: 'rightTrigger', label: 'RT' },
-  { action: 'select', label: 'Select' },
-  { action: 'start', label: 'Start' },
-  { action: 'dpadUp', label: 'D-Up' },
-  { action: 'dpadDown', label: 'D-Down' },
-  { action: 'dpadLeft', label: 'D-Left' },
-  { action: 'dpadRight', label: 'D-Right' },
-  { action: 'leftStickPressed', label: 'LS Press' },
-  { action: 'rightStickPressed', label: 'RS Press' },
-  { action: 'leftStickUp', label: 'LS Up' },
-  { action: 'leftStickDown', label: 'LS Down' },
-  { action: 'leftStickLeft', label: 'LS Left' },
-  { action: 'leftStickRight', label: 'LS Right' },
-  { action: 'rightStickUp', label: 'RS Up' },
-  { action: 'rightStickDown', label: 'RS Down' },
-  { action: 'rightStickLeft', label: 'RS Left' },
-  { action: 'rightStickRight', label: 'RS Right' },
-  { action: 'home', label: 'Home' },
-  { action: 'toggleGamepad', label: 'Toggle Gamepad' },
-];
+import { ACTION_LABELS } from './action-labels';
 
 const styles = StyleSheet.create({ container: { flexDirection: 'column' } });
 
 interface Props {
   bindings: SlotBindings;
+  codeToLabels: Record<string, string[]>;
   onChange: (
     action: GamepadActionName,
     code: string,
@@ -46,7 +19,11 @@ interface Props {
   ) => void;
 }
 
-export default function KeyBindingEditor({ bindings, onChange }: Props) {
+export default function KeyBindingEditor({
+  bindings,
+  codeToLabels,
+  onChange,
+}: Props) {
   const [listening, setListening] = React.useState<GamepadActionName | null>(
     null
   );
@@ -115,6 +92,7 @@ export default function KeyBindingEditor({ bindings, onChange }: Props) {
           <FormRow key={action} label={label}>
             <BindingBadges
               codes={codes}
+              codeToLabels={codeToLabels}
               onAdd={() => {
                 setListening(action);
               }}

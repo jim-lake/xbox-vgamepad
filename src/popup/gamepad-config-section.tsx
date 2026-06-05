@@ -1,3 +1,4 @@
+import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import Select from '@/components/select';
 import Switch from '@/components/switch';
@@ -6,6 +7,8 @@ import MouseSettings from '@/components/popup/mouse-settings';
 import KeyBindingEditor from './key-binding-editor';
 import ScriptEditor from './script-editor';
 import type { ScriptEntry } from './script-helpers';
+import { isSentinelKey } from './script-helpers';
+import { ACTION_LABELS } from './action-labels';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupSlot, PopupScript, ScriptBinding } from '@/types/popup';
 
@@ -89,6 +92,28 @@ export default function GamepadConfigSection({
   onChangeMouseSensitivity,
   onRemove,
 }: Props) {
+  const codeToLabels = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const { action, label } of ACTION_LABELS) {
+      for (const code of slot.bindings[action]) {
+        (map[code] ??= []).push(label);
+      }
+    }
+    for (const binding of slot.scriptBindings) {
+      const ps = scripts.find((s) => s.scriptId === binding.scriptId);
+      if (!ps) {
+        continue;
+      }
+      const name = ps.script.name || '(unnamed)';
+      for (const code of binding.keyCodes) {
+        if (!isSentinelKey(code)) {
+          (map[code] ??= []).push(name);
+        }
+      }
+    }
+    return map;
+  }, [slot.bindings, slot.scriptBindings, scripts]);
+
   const mouseControls = slot.mouse.stick
     ? [
         {
@@ -149,7 +174,11 @@ export default function GamepadConfigSection({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Key Bindings</Text>
-        <KeyBindingEditor bindings={slot.bindings} onChange={onChangeBinding} />
+        <KeyBindingEditor
+          bindings={slot.bindings}
+          codeToLabels={codeToLabels}
+          onChange={onChangeBinding}
+        />
       </View>
 
       <View style={styles.section}>
@@ -158,6 +187,7 @@ export default function GamepadConfigSection({
           scriptBindings={slot.scriptBindings}
           scripts={scripts}
           gamepadIndex={slot.gamepadIndex}
+          codeToLabels={codeToLabels}
           editingScriptId={editingScriptId}
           listeningEntry={listeningScriptEntry}
           onEditingScriptIdChange={onEditingScriptIdChange}
