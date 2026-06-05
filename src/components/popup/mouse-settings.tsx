@@ -40,7 +40,6 @@ export default function MouseSettings({
   const target = mouseControls[0];
   const currentStick = target?.stick;
   const sensitivity = target?.sensitivity ?? DEFAULT_SENSITIVITY;
-  const displaySensitivity = 1001 - sensitivity;
 
   return (
     <View style={styles.container}>
@@ -71,10 +70,8 @@ export default function MouseSettings({
         <RangeNumberInput
           min={1}
           max={1000}
-          value={displaySensitivity}
-          onChange={(v) => {
-            onChangeSensitivity(1001 - v);
-          }}
+          value={sensitivity}
+          onChange={onChangeSensitivity}
         />
       </FormRow>
     </View>

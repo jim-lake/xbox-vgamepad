@@ -8,6 +8,10 @@ export interface Props {
   max: number;
   value: number;
   onChange: (value: number) => void;
+  onMouseDown?: (e: React.MouseEvent<HTMLInputElement>) => void;
+  onMouseUp?: (e: React.MouseEvent<HTMLInputElement>) => void;
+  onTouchStart?: (e: React.TouchEvent<HTMLInputElement>) => void;
+  onTouchEnd?: (e: React.TouchEvent<HTMLInputElement>) => void;
 }
 
 export default function Range({

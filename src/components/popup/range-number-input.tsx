@@ -1,3 +1,4 @@
+import React from 'react';
 import { StyleSheet, View } from '@/components/base_components';
 import Range from '@/components/range';
 import NumberInput from '@/components/number-input';
@@ -15,19 +16,38 @@ interface Props {
 }
 
 export default function RangeNumberInput({ min, max, value, onChange }: Props) {
+  const [dragValue, setDragValue] = React.useState<number | null>(null);
+  const displayValue = dragValue ?? value;
+
+  const handleRangeChange = React.useCallback((v: number) => {
+    setDragValue(v);
+  }, []);
+
+  const handleDragEnd = React.useCallback(
+    (
+      e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>
+    ) => {
+      setDragValue(null);
+      onChange(Number((e.target as HTMLInputElement).value));
+    },
+    [onChange]
+  );
+
   return (
     <View style={styles.container}>
       <Range
         style={styles.range}
         min={min}
         max={max}
-        value={value}
-        onChange={onChange}
+        value={displayValue}
+        onChange={handleRangeChange}
+        onMouseUp={handleDragEnd}
+        onTouchEnd={handleDragEnd}
       />
       <NumberInput
         min={min}
         max={max}
-        value={value}
+        value={displayValue}
         integer
         onChange={onChange}
       />
