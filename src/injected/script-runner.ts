@@ -69,12 +69,15 @@ export function runScript(script: GameScript): ScriptHandle {
     // Track for cleanup on releaseAll
     pointedSticks.push({ gamepadIndex: step.gamepadIndex, stick: sIdx });
 
+    // Gamepad Y is inverted (up = -1), so negate clockwise to match visual direction
+    const cw = !step.clockwise;
+
     if (step.directions === 'infinite') {
       const startAM = calcSweepMag({ x: step.startX, y: step.startY });
       let endAM = calcSweepMag({ x: step.endX, y: step.endY });
       // Full circle when start === end
       if (step.startX === step.endX && step.startY === step.endY) {
-        const delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+        const delta = cw ? -Math.PI * 2 : Math.PI * 2;
         endAM = { angle: startAM.angle + delta, magnitude: endAM.magnitude };
       }
       const t0 = Date.now();
@@ -89,7 +92,7 @@ export function runScript(script: GameScript): ScriptHandle {
           sim.moveStick(sIdx, step.endX, step.endY);
           return;
         }
-        const pos = calcSweepPos(startAM, endAM, step.clockwise, t);
+        const pos = calcSweepPos(startAM, endAM, cw, t);
         sim.moveStick(sIdx, pos.x, pos.y);
         rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
       }
@@ -102,15 +105,15 @@ export function runScript(script: GameScript): ScriptHandle {
 
       // Compute sweep delta
       let delta = endAngle - startAngle;
-      if (step.clockwise && delta > 0) {
+      if (cw && delta > 0) {
         delta -= Math.PI * 2;
       }
-      if (!step.clockwise && delta < 0) {
+      if (!cw && delta < 0) {
         delta += Math.PI * 2;
       }
       // Full circle when start === end
       if (step.startX === step.endX && step.startY === step.endY) {
-        delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+        delta = cw ? -Math.PI * 2 : Math.PI * 2;
       }
 
       // Build snap positions
@@ -120,10 +123,10 @@ export function runScript(script: GameScript): ScriptHandle {
       ];
 
       // Walk from startAngle in direction, collecting snap angles until we pass endAngle
-      const dir = step.clockwise ? -1 : 1;
+      const dir = cw ? -1 : 1;
       // Find first snap after startAngle in the rotation direction
       let firstSnap: number;
-      if (step.clockwise) {
+      if (cw) {
         firstSnap = Math.floor(startAngle / snapStep) * snapStep;
         if (firstSnap >= startAngle) {
           firstSnap -= snapStep;

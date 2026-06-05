@@ -17,12 +17,12 @@ const styles = StyleSheet.create({
   label: { fontSize: '1.3rem', fontWeight: '500', color: 'var(--text-muted)' },
   numInput: {
     color: 'var(--text-primary)',
-    fontSize: '1.3rem',
+    fontSize: '1.4rem',
     borderWidth: 1,
     borderRadius: '0.4rem',
-    padding: '0.3rem 0.5rem',
+    padding: '0.4rem 0.5rem',
     backgroundColor: 'var(--input-bg)',
-    width: '5.5rem',
+    width: '7rem',
   },
 });
 

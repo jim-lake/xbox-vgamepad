@@ -679,6 +679,7 @@
 				gamepadIndex: step.gamepadIndex,
 				stick: sIdx
 			});
+			const cw = !step.clockwise;
 			if (step.directions === "infinite") {
 				const startAM = calcSweepMag({
 					x: step.startX,
@@ -689,7 +690,7 @@
 					y: step.endY
 				});
 				if (step.startX === step.endX && step.startY === step.endY) {
-					const delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+					const delta = cw ? -Math.PI * 2 : Math.PI * 2;
 					endAM = {
 						angle: startAM.angle + delta,
 						magnitude: endAM.magnitude
@@ -704,7 +705,7 @@
 						sim.moveStick(sIdx, step.endX, step.endY);
 						return;
 					}
-					const pos = calcSweepPos(startAM, endAM, step.clockwise, t);
+					const pos = calcSweepPos(startAM, endAM, cw, t);
 					sim.moveStick(sIdx, pos.x, pos.y);
 					rotationTimeouts[rotIdx] = setTimeout(tick, FPS_MS);
 				}
@@ -713,17 +714,17 @@
 				const n = step.directions;
 				const startAngle = Math.atan2(step.startY, step.startX);
 				let delta = Math.atan2(step.endY, step.endX) - startAngle;
-				if (step.clockwise && delta > 0) delta -= Math.PI * 2;
-				if (!step.clockwise && delta < 0) delta += Math.PI * 2;
-				if (step.startX === step.endX && step.startY === step.endY) delta = step.clockwise ? -Math.PI * 2 : Math.PI * 2;
+				if (cw && delta > 0) delta -= Math.PI * 2;
+				if (!cw && delta < 0) delta += Math.PI * 2;
+				if (step.startX === step.endX && step.startY === step.endY) delta = cw ? -Math.PI * 2 : Math.PI * 2;
 				const snapStep = Math.PI * 2 / n;
 				const positions = [{
 					x: step.startX,
 					y: step.startY
 				}];
-				const dir = step.clockwise ? -1 : 1;
+				const dir = cw ? -1 : 1;
 				let firstSnap;
-				if (step.clockwise) {
+				if (cw) {
 					firstSnap = Math.floor(startAngle / snapStep) * snapStep;
 					if (firstSnap >= startAngle) firstSnap -= snapStep;
 				} else {
