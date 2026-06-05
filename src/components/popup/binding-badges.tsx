@@ -66,7 +66,7 @@ export default function BindingBadges({
       {codes.map((code) => {
         const labels = codeToLabels?.[code];
         const title =
-          labels && labels.length > 1 ? labels.join(', ') : undefined;
+          labels && labels.length > 0 ? labels.join(', ') : undefined;
         return (
           <Badge
             key={code}
