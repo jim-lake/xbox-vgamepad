@@ -57,7 +57,7 @@ interface StickInputProps {
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', gap: '0.5rem' },
-  pad: { width: 60, height: 60 },
+  pad: { width: '6rem', height: '6rem' },
   fields: { flexDirection: 'column', gap: '0.3rem' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: '0.3rem' },
   label: { fontSize: '1.2rem', color: 'var(--text-muted)' },

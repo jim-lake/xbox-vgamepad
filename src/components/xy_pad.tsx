@@ -7,8 +7,6 @@ import type { StyleInput } from './base_components';
 
 const styles = StyleSheet.create({
   xyPad: {
-    width: 300,
-    height: 300,
     position: 'relative',
     border: '1px solid #888',
     touchAction: 'none',
@@ -16,8 +14,8 @@ const styles = StyleSheet.create({
   },
   handle: {
     position: 'absolute',
-    width: 16,
-    height: 16,
+    width: 8,
+    height: 8,
     borderRadius: '50%',
     background: 'black',
     transform: 'translate(-50%, -50%)',
@@ -52,10 +50,8 @@ export default function XYPad(props: XYPadProps) {
       return;
     }
     const { x, y } = valueRef.current;
-    const px = ((x + 1) / 2) * pad.clientWidth;
-    const py = ((1 - y) / 2) * pad.clientHeight;
-    handle.style.left = `${px}px`;
-    handle.style.top = `${py}px`;
+    handle.style.left = `${((x + 1) / 2) * 100}%`;
+    handle.style.top = `${((1 - y) / 2) * 100}%`;
   });
 
   // Sync incoming controlled value → ref + DOM, but skip if a drag
