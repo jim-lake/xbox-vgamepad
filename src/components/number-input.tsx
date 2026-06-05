@@ -1,6 +1,18 @@
 import React from 'react';
-import { TextInput } from '@/components/base_components';
+import { StyleSheet, TextInput } from '@/components/base_components';
 import type { StyleInput } from '@/components/base_components';
+
+const styles = StyleSheet.create({
+  numberInput: {
+    color: 'var(--text-primary)',
+    fontSize: '1.4rem',
+    borderWidth: 1,
+    borderRadius: '0.4rem',
+    padding: '0.4rem 0.5rem',
+    backgroundColor: 'var(--input-bg)',
+    width: '7rem',
+  },
+});
 
 interface NumberInputProps {
   style?: StyleInput;
@@ -32,7 +44,7 @@ export default function NumberInput({
 
   return (
     <TextInput
-      style={style}
+      style={[styles.numberInput, style]}
       value={state.text}
       onChangeText={(v) => {
         const n = integer ? parseInt(v, 10) : parseFloat(v);

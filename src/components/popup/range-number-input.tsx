@@ -5,7 +5,6 @@ import NumberInput from '@/components/number-input';
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   range: { flex: 1, marginRight: '0.8rem' },
-  number: { width: '5rem' },
 });
 
 interface Props {
@@ -26,7 +25,6 @@ export default function RangeNumberInput({ min, max, value, onChange }: Props) {
         onChange={onChange}
       />
       <NumberInput
-        style={styles.number}
         min={min}
         max={max}
         value={value}
