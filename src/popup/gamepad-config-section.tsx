@@ -114,16 +114,6 @@ export default function GamepadConfigSection({
     return map;
   }, [slot.bindings, slot.scriptBindings, scripts]);
 
-  const mouseControls = slot.mouse.stick
-    ? [
-        {
-          stick: slot.mouse.stick,
-          gamepadIndex: slot.gamepadIndex,
-          sensitivity: slot.mouse.sensitivity,
-        },
-      ]
-    : [];
-
   return (
     <>
       <View style={styles.section}>
@@ -166,7 +156,7 @@ export default function GamepadConfigSection({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Mouse</Text>
         <MouseSettings
-          mouseControls={mouseControls}
+          mouse={slot.mouse}
           onChangeStick={onChangeMouseStick}
           onChangeSensitivity={onChangeMouseSensitivity}
         />

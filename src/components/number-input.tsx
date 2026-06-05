@@ -46,15 +46,25 @@ export default function NumberInput({
     <TextInput
       style={[styles.numberInput, style]}
       value={state.text}
+      onBlur={() => {
+        const n = integer ? parseInt(state.text, 10) : parseFloat(state.text);
+        const clamped = isNaN(n)
+          ? value
+          : Math.max(min ?? -Infinity, Math.min(max ?? Infinity, n));
+        setState({ text: String(clamped), value: clamped });
+        if (clamped !== value) {
+          onChange(clamped);
+        }
+      }}
       onChangeText={(v) => {
         const n = integer ? parseInt(v, 10) : parseFloat(v);
-        if (
-          !isNaN(n) &&
-          (min === undefined || n >= min) &&
-          (max === undefined || n <= max)
-        ) {
-          setState({ text: v, value: n });
-          onChange(n);
+        if (!isNaN(n)) {
+          const clamped = Math.max(
+            min ?? -Infinity,
+            Math.min(max ?? Infinity, n)
+          );
+          setState({ text: v, value: clamped });
+          onChange(clamped);
         } else {
           setState({ text: v, value: state.value });
         }

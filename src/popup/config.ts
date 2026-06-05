@@ -32,6 +32,7 @@ import { validateConfig } from './validate';
 import { deepEqual } from '@/tools/deep_equal';
 import { copyScriptForSlot, flattenScript, liftScript } from './script-helpers';
 import { sendActivateConfig, sendConfigChanged } from './messaging';
+import { errorLog } from '@/tools/log';
 
 const GLOBAL_ACTIONS = new Set<GamepadActionName>([
   'toggleAllGamepads',
@@ -176,7 +177,10 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
         bindings: slotBindings[idx],
         mouse: {
           stick: mouseControl?.stick,
-          sensitivity: mouseControl?.sensitivity ?? DEFAULT_SENSITIVITY,
+          sensitivity:
+            cfg.mouseSensitivity ??
+            mouseControl?.sensitivity ??
+            DEFAULT_SENSITIVITY,
         },
         scriptBindings,
       };
@@ -268,6 +272,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
   return {
     keyboardConfig,
     mouseConfig: { mouseControls },
+    mouseSensitivity: popup.slots[0].mouse.sensitivity,
     otherGamepadMode: popup.otherGamepadMode,
     ...(unboundScripts.length > 0 ? { unboundScripts } : {}),
     ...(popup.fakeFullscreen ? { fakeFullscreen: true } : {}),
@@ -302,6 +307,7 @@ async function savePopupConfig(
 ): Promise<GamepadConfig | null> {
   const cfg = popupConfigToGamepadConfig(popup);
   if (!validateConfig(cfg)) {
+    errorLog('savePopupConfig: validateConfig failed for', configName, cfg);
     return null;
   }
   await saveConfig(configName, cfg);

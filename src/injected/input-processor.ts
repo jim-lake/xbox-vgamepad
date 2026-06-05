@@ -4,6 +4,7 @@ import type {
   GameScript,
   ScriptAction,
 } from '@/types/gamepad';
+import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
 import { MSG_SOURCE } from '@/types/messages';
 import { getSimulator, updateVirtualSlots } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
@@ -100,7 +101,7 @@ let g_keyMap = new Map<string, GamepadAction[]>();
 let g_scriptMap = new Map<string, GameScript[]>();
 let g_scriptManager = new ScriptManager(onScriptCountChange);
 let g_mouseTarget: { stick: number; gamepadIndex: 0 | 1 | 2 | 3 } | null = null;
-let g_sensitivity = 10;
+let g_sensitivity = DEFAULT_SENSITIVITY;
 let g_active = false;
 let g_config: GamepadConfig | null = null;
 let g_activeIndices = new Set<0 | 1 | 2 | 3>();
@@ -157,8 +158,9 @@ function processMouseMovement(): void {
     g_stopTimer = null;
   }, MOUSE_STOP_MS);
 
-  const x = Math.max(-1, Math.min(1, g_accX / g_sensitivity));
-  const y = Math.max(-1, Math.min(1, g_accY / g_sensitivity));
+  const scale = g_sensitivity / 1000;
+  const x = Math.max(-1, Math.min(1, g_accX * scale));
+  const y = Math.max(-1, Math.min(1, g_accY * scale));
   g_accX = 0;
   g_accY = 0;
   if (g_mouseTarget !== null) {
@@ -400,7 +402,8 @@ export function activate(
 
   const prevMouseTarget = g_mouseTarget;
   const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
-  g_sensitivity = mouseTarget?.sensitivity ?? 10;
+  g_sensitivity =
+    config.mouseSensitivity ?? mouseTarget?.sensitivity ?? DEFAULT_SENSITIVITY;
   g_mouseTarget = mouseTarget
     ? {
         stick: mouseTarget.stick === 'left' ? 0 : 1,

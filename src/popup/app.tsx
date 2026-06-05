@@ -13,7 +13,7 @@ import {
   sendPopupOpened,
   sendToggleGamepad,
 } from './messaging';
-import { setLoggingEnabled } from '@/tools/log';
+import { setLoggingEnabled, errorLog } from '@/tools/log';
 import {
   loadAllPopupConfigs,
   saveAndBroadcastPopupConfig,
@@ -45,6 +45,7 @@ import GamepadConfigSection from './gamepad-config-section';
 import AdvancedSection from '@/components/popup/advanced-section';
 import GlobalSettingsPanel from '@/components/popup/global-settings-panel';
 import type { ScriptEntry } from './script-helpers';
+import { useLatestCallback } from '@/tools/latest_callback';
 
 const styles = StyleSheet.create({
   app: {
@@ -206,12 +207,13 @@ export default function App() {
     : (activeSlots[0] ?? 0);
   const activeSlot = activePopup.slots[activeSlotIndex];
 
-  const persist = React.useCallback(
-    async (popup: PopupConfig) => {
+  const persist = useLatestCallback(async (popup: PopupConfig) => {
+    try {
       await saveAndBroadcastPopupConfig(activeConfigName, popup);
-    },
-    [activeConfigName]
-  );
+    } catch (e) {
+      errorLog('persist failed:', e);
+    }
+  });
 
   const handleToggle = React.useCallback(async () => {
     const next = !isEnabled;
@@ -392,91 +394,88 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [activePopup, activeConfigName]);
 
-  const updateActivePopup = React.useCallback(
+  const updateActivePopup = useLatestCallback(
     (updater: (prev: PopupConfig) => PopupConfig) => {
+      let next: PopupConfig | undefined;
       setConfigs((prev) => {
-        const next = updater(prev[activeConfigName] ?? DEFAULT_POPUP);
-        void persist(next);
+        const prevConfig = prev[activeConfigName];
+        if (!prevConfig) {
+          errorLog('updateActivePopup: no config for', activeConfigName);
+          return prev;
+        }
+        next = updater(prevConfig);
         return { ...prev, [activeConfigName]: next };
       });
+      if (next) {
+        void persist(next);
+      } else {
+        errorLog('updateActivePopup: state updater did not run synchronously');
+      }
       setDirty(true);
-    },
-    [activeConfigName, persist]
+    }
   );
 
-  const handleChangeBinding = React.useCallback(
+  const handleChangeBinding = useLatestCallback(
     (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
       updateActivePopup((popup) =>
         popupSetBinding(popup, activeSlotIndex, action, code, op)
       );
-    },
-    [activeSlotIndex, updateActivePopup]
+    }
   );
 
-  const handleChangeScripts = React.useCallback(
+  const handleChangeScripts = useLatestCallback(
     (scriptBindings: ScriptBinding[], scripts: PopupScript[]) => {
       updateActivePopup((popup) =>
         popupSetScripts(popup, activeSlotIndex, scriptBindings, scripts)
       );
-    },
-    [activeSlotIndex, updateActivePopup]
+    }
   );
 
-  const handleChangeMouseStick = React.useCallback(
+  const handleChangeMouseStick = useLatestCallback(
     (val: 'left' | 'right' | undefined) => {
       updateActivePopup((popup) =>
         popupSetMouse(popup, activeSlotIndex, { stick: val })
       );
-    },
-    [activeSlotIndex, updateActivePopup]
+    }
   );
 
-  const handleChangeMouseSensitivity = React.useCallback(
-    (val: number) => {
-      updateActivePopup((popup) =>
-        popupSetMouse(popup, activeSlotIndex, { sensitivity: val })
-      );
-    },
-    [activeSlotIndex, updateActivePopup]
-  );
+  const handleChangeMouseSensitivity = useLatestCallback((val: number) => {
+    updateActivePopup((popup) =>
+      popupSetMouse(popup, activeSlotIndex, { sensitivity: val })
+    );
+  });
 
-  const handleChangeGlobalBinding = React.useCallback(
+  const handleChangeGlobalBinding = useLatestCallback(
     (action: GamepadActionName, code: string, op: 'add' | 'remove') => {
       updateActivePopup((popup) =>
         popupSetGlobalBinding(popup, action, code, op)
       );
-    },
-    [updateActivePopup]
+    }
   );
 
-  const handleChangeOtherGamepadMode = React.useCallback(
-    (value: string) => {
-      updateActivePopup((popup) => ({
-        ...popup,
-        otherGamepadMode: value as OtherGamepadMode,
-      }));
-    },
-    [updateActivePopup]
-  );
+  const handleChangeOtherGamepadMode = useLatestCallback((value: string) => {
+    updateActivePopup((popup) => ({
+      ...popup,
+      otherGamepadMode: value as OtherGamepadMode,
+    }));
+  });
 
-  const handleChangeGlobalSettings = React.useCallback(
+  const handleChangeGlobalSettings = useLatestCallback(
     (settings: GlobalSettings) => {
       setGlobalSettings(settings);
       setLoggingEnabled(settings.enableLogging);
       void saveGlobalSettings(settings);
-    },
-    []
+    }
   );
 
-  const handleChangeSlotIndex = React.useCallback(
+  const handleChangeSlotIndex = useLatestCallback(
     (oldIndex: 0 | 1 | 2 | 3, newIndex: 0 | 1 | 2 | 3) => {
       setActiveSlotTab(newIndex);
       updateActivePopup((popup) => popupMoveSlot(popup, oldIndex, newIndex));
-    },
-    [updateActivePopup]
+    }
   );
 
-  const handleAddSlot = React.useCallback(() => {
+  const handleAddSlot = useLatestCallback(() => {
     updateActivePopup((popup) => {
       const next = ([0, 1, 2, 3] as const).find((i) => !popup.slots[i].active);
       if (next !== undefined) {
@@ -485,25 +484,22 @@ export default function App() {
       }
       return popupAddSlot(popup);
     });
-  }, [updateActivePopup]);
+  });
 
-  const handleRemoveSlot = React.useCallback(
-    (slotIndex: 0 | 1 | 2 | 3) => {
-      if (activeSlots.length <= 1) {
-        return;
+  const handleRemoveSlot = useLatestCallback((slotIndex: 0 | 1 | 2 | 3) => {
+    if (activeSlots.length <= 1) {
+      return;
+    }
+    updateActivePopup((popup) => {
+      const next = popup.slots.find(
+        (s) => s.active && s.gamepadIndex !== slotIndex
+      );
+      if (next) {
+        setActiveSlotTab(next.gamepadIndex);
       }
-      updateActivePopup((popup) => {
-        const next = popup.slots.find(
-          (s) => s.active && s.gamepadIndex !== slotIndex
-        );
-        if (next) {
-          setActiveSlotTab(next.gamepadIndex);
-        }
-        return popupRemoveSlot(popup, slotIndex);
-      });
-    },
-    [activeSlots.length, updateActivePopup]
-  );
+      return popupRemoveSlot(popup, slotIndex);
+    });
+  });
 
   if (loading) {
     return (

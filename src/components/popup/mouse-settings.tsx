@@ -2,8 +2,7 @@ import { StyleSheet, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import RangeNumberInput from './range-number-input';
 import FormRow from './form-row';
-import type { MouseControlTarget } from '@/types/gamepad';
-import { DEFAULT_SENSITIVITY } from '@/types/gamepad';
+import type { SlotMouse } from '@/types/popup';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', gap: '0.6rem' },
@@ -20,7 +19,7 @@ const styles = StyleSheet.create({
 });
 
 interface Props {
-  mouseControls: MouseControlTarget[];
+  mouse: SlotMouse;
   onChangeStick: (val: 'left' | 'right' | undefined) => void;
   onChangeSensitivity: (val: number) => void;
 }
@@ -33,20 +32,16 @@ const STICK_OPTIONS: { label: string; value: 'left' | 'right' | undefined }[] =
   ];
 
 export default function MouseSettings({
-  mouseControls,
+  mouse,
   onChangeStick,
   onChangeSensitivity,
 }: Props) {
-  const target = mouseControls[0];
-  const currentStick = target?.stick;
-  const sensitivity = target?.sensitivity ?? DEFAULT_SENSITIVITY;
-
   return (
     <View style={styles.container}>
       <FormRow label='Stick'>
         <View style={styles.stickOptions}>
           {STICK_OPTIONS.map(({ label, value }) => {
-            const active = currentStick === value;
+            const active = mouse.stick === value;
             return (
               <TextButton
                 key={label}
@@ -69,8 +64,8 @@ export default function MouseSettings({
       <FormRow label='Sensitivity'>
         <RangeNumberInput
           min={1}
-          max={1000}
-          value={sensitivity}
+          max={2000}
+          value={mouse.sensitivity}
           onChange={onChangeSensitivity}
         />
       </FormRow>

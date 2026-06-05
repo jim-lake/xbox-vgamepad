@@ -86,6 +86,7 @@ export type OtherGamepadMode = 'combine' | 'separate';
 export interface GamepadConfig {
   keyboardConfig: GamepadKeyboardConfig;
   mouseConfig: GamepadMouseConfig;
+  mouseSensitivity?: number;
   otherGamepadMode?: OtherGamepadMode;
   unboundScripts?: GameScript[];
   fakeFullscreen?: boolean;
@@ -158,7 +159,7 @@ export type ResolvedAction = AxisAction | ButtonAction;
 
 export const CONFIG_PREFIX = 'GP_CONF:';
 
-export const DEFAULT_SENSITIVITY = 101;
+export const DEFAULT_SENSITIVITY = 1000;
 
 export const DEFAULT_CONFIG: GamepadConfig = {
   mouseConfig: {
