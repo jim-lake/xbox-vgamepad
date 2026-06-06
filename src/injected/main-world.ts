@@ -87,6 +87,8 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
   if (data.type === 'SETTINGS_CHANGED') {
     handleSettingsChanged(data);
+  } else if (data.type === 'SHOW_TOAST') {
+    showToast(data.text);
   } else {
     handleGameMessage(data);
   }

@@ -112,6 +112,42 @@ export interface SetBadgeMessage {
   bgColor?: string;
 }
 
+export interface StartFindSpritesMessage {
+  source: typeof MSG_SOURCE;
+  type: 'START_FIND_SPRITES';
+}
+
+export interface SaveSpriteMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SAVE_SPRITE';
+  game: string;
+  spriteType: string;
+  buffer: ArrayBuffer;
+  w: number;
+  h: number;
+}
+
+export interface SaveSpriteResponse {
+  success: boolean;
+}
+
+export interface LoadSpritesMessage {
+  source: typeof MSG_SOURCE;
+  type: 'LOAD_SPRITES';
+  game: string;
+}
+
+export interface LoadSpritesResponse {
+  sprites: Array<{ spriteType: string; buffer: ArrayBuffer; w: number; h: number }>;
+}
+
+export interface ShowToastMessage {
+  source: typeof MSG_SOURCE;
+  type: 'SHOW_TOAST';
+  text: string;
+  duration?: number;
+}
+
 export function isExtensionMessage(data: unknown): data is ExtensionMessage {
   return (
     data !== null &&
@@ -127,7 +163,8 @@ export type PageToContentMessage =
   | ToggleEnabledMessage
   | ScriptCountMessage
   | InputSuspendedMessage
-  | GamepadStatusMessage;
+  | GamepadStatusMessage
+  | StartFindSpritesMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -153,4 +190,8 @@ export type ExtensionMessage =
   | GamepadStatusMessage
   | ToggleGamepadMessage
   | SetIconMessage
-  | SetBadgeMessage;
+  | SetBadgeMessage
+  | StartFindSpritesMessage
+  | SaveSpriteMessage
+  | LoadSpritesMessage
+  | ShowToastMessage;

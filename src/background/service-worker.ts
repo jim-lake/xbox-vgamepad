@@ -1,5 +1,6 @@
 import type { ExtensionMessage } from '@/types/messages';
 import { DEFAULT_CONFIG, CONFIG_PREFIX } from '@/types/gamepad';
+import { saveSprite, loadSprites } from './sprite-store';
 
 const ICONS_ENABLED = {
   16: 'src/assets/img/icon16.png',
@@ -24,39 +25,67 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
-  const tabId = sender.tab?.id;
+chrome.runtime.onMessage.addListener(
+  (
+    message: ExtensionMessage,
+    sender,
+    sendResponse: (response?: unknown) => void
+  ) => {
+    const tabId = sender.tab?.id;
 
-  if (message.type === 'INJECTED') {
-    if (tabId !== undefined) {
-      void chrome.action.enable(tabId);
-    }
-    return;
-  }
-
-  if (message.type === 'SET_ICON') {
-    const path = message.enabled ? ICONS_ENABLED : ICONS_DISABLED;
-    if (tabId !== undefined) {
-      void chrome.action.setIcon({ path, tabId });
-    } else {
-      void chrome.action.setIcon({ path });
-    }
-    return;
-  }
-
-  if (message.type === 'SET_BADGE') {
-    if (tabId !== undefined) {
-      void chrome.action.setBadgeText({ text: message.text, tabId });
-      if (message.bgColor) {
-        void chrome.action.setBadgeBackgroundColor({
-          color: message.bgColor,
-          tabId,
-        });
+    if (message.type === 'INJECTED') {
+      if (tabId !== undefined) {
+        void chrome.action.enable(tabId);
       }
-      if (message.color) {
-        void chrome.action.setBadgeTextColor({ color: message.color, tabId });
-      }
+      return;
     }
-    return;
+
+    if (message.type === 'SET_ICON') {
+      const path = message.enabled ? ICONS_ENABLED : ICONS_DISABLED;
+      if (tabId !== undefined) {
+        void chrome.action.setIcon({ path, tabId });
+      } else {
+        void chrome.action.setIcon({ path });
+      }
+      return;
+    }
+
+    if (message.type === 'SET_BADGE') {
+      if (tabId !== undefined) {
+        void chrome.action.setBadgeText({ text: message.text, tabId });
+        if (message.bgColor) {
+          void chrome.action.setBadgeBackgroundColor({
+            color: message.bgColor,
+            tabId,
+          });
+        }
+        if (message.color) {
+          void chrome.action.setBadgeTextColor({ color: message.color, tabId });
+        }
+      }
+      return;
+    }
+
+    if (message.type === 'SAVE_SPRITE') {
+      void saveSprite(
+        message.game,
+        message.spriteType,
+        message.buffer,
+        message.w,
+        message.h
+      ).then(
+        () => { sendResponse({ success: true }); },
+        () => { sendResponse({ success: false }); }
+      );
+      return true;
+    }
+
+    if (message.type === 'LOAD_SPRITES') {
+      void loadSprites(message.game).then(
+        (sprites) => { sendResponse({ sprites }); },
+        () => { sendResponse({ sprites: [] }); }
+      );
+      return true;
+    }
   }
-});
+);

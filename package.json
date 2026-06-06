@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.773",
+  "version": "0.0.788",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,11 +15,13 @@
     "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'",
     "test:patch": "vite build --mode test && node test/patch/run.cjs",
     "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs",
-    "test:extract": "vite build --mode test && node test/extract/extract-smoke.test.cjs",
+    "test:extract": "vite build --mode test && node test/extract/extract.test.cjs",
     "test:extract:smoke": "node test/extract/extract-smoke.test.cjs",
+    "test:extract:setup": "vite build --mode test && node test/extract/extract-setup.cjs",
     "test:extract:smoke:setup": "vite build --mode test && node test/extract/extract-smoke-setup.cjs"
   },
   "dependencies": {
+    "@techstark/opencv-js": "^4.12.0-release.1",
     "aphrodite": "^2.4.0",
     "events": "^3.3.0",
     "ioctl": "^2.0.2",

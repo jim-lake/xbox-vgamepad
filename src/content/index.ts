@@ -13,6 +13,7 @@ import {
 } from '@/types/gamepad';
 import { validateConfig } from '@/popup/validate';
 import { errorLog, setLoggingEnabled } from '@/tools/log';
+import { startFindSprites } from './sprite-extraction';
 
 function trySendMessage(msg: unknown): void {
   try {
@@ -262,11 +263,17 @@ window.addEventListener('message', (event: MessageEvent) => {
     trySyncSet({ OVERLAY_MINIMIZED: msg.minimized });
   } else if (msg.type === 'GAMEPAD_STATUS') {
     trySendMessage({ ...msg, source: MSG_SOURCE });
+  } else if (msg.type === 'START_FIND_SPRITES') {
+    void startFindSprites(state.gameName);
   }
 });
 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   if (sender.tab) {
+    return;
+  }
+  if (message.type === 'START_FIND_SPRITES') {
+    void startFindSprites(state.gameName);
     return;
   }
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');

@@ -42,6 +42,7 @@ import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import GamepadTabs from '@/components/popup/gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
+import FindSpritesSection from './find-sprites-section';
 import AdvancedSection from '@/components/popup/advanced-section';
 import GlobalSettingsPanel from '@/components/popup/global-settings-panel';
 import type { ScriptEntry } from './script-helpers';
@@ -584,6 +585,8 @@ export default function App() {
                 handleRemoveSlot(activeSlotIndex);
               }}
             />
+
+            <FindSpritesSection />
 
             <AdvancedSection
               globalBindings={activePopup.globalBindings}

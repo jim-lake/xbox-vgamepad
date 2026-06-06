@@ -5,6 +5,7 @@ import type {
   DisableGamepadMessage,
   ExtensionMessage,
   PopupOpenedMessage,
+  StartFindSpritesMessage,
   ToggleGamepadMessage,
 } from '@/types/messages';
 import type { GamepadConfig } from '@/types/gamepad';
@@ -68,6 +69,14 @@ export async function sendToggleGamepad(
     source: MSG_SOURCE,
     type: 'TOGGLE_GAMEPAD',
     gamepadIndex,
+  };
+  await sendToActiveTab(msg);
+}
+
+export async function sendStartFindSprites(): Promise<void> {
+  const msg: StartFindSpritesMessage = {
+    source: MSG_SOURCE,
+    type: 'START_FIND_SPRITES',
   };
   await sendToActiveTab(msg);
 }
