@@ -25,3 +25,5 @@ dist-ssr
 *.sw?
 build-test
 test/patch/profile/
+test_media
+test/extract/profile/

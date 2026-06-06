@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.684",
+  "version": "0.0.773",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,10 @@
     "test:integration": "vite build --mode test && node test/gamepad.test.cjs",
     "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'",
     "test:patch": "vite build --mode test && node test/patch/run.cjs",
-    "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs"
+    "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs",
+    "test:extract": "vite build --mode test && node test/extract/extract-smoke.test.cjs",
+    "test:extract:smoke": "node test/extract/extract-smoke.test.cjs",
+    "test:extract:smoke:setup": "vite build --mode test && node test/extract/extract-smoke-setup.cjs"
   },
   "dependencies": {
     "aphrodite": "^2.4.0",
@@ -27,6 +30,7 @@
     "@crxjs/vite-plugin": "https://github.com/jim-lake/chrome-extension-tools.git#4f7f9a8c973cb35cf663b76f9d1dfffd3f1fd8e6",
     "@eslint/js": "9.x",
     "@types/chrome": "^0.1.40",
+    "@types/dom-chromium-ai": "^0.0.16",
     "@types/events": "^3.0.3",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
