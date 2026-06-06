@@ -148,7 +148,7 @@ async function runExtraction(gameName: string): Promise<void> {
               {
                 type: 'text',
                 value:
-                  'Identify this game sprite/UI element. Respond with JSON: {"label":"short_snake_case_label","accept":true/false}. Accept if this is a clear, distinct game sprite or UI element. Reject noise or background fragments.',
+                  'What is this game element? Reply ONLY with JSON: {"label":"your_description_here","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a descriptive label like health_bar, player, enemy, tree, button.',
               },
             ],
           },

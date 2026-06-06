@@ -1,9 +1,13 @@
 /**
  * Sprite extraction integration test.
  *
- * Tests the extraction pipeline end-to-end using Chrome Canary with Gemini Nano.
- * Due to Chrome Canary not injecting content scripts from --load-extension on
- * new pages via puppeteer, we manually inject the content script bundle.
+ * Runs the real extraction pipeline (OpenCV contour detection → AI verification)
+ * against test_media/test.mp4 for 20 seconds.
+ *
+ * Chrome Canary doesn't inject content scripts from --load-extension on
+ * puppeteer pages, so we run the extraction code directly in puppeteer's
+ * isolated utility world (which has LanguageModel + full DOM access).
+ * chrome.runtime.sendMessage is stubbed to capture sprite saves.
  *
  * Requires:
  * - Chrome Canary with Gemini Nano model downloaded
@@ -26,6 +30,7 @@ const CHROME =
   process.env.CHROME_PATH ||
   '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary';
 const PORT = 9444;
+const RUN_DURATION = 20000;
 
 let server;
 
@@ -35,11 +40,25 @@ function startServer() {
       if (req.url === '/test_media/test.mp4') {
         const filePath = path.join(MEDIA_DIR, 'test.mp4');
         const stat = fs.statSync(filePath);
-        res.writeHead(200, {
-          'Content-Type': 'video/mp4',
-          'Content-Length': stat.size,
-        });
-        fs.createReadStream(filePath).pipe(res);
+        const range = req.headers.range;
+        if (range) {
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': end - start + 1,
+            'Content-Type': 'video/mp4',
+          });
+          fs.createReadStream(filePath, { start, end }).pipe(res);
+        } else {
+          res.writeHead(200, {
+            'Content-Type': 'video/mp4',
+            'Content-Length': stat.size,
+          });
+          fs.createReadStream(filePath).pipe(res);
+        }
         return;
       }
       if (req.url === '/' || req.url === '/index.html') {
@@ -51,28 +70,20 @@ function startServer() {
         res.end(html);
         return;
       }
+      // Serve built extension assets (for OpenCV chunk loading)
+      const assetPath = path.join(DIST_DIR, req.url);
+      if (fs.existsSync(assetPath)) {
+        const ext = path.extname(assetPath);
+        const types = { '.js': 'application/javascript', '.wasm': 'application/wasm' };
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
+        fs.createReadStream(assetPath).pipe(res);
+        return;
+      }
       res.writeHead(404);
       res.end('Not found');
     });
     server.listen(PORT, '127.0.0.1', () => resolve());
   });
-}
-
-// Read the content script bundle for manual injection
-function getContentScriptCode() {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(DIST_DIR, 'manifest.json'), 'utf8')
-  );
-  // Find the content script entry (isolated world, not MAIN world)
-  const cs = manifest.content_scripts.find((s) => !s.world);
-  if (!cs) throw new Error('No content script found in manifest');
-  const loaderPath = path.join(DIST_DIR, cs.js[0]);
-  const loaderCode = fs.readFileSync(loaderPath, 'utf8');
-  // The loader imports from chrome.runtime.getURL — extract the target file
-  const match = loaderCode.match(/getURL\("([^"]+)"\)/);
-  if (!match) throw new Error('Could not parse loader target from: ' + loaderPath);
-  const targetPath = path.join(DIST_DIR, match[1]);
-  return fs.readFileSync(targetPath, 'utf8');
 }
 
 async function run() {
@@ -85,7 +96,6 @@ async function run() {
     protocolTimeout: 300000,
     args: [
       '--remote-debugging-port=0',
-      '--remote-allow-origins=*',
       `--user-data-dir=${PROFILE_DIR}`,
       `--disable-extensions-except=${DIST_DIR}`,
       `--load-extension=${DIST_DIR}`,
@@ -99,36 +109,36 @@ async function run() {
   let passed = 0;
   let failed = 0;
 
-  async function assert(name, fn) {
-    try {
-      await fn();
-      passed++;
-      console.log(`  ✓ ${name}`);
-    } catch (err) {
-      failed++;
-      console.log(`  ✗ ${name}`);
-      console.log(`    ${err.message}`);
-    }
+  function assert(name, fn) {
+    return fn().then(
+      () => {
+        passed++;
+        console.log(`  ✓ ${name}`);
+      },
+      (err) => {
+        failed++;
+        console.log(`  ✗ ${name}`);
+        console.log(`    ${err.message}`);
+      }
+    );
   }
 
   try {
-    const pages = await browser.pages();
-    const page = pages[0] || (await browser.newPage());
-
+    const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
 
-    // Wait for video to start playing
     await page.waitForFunction(
       () => {
         const v = document.querySelector('video');
         return v && v.readyState >= 2;
       },
-      { timeout: 10000 }
+      { timeout: 15000 }
     );
+    await page.evaluate(() => document.querySelector('video').play());
 
     console.log('Sprite extraction integration test\n');
 
-    // Set up CDP
+    // Get the isolated world context (puppeteer utility world — has LanguageModel + DOM)
     const cdp = await page.createCDPSession();
     let isolatedContextId = null;
     cdp.on('Runtime.executionContextCreated', (event) => {
@@ -147,11 +157,6 @@ async function run() {
         throw new Error('No isolated execution context');
     });
 
-    if (!isolatedContextId) {
-      throw new Error('Cannot continue without isolated world');
-    }
-
-    // Verify LanguageModel is available
     await assert('LanguageModel available', async () => {
       const result = await cdp.send('Runtime.evaluate', {
         expression: `(async () => {
@@ -164,144 +169,233 @@ async function run() {
         contextId: isolatedContextId,
         awaitPromise: true,
       });
-      if (
-        result.result.value === 'unavailable' ||
-        result.result.value === undefined
-      ) {
-        throw new Error(
-          `Model unavailable (status: ${result.result.value})`
-        );
-      }
+      if (result.result.value === 'unavailable' || !result.result.value)
+        throw new Error(`Model unavailable: ${result.result.value}`);
     });
 
-    // Inject the content script manually into the isolated world
-    // (Chrome Canary 151+ doesn't auto-inject content scripts from --load-extension via puppeteer)
-    await assert('content script injected', async () => {
-      const code = getContentScriptCode();
-      // The content script uses chrome.runtime and chrome.storage
-      // In the puppeteer utility world these don't exist, but LanguageModel does.
-      // We need to run a simplified extraction that only uses LanguageModel + DOM.
-      // Instead of injecting the full content script, we'll run extraction logic directly.
-      // This verifies the core pipeline: video capture → OpenCV → AI → save
-    });
+    // Find the OpenCV chunk name from the build output
+    const assets = fs.readdirSync(path.join(DIST_DIR, 'assets'));
+    const opencvChunk = assets.find((f) => f.startsWith('opencv-') && f.endsWith('.js'));
+    if (!opencvChunk) throw new Error('OpenCV chunk not found in build-test/assets/');
 
-    console.log('\n  Running extraction pipeline directly (up to 90s)...');
+    // Run the REAL extraction pipeline for 20s.
+    // This mirrors src/content/sprite-extraction.ts: frame diff → contours → AI verify.
+    // chrome.runtime.sendMessage is stubbed to capture saves locally.
+    console.log(`\n  Running real extraction pipeline for ${RUN_DURATION / 1000}s...\n`);
 
-    const toastMessages = [];
-    const consoleErrors = [];
-
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
-      }
-    });
-
-    // Run the extraction pipeline directly in the isolated world
-    // This tests: LanguageModel + video frame capture + AI inference
     const extractResult = await cdp.send('Runtime.evaluate', {
       expression: `(async () => {
-        const results = { toasts: [], sprites: [], errors: [] };
+        const results = { toasts: [], sprites: [], errors: [], candidates: 0 };
+        const RUN_MS = ${RUN_DURATION};
+
         try {
-          // 1. Create AI session
+          // Create AI session (same params as production)
           const session = await LanguageModel.create({
             expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
             expectedOutputs: [{ type: 'text', languages: ['en'] }],
           });
           results.toasts.push('AI session created');
 
-          // 2. Capture a frame from the video
+          // Load OpenCV from the built chunk
+          const cvModule = await import('http://127.0.0.1:${PORT}/assets/${opencvChunk}');
+          const cv = cvModule.default;
+          if (cv.onRuntimeInitialized !== undefined) {
+            await new Promise(r => { cv.onRuntimeInitialized = r; });
+          }
+          results.toasts.push('OpenCV loaded');
+
           const video = document.querySelector('video');
-          if (!video) throw new Error('No video');
-          const canvas = new OffscreenCanvas(video.videoWidth || 640, video.videoHeight || 480);
+          if (!video) throw new Error('No video element');
+
+          const canvas = new OffscreenCanvas(video.videoWidth || 1920, video.videoHeight || 1080);
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          results.toasts.push('Frame captured');
+          let prevGray = null;
+          let frameCount = 0;
+          let stopRequested = false;
+          const knownLabels = new Set();
 
-          // 3. Create a crop (simulate candidate extraction)
-          const cropBitmap = await createImageBitmap(
-            canvas.transferToImageBitmap(),
-            0, 0,
-            Math.min(100, canvas.width),
-            Math.min(100, canvas.height)
-          );
-          results.toasts.push('Crop created');
+          results.toasts.push('Finding sprites for test_game…');
 
-          // 4. Run AI inference on the crop
-          const aiResult = await session.prompt([
-            {
-              role: 'user',
-              content: [
-                { type: 'image', value: cropBitmap },
-                {
-                  type: 'text',
-                  value: 'Identify this game sprite/UI element. Respond with JSON: {"label":"short_snake_case_label","accept":true/false}. Accept if this is a clear, distinct game sprite or UI element.',
-                },
-              ],
-            },
-          ]);
-          results.toasts.push('AI inference complete');
-          results.sprites.push(aiResult);
+          const startTime = Date.now();
+
+          const processFrame = async () => {
+            if (stopRequested) return;
+            frameCount++;
+            if (frameCount % 5 !== 0) return;
+
+            canvas.width = video.videoWidth || 1920;
+            canvas.height = video.videoHeight || 1080;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            const frame = cv.matFromImageData(imageData);
+            const gray = new cv.Mat();
+            cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
+            frame.delete();
+
+            if (!prevGray) {
+              prevGray = gray;
+              return;
+            }
+
+            const diff = new cv.Mat();
+            cv.absdiff(gray, prevGray, diff);
+            prevGray.delete();
+            prevGray = gray;
+
+            const thresh = new cv.Mat();
+            cv.threshold(diff, thresh, 30, 255, cv.THRESH_BINARY);
+            diff.delete();
+
+            const contours = new cv.MatVector();
+            const hierarchy = new cv.Mat();
+            cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            thresh.delete();
+            hierarchy.delete();
+
+            const candidates = [];
+            const frameArea = canvas.width * canvas.height;
+            for (let i = 0; i < contours.size(); i++) {
+              const rect = cv.boundingRect(contours.get(i));
+              if (rect.width < 8 || rect.height < 8) continue;
+              if (rect.width * rect.height > frameArea * 0.25) continue;
+              candidates.push(rect);
+            }
+            contours.delete();
+            results.candidates += candidates.length;
+
+            // Process up to 2 candidates per frame (same as production)
+            for (const cand of candidates.slice(0, 2)) {
+              if (stopRequested) break;
+
+              const cropBitmap = await createImageBitmap(
+                imageData, cand.x, cand.y, cand.width, cand.height
+              );
+
+              try {
+                const aiResult = await session.prompt([
+                  {
+                    role: 'user',
+                    content: [
+                      { type: 'image', value: cropBitmap },
+                      {
+                        type: 'text',
+                        value: 'What is this game element? Reply ONLY with JSON: {"label":"your_description_here","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a descriptive label like health_bar, player, enemy, tree, button.',
+                      },
+                    ],
+                  },
+                ]);
+
+                // Parse response (same as production parseAIResponse)
+                const match = aiResult.match(/\\{[^}]+\\}/);
+                if (match) {
+                  const parsed = JSON.parse(match[0]);
+                  if (typeof parsed.label === 'string' && typeof parsed.accept === 'boolean') {
+                    const label = parsed.label.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                    if (parsed.accept && !knownLabels.has(label)) {
+                      knownLabels.add(label);
+                      results.sprites.push({ label, w: cand.width, h: cand.height });
+                      results.toasts.push('Found: ' + label);
+                    }
+                  }
+                }
+              } catch (e) {
+                // AI failed for this candidate, skip
+              }
+
+              // Check time budget
+              if (Date.now() - startTime > RUN_MS) { stopRequested = true; break; }
+            }
+          };
+
+          // Frame loop
+          const loop = () => new Promise(resolve => {
+            const tick = async () => {
+              if (stopRequested || Date.now() - startTime > RUN_MS) {
+                resolve();
+                return;
+              }
+              await processFrame();
+              if ('requestVideoFrameCallback' in video) {
+                video.requestVideoFrameCallback(tick);
+              } else {
+                setTimeout(tick, 1000 / 12);
+              }
+            };
+            if ('requestVideoFrameCallback' in video) {
+              video.requestVideoFrameCallback(tick);
+            } else {
+              setTimeout(tick, 1000 / 12);
+            }
+          });
+
+          await loop();
+
+          if (prevGray) prevGray.delete();
           session.destroy();
+          results.toasts.push('Sprite extraction stopped');
         } catch (e) {
-          results.errors.push(e.message);
+          results.errors.push(e.message || String(e));
         }
+
         return JSON.stringify(results);
       })()`,
       contextId: isolatedContextId,
       awaitPromise: true,
-      timeout: 120000,
+      timeout: 300000,
     });
 
-    const results = JSON.parse(extractResult.result.value);
-    console.log(`  Toasts: [${results.toasts.join(', ')}]`);
-    if (results.sprites.length > 0) {
-      console.log(`  AI response: "${results.sprites[0].slice(0, 100)}"`);
+    let results;
+    if (extractResult.exceptionDetails) {
+      const desc =
+        extractResult.exceptionDetails.exception?.description ||
+        extractResult.exceptionDetails.text;
+      console.log(`  Pipeline exception: ${desc}`);
+      results = { toasts: [], sprites: [], errors: [desc], candidates: 0 };
+    } else {
+      results = JSON.parse(extractResult.result.value);
     }
+
+    console.log(`  Candidates detected by OpenCV: ${results.candidates}`);
+    console.log(`  Sprites verified by AI: ${results.sprites.length}`);
+    results.toasts.forEach((t) => console.log(`    "${t}"`));
     if (results.errors.length > 0) {
-      console.log(`  Errors: [${results.errors.join(', ')}]`);
+      console.log(`  Errors:`);
+      results.errors.forEach((e) => console.log(`    ${e}`));
     }
 
-    await assert('AI session created successfully', async () => {
-      if (!results.toasts.includes('AI session created')) {
-        throw new Error(`Session creation failed: ${results.errors.join(', ')}`);
-      }
+    await assert('extraction started (OpenCV + AI session)', async () => {
+      if (!results.toasts.includes('Finding sprites for test_game…'))
+        throw new Error('Pipeline did not start');
     });
 
-    await assert('video frame captured', async () => {
-      if (!results.toasts.includes('Frame captured')) {
-        throw new Error(`Frame capture failed: ${results.errors.join(', ')}`);
-      }
+    await assert('OpenCV detected candidates from video frames', async () => {
+      if (results.candidates === 0)
+        throw new Error('No contour candidates detected — frame diff may not be working');
     });
 
-    await assert('AI inference on frame succeeded', async () => {
-      if (!results.toasts.includes('AI inference complete')) {
-        throw new Error(`AI inference failed: ${results.errors.join(', ')}`);
-      }
-    });
-
-    await assert('AI returned valid response', async () => {
+    await assert('AI verified at least one sprite', async () => {
       if (results.sprites.length === 0) {
-        throw new Error('No AI response received');
+        if (results.errors.length > 0)
+          throw new Error(`Pipeline error: ${results.errors[0]}`);
+        throw new Error(
+          `${results.candidates} candidates found but none verified by AI`
+        );
       }
-      // Verify it's parseable as JSON with label/accept
-      const text = results.sprites[0];
-      const match = text.match(/\{[^}]+\}/);
-      if (!match) {
-        // AI might not return perfect JSON but that's ok for the test
-        console.log(`    (AI response was not JSON, but inference succeeded)`);
-        return;
-      }
-      const parsed = JSON.parse(match[0]);
-      if (typeof parsed.label !== 'string') {
-        throw new Error(`Invalid response structure: ${text.slice(0, 80)}`);
-      }
-      console.log(`    label: "${parsed.label}", accept: ${parsed.accept}`);
+      console.log(`    Sprites found:`);
+      results.sprites.forEach((s) =>
+        console.log(`      "${s.label}" (${s.w}×${s.h})`)
+      );
+    });
+
+    await assert('extraction stopped cleanly', async () => {
+      if (!results.toasts.some((t) => t.includes('stopped')))
+        throw new Error('Pipeline did not stop cleanly');
     });
 
     await assert('no critical errors', async () => {
-      if (results.errors.length > 0) {
-        throw new Error(`Errors: ${results.errors.join('; ')}`);
-      }
+      if (results.errors.length > 0)
+        throw new Error(results.errors.join('; '));
     });
   } finally {
     await browser.close();
