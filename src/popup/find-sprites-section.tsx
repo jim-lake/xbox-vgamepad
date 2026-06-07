@@ -50,17 +50,22 @@ function getInitialState(): ModelState {
 }
 
 export default function FindSpritesSection() {
-  const [modelState, setModelState] = React.useState<ModelState>(getInitialState);
+  const [modelState, setModelState] =
+    React.useState<ModelState>(getInitialState);
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    if (modelState !== 'checking') {return;}
+    if (modelState !== 'checking') {
+      return;
+    }
     let cancelled = false;
     void LanguageModel.availability({
       expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
       expectedOutputs: [{ type: 'text', languages: ['en'] }],
     }).then((avail) => {
-      if (cancelled) {return;}
+      if (cancelled) {
+        return;
+      }
       if (avail === 'unavailable') {
         setModelState('unavailable');
       } else if (avail === 'downloadable') {
@@ -71,7 +76,9 @@ export default function FindSpritesSection() {
         setModelState('ready');
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [modelState]);
 
   async function ensureReady(): Promise<void> {
@@ -84,12 +91,12 @@ export default function FindSpritesSection() {
         ],
         expectedOutputs: [{ type: 'text', languages: ['en'] }],
         monitor(m: EventTarget) {
-          m.addEventListener('downloadprogress', ((e: Event) => {
+          m.addEventListener('downloadprogress', (e: Event) => {
             const pe = e as ProgressEvent;
             if (pe.total > 0) {
               setProgress(pe.loaded / pe.total);
             }
-          }));
+          });
         },
       });
       session.destroy();

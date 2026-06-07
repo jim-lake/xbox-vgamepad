@@ -74,16 +74,24 @@ chrome.runtime.onMessage.addListener(
         message.w,
         message.h
       ).then(
-        () => { sendResponse({ success: true }); },
-        () => { sendResponse({ success: false }); }
+        () => {
+          sendResponse({ success: true });
+        },
+        () => {
+          sendResponse({ success: false });
+        }
       );
       return true;
     }
 
     if (message.type === 'LOAD_SPRITES') {
       void loadSprites(message.game).then(
-        (sprites) => { sendResponse({ sprites }); },
-        () => { sendResponse({ sprites: [] }); }
+        (sprites) => {
+          sendResponse({ sprites });
+        },
+        () => {
+          sendResponse({ sprites: [] });
+        }
       );
       return true;
     }

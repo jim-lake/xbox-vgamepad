@@ -26,4 +26,4 @@ dist-ssr
 build-test
 test/patch/profile/
 test_media
-test/extract/profile/
+test/extract/profile*

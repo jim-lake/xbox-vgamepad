@@ -9,7 +9,8 @@ const path = require('path');
 
 const DIST_DIR = path.join(__dirname, '..', '..', 'build-test');
 const PROFILE_DIR = path.join(__dirname, 'profile');
-const CHROME = process.env.CHROME_PATH ||
+const CHROME =
+  process.env.CHROME_PATH ||
   '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary';
 
 async function run() {

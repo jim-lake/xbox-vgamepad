@@ -14,7 +14,8 @@ const http = require('http');
 
 const DIST_DIR = path.join(__dirname, '..', '..', 'build-test');
 const PROFILE_DIR = path.join(__dirname, 'profile');
-const CHROME = process.env.CHROME_PATH ||
+const CHROME =
+  process.env.CHROME_PATH ||
   '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary';
 const PORT = 9444;
 
@@ -86,8 +87,7 @@ async function run() {
     await new Promise((r) => setTimeout(r, 2000));
 
     await assert('isolated world context found', async () => {
-      if (!isolatedContextId)
-        throw new Error('No isolated execution context');
+      if (!isolatedContextId) throw new Error('No isolated execution context');
     });
 
     if (!isolatedContextId) return;
@@ -121,7 +121,9 @@ async function run() {
       if (parsed.error) throw new Error(parsed.error);
       console.log(`      status: "${parsed.available}"`);
       if (parsed.available === 'unavailable')
-        throw new Error('Model unavailable — ensure Gemini Nano is downloaded in Chrome Canary');
+        throw new Error(
+          'Model unavailable — ensure Gemini Nano is downloaded in Chrome Canary'
+        );
     });
 
     await assert('can create session and prompt', async () => {
@@ -154,7 +156,9 @@ async function run() {
       });
       const parsed = JSON.parse(result.result.value);
       if (parsed.error) throw new Error(parsed.error);
-      console.log(`      create: ${parsed.createMs}ms, prompt: ${parsed.promptMs}ms`);
+      console.log(
+        `      create: ${parsed.createMs}ms, prompt: ${parsed.promptMs}ms`
+      );
       console.log(`      response: "${parsed.response}"`);
     });
   } finally {

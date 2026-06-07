@@ -43,14 +43,14 @@ MAIN WORLD (src/injected/main-world.ts)
 
 ### Why Each Piece Lives Where It Does
 
-| Task                | Context                   | Reason                                                      |
-| ------------------- | ------------------------- | ----------------------------------------------------------- |
-| Frame capture       | Content script (isolated) | `<video>` lives in main DOM; isolated world has DOM access  |
-| OpenCV processing   | Content script (isolated) | All image data already local; no message-passing per pixel  |
+| Task                | Context                   | Reason                                                                         |
+| ------------------- | ------------------------- | ------------------------------------------------------------------------------ |
+| Frame capture       | Content script (isolated) | `<video>` lives in main DOM; isolated world has DOM access                     |
+| OpenCV processing   | Content script (isolated) | All image data already local; no message-passing per pixel                     |
 | AI verification     | Content script (isolated) | `LanguageModel` is a global available in this context [verified by smoke test] |
-| Storage (IndexedDB) | Service worker            | Single owner for persistence; survives page reloads         |
-| Toast notifications | Main world                | Toast DOM must render in the visible page                   |
-| Trigger button      | Popup                     | User initiates from the config UI                           |
+| Storage (IndexedDB) | Service worker            | Single owner for persistence; survives page reloads                            |
+| Toast notifications | Main world                | Toast DOM must render in the visible page                                      |
+| Trigger button      | Popup                     | User initiates from the config UI                                              |
 
 ---
 
@@ -84,17 +84,15 @@ declare const LanguageModel: {
 ### Image input format
 
 ```ts
-LanguageModelMessageValue = ImageBitmapSource | AudioBuffer | BufferSource | string;
+LanguageModelMessageValue =
+  ImageBitmapSource | AudioBuffer | BufferSource | string;
 ```
 
 For our use (passing a sprite candidate):
 
 ```ts
 const session = await LanguageModel.create({
-  expectedInputs: [
-    { type: 'image' },
-    { type: 'text', languages: ['en'] },
-  ],
+  expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
   expectedOutputs: [{ type: 'text', languages: ['en'] }],
 });
 
@@ -166,14 +164,14 @@ existing Scripts section in `gamepad-config-section.tsx`.
 
 State machine for the section:
 
-| State           | Trigger                                                     | UI                                                                |
-| --------------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
-| `unsupported`   | `typeof LanguageModel === 'undefined'`                      | Disabled section + help text: "Requires Chrome Canary + flags"    |
-| `unavailable`   | `availability() === 'unavailable'`                          | Same as `unsupported` plus link to flag-setup docs                |
-| `downloadable`  | `availability() === 'downloadable'`                         | Button: "Download AI model (~1.5 GB)" → triggers `create(...)`    |
-| `downloading`   | `availability() === 'downloading'` OR `create()` in flight  | Progress bar (from `monitor.ondownloadprogress`); button disabled |
-| `ready`         | `create()` resolved successfully                            | Button: "Find Sprites" → enabled                                  |
-| `error`         | `create()` rejected                                         | Error message + retry button                                      |
+| State          | Trigger                                                    | UI                                                                |
+| -------------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| `unsupported`  | `typeof LanguageModel === 'undefined'`                     | Disabled section + help text: "Requires Chrome Canary + flags"    |
+| `unavailable`  | `availability() === 'unavailable'`                         | Same as `unsupported` plus link to flag-setup docs                |
+| `downloadable` | `availability() === 'downloadable'`                        | Button: "Download AI model (~1.5 GB)" → triggers `create(...)`    |
+| `downloading`  | `availability() === 'downloading'` OR `create()` in flight | Progress bar (from `monitor.ondownloadprogress`); button disabled |
+| `ready`        | `create()` resolved successfully                           | Button: "Find Sprites" → enabled                                  |
+| `error`        | `create()` rejected                                        | Error message + retry button                                      |
 
 Implementation outline:
 
@@ -226,6 +224,7 @@ export async function sendStartFindSprites(): Promise<void> {
 **File:** `src/types/messages.ts`
 
 Add the four new message interfaces:
+
 - `StartFindSpritesMessage`
 - `SaveSpriteMessage` + response shape
 - `LoadSpritesMessage` + response shape
@@ -376,8 +375,8 @@ Add an IndexedDB wrapper module `src/background/sprite-store.ts`:
 ```ts
 interface SpriteRecord {
   game: string;
-  spriteType: string;       // canonical key
-  buffer: ArrayBuffer;      // PNG-encoded
+  spriteType: string; // canonical key
+  buffer: ArrayBuffer; // PNG-encoded
   w: number;
   h: number;
   updatedAt: number;
@@ -495,32 +494,32 @@ download. Run it on demand.
 
 ## File Changes Summary
 
-| File                                          | Change                                                                 |
-| --------------------------------------------- | ---------------------------------------------------------------------- |
-| `src/types/messages.ts`                       | Add `StartFindSpritesMessage`, `SaveSpriteMessage` (+ response), `LoadSpritesMessage` (+ response), `ShowToastMessage` |
-| `src/popup/messaging.ts`                      | Add `sendStartFindSprites()`                                           |
-| `src/popup/gamepad-config-section.tsx`        | Render the new `<FindSpritesSection/>` below the Scripts section       |
-| `src/popup/find-sprites-section.tsx` (new)    | Model-readiness state machine + Find Sprites button                    |
-| `src/content/sprite-extraction.ts` (new)      | Extraction orchestrator (capture loop, OpenCV, AI queue, blur stop)    |
-| `src/content/index.ts`                        | Wire `START_FIND_SPRITES` → orchestrator                               |
-| `src/background/service-worker.ts`            | Add `SAVE_SPRITE` / `LOAD_SPRITES` handlers (`return true` for async) |
-| `src/background/sprite-store.ts` (new)        | IndexedDB wrapper (`getAllForGame`, `put`)                             |
-| `src/injected/main-world.ts`                  | Branch in existing message listener: `SHOW_TOAST` → `showToast(text)`  |
-| `src/injected/toast.ts`                       | Optional: extend signature to `showToast(text, durationMs?)`           |
-| `manifest.json`                               | Add the emitted opencv WASM chunk to `web_accessible_resources`        |
-| `test/extract/extract-exerciser.html` (new)   | Test page that plays `test_media/test.mp4`                             |
-| `test/extract/extract.test.cjs` (new)         | Real extraction integration test                                       |
-| `test/extract/extract-setup.cjs` (new)        | Manual launcher for the real extraction harness                        |
-| `package.json`                                | Repoint `test:extract`; add `test:extract:setup`                       |
+| File                                        | Change                                                                                                                 |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `src/types/messages.ts`                     | Add `StartFindSpritesMessage`, `SaveSpriteMessage` (+ response), `LoadSpritesMessage` (+ response), `ShowToastMessage` |
+| `src/popup/messaging.ts`                    | Add `sendStartFindSprites()`                                                                                           |
+| `src/popup/gamepad-config-section.tsx`      | Render the new `<FindSpritesSection/>` below the Scripts section                                                       |
+| `src/popup/find-sprites-section.tsx` (new)  | Model-readiness state machine + Find Sprites button                                                                    |
+| `src/content/sprite-extraction.ts` (new)    | Extraction orchestrator (capture loop, OpenCV, AI queue, blur stop)                                                    |
+| `src/content/index.ts`                      | Wire `START_FIND_SPRITES` → orchestrator                                                                               |
+| `src/background/service-worker.ts`          | Add `SAVE_SPRITE` / `LOAD_SPRITES` handlers (`return true` for async)                                                  |
+| `src/background/sprite-store.ts` (new)      | IndexedDB wrapper (`getAllForGame`, `put`)                                                                             |
+| `src/injected/main-world.ts`                | Branch in existing message listener: `SHOW_TOAST` → `showToast(text)`                                                  |
+| `src/injected/toast.ts`                     | Optional: extend signature to `showToast(text, durationMs?)`                                                           |
+| `manifest.json`                             | Add the emitted opencv WASM chunk to `web_accessible_resources`                                                        |
+| `test/extract/extract-exerciser.html` (new) | Test page that plays `test_media/test.mp4`                                                                             |
+| `test/extract/extract.test.cjs` (new)       | Real extraction integration test                                                                                       |
+| `test/extract/extract-setup.cjs` (new)      | Manual launcher for the real extraction harness                                                                        |
+| `package.json`                              | Repoint `test:extract`; add `test:extract:setup`                                                                       |
 
 ---
 
 ## Dependencies
 
-| Library                 | Context        | Use                            | Source                                        |
-| ----------------------- | -------------- | ------------------------------ | --------------------------------------------- |
-| `@techstark/opencv-js`  | Content script | Contour extraction, frame diff | npm; bundled and code-split by Vite (~8 MB)   |
-| `LanguageModel`         | Content script | Built-in Chrome Prompt API     | Global; types from `@types/dom-chromium-ai`   |
+| Library                | Context        | Use                            | Source                                      |
+| ---------------------- | -------------- | ------------------------------ | ------------------------------------------- |
+| `@techstark/opencv-js` | Content script | Contour extraction, frame diff | npm; bundled and code-split by Vite (~8 MB) |
+| `LanguageModel`        | Content script | Built-in Chrome Prompt API     | Global; types from `@types/dom-chromium-ai` |
 
 One new npm dependency: `@techstark/opencv-js`. `puppeteer-core` is already
 installed for the smoke test.

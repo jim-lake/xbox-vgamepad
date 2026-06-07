@@ -20,8 +20,12 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME);
       }
     };
-    req.onsuccess = () => { resolve(req.result); };
-    req.onerror = () => { reject(new Error('Failed to open sprite DB')); };
+    req.onsuccess = () => {
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      reject(new Error('Failed to open sprite DB'));
+    };
   });
 }
 
@@ -44,14 +48,20 @@ export async function saveSprite(
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(record, `${game}::${spriteType}`);
-    tx.oncomplete = () => { resolve(); };
-    tx.onerror = () => { reject(new Error('Failed to save sprite')); };
+    tx.oncomplete = () => {
+      resolve();
+    };
+    tx.onerror = () => {
+      reject(new Error('Failed to save sprite'));
+    };
   });
 }
 
 export async function loadSprites(
   game: string
-): Promise<Array<{ spriteType: string; buffer: ArrayBuffer; w: number; h: number }>> {
+): Promise<
+  Array<{ spriteType: string; buffer: ArrayBuffer; w: number; h: number }>
+> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -70,6 +80,8 @@ export async function loadSprites(
           }))
       );
     };
-    req.onerror = () => { reject(new Error('Failed to load sprites')); };
+    req.onerror = () => {
+      reject(new Error('Failed to load sprites'));
+    };
   });
 }

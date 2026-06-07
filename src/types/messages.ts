@@ -138,7 +138,12 @@ export interface LoadSpritesMessage {
 }
 
 export interface LoadSpritesResponse {
-  sprites: Array<{ spriteType: string; buffer: ArrayBuffer; w: number; h: number }>;
+  sprites: Array<{
+    spriteType: string;
+    buffer: ArrayBuffer;
+    w: number;
+    h: number;
+  }>;
 }
 
 export interface ShowToastMessage {

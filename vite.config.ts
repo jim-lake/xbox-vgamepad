@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
     for (const entry of manifestCopy.web_accessible_resources) {
       entry.matches.push(testMatch);
     }
+    // Add scripting permission + host access for programmatic injection in Canary tests
+    if (!manifestCopy.permissions.includes('scripting')) {
+      manifestCopy.permissions.push('scripting');
+    }
+    (manifestCopy as Record<string, unknown>)['host_permissions'] = [testMatch];
   }
 
   return {

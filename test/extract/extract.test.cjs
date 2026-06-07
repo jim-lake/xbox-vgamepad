@@ -74,8 +74,13 @@ function startServer() {
       const assetPath = path.join(DIST_DIR, req.url);
       if (fs.existsSync(assetPath)) {
         const ext = path.extname(assetPath);
-        const types = { '.js': 'application/javascript', '.wasm': 'application/wasm' };
-        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
+        const types = {
+          '.js': 'application/javascript',
+          '.wasm': 'application/wasm',
+        };
+        res.writeHead(200, {
+          'Content-Type': types[ext] || 'application/octet-stream',
+        });
         fs.createReadStream(assetPath).pipe(res);
         return;
       }
@@ -153,8 +158,7 @@ async function run() {
     await new Promise((r) => setTimeout(r, 2000));
 
     await assert('isolated world context found', async () => {
-      if (!isolatedContextId)
-        throw new Error('No isolated execution context');
+      if (!isolatedContextId) throw new Error('No isolated execution context');
     });
 
     await assert('LanguageModel available', async () => {
@@ -175,34 +179,61 @@ async function run() {
 
     // Find the OpenCV chunk name from the build output
     const assets = fs.readdirSync(path.join(DIST_DIR, 'assets'));
-    const opencvChunk = assets.find((f) => f.startsWith('opencv-') && f.endsWith('.js'));
-    if (!opencvChunk) throw new Error('OpenCV chunk not found in build-test/assets/');
+    const opencvChunk = assets.find(
+      (f) => f.startsWith('opencv-') && f.endsWith('.js')
+    );
+    if (!opencvChunk)
+      throw new Error('OpenCV chunk not found in build-test/assets/');
 
-    // Run the REAL extraction pipeline for 20s.
+    // Run the REAL extraction pipeline at multiple timestamps.
     // This mirrors src/content/sprite-extraction.ts: frame diff → contours → AI verify.
-    // chrome.runtime.sendMessage is stubbed to capture saves locally.
-    console.log(`\n  Running real extraction pipeline for ${RUN_DURATION / 1000}s...\n`);
+    const timestamps = [0, 180, 480]; // start, 3min, 8min
+    const allSprites = [];
+    let totalCandidates = 0;
 
-    const extractResult = await cdp.send('Runtime.evaluate', {
-      expression: `(async () => {
+    for (const seekTo of timestamps) {
+      const label = seekTo === 0 ? 'start' : `${seekTo / 60}min`;
+      console.log(
+        `\n  --- Running at ${label} (${RUN_DURATION / 1000}s) ---\n`
+      );
+
+      // Seek the video
+      await cdp.send('Runtime.evaluate', {
+        expression: `(async () => {
+          const v = document.querySelector('video');
+          v.currentTime = ${seekTo};
+          await new Promise(r => v.addEventListener('seeked', r, { once: true }));
+          await v.play();
+          return 'seeked to ${seekTo}';
+        })()`,
+        contextId: isolatedContextId,
+        awaitPromise: true,
+      });
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const extractResult = await cdp.send('Runtime.evaluate', {
+        expression: `(async () => {
         const results = { toasts: [], sprites: [], errors: [], candidates: 0 };
         const RUN_MS = ${RUN_DURATION};
+        const knownBefore = ${JSON.stringify(allSprites.map((s) => s.label))};
 
         try {
-          // Create AI session (same params as production)
-          const session = await LanguageModel.create({
-            expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
-            expectedOutputs: [{ type: 'text', languages: ['en'] }],
-          });
-          results.toasts.push('AI session created');
-
-          // Load OpenCV from the built chunk
-          const cvModule = await import('http://127.0.0.1:${PORT}/assets/${opencvChunk}');
-          const cv = cvModule.default;
-          if (cv.onRuntimeInitialized !== undefined) {
-            await new Promise(r => { cv.onRuntimeInitialized = r; });
+          if (!globalThis.__aiSession) {
+            globalThis.__aiSession = await LanguageModel.create({
+              expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
+              expectedOutputs: [{ type: 'text', languages: ['en'] }],
+            });
           }
-          results.toasts.push('OpenCV loaded');
+          const session = globalThis.__aiSession;
+
+          if (!globalThis.__cv) {
+            const cvModule = await import('http://127.0.0.1:${PORT}/assets/${opencvChunk}');
+            globalThis.__cv = cvModule.default;
+            if (globalThis.__cv.onRuntimeInitialized !== undefined) {
+              await new Promise(r => { globalThis.__cv.onRuntimeInitialized = r; });
+            }
+          }
+          const cv = globalThis.__cv;
 
           const video = document.querySelector('video');
           if (!video) throw new Error('No video element');
@@ -212,9 +243,7 @@ async function run() {
           let prevGray = null;
           let frameCount = 0;
           let stopRequested = false;
-          const knownLabels = new Set();
-
-          results.toasts.push('Finding sprites for test_game…');
+          const knownLabels = new Set(knownBefore);
 
           const startTime = Date.now();
 
@@ -233,10 +262,7 @@ async function run() {
             cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
             frame.delete();
 
-            if (!prevGray) {
-              prevGray = gray;
-              return;
-            }
+            if (!prevGray) { prevGray = gray; return; }
 
             const diff = new cv.Mat();
             cv.absdiff(gray, prevGray, diff);
@@ -264,105 +290,86 @@ async function run() {
             contours.delete();
             results.candidates += candidates.length;
 
-            // Process up to 2 candidates per frame (same as production)
             for (const cand of candidates.slice(0, 2)) {
               if (stopRequested) break;
-
               const cropBitmap = await createImageBitmap(
                 imageData, cand.x, cand.y, cand.width, cand.height
               );
-
               try {
-                const aiResult = await session.prompt([
-                  {
-                    role: 'user',
-                    content: [
-                      { type: 'image', value: cropBitmap },
-                      {
-                        type: 'text',
-                        value: 'What is this game element? Reply ONLY with JSON: {"label":"your_description_here","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a descriptive label like health_bar, player, enemy, tree, button.',
-                      },
-                    ],
-                  },
-                ]);
-
-                // Parse response (same as production parseAIResponse)
+                const aiResult = await session.prompt([{
+                  role: 'user',
+                  content: [
+                    { type: 'image', value: cropBitmap },
+                    { type: 'text', value: 'What is this game element? Reply ONLY with JSON: {"label":"your description","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a plain descriptive name like "health bar", "knight enemy", "tree", "gold coin".' },
+                  ],
+                }]);
                 const match = aiResult.match(/\\{[^}]+\\}/);
                 if (match) {
                   const parsed = JSON.parse(match[0]);
                   if (typeof parsed.label === 'string' && typeof parsed.accept === 'boolean') {
-                    const label = parsed.label.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                    const label = parsed.label.trim();
                     if (parsed.accept && !knownLabels.has(label)) {
                       knownLabels.add(label);
                       results.sprites.push({ label, w: cand.width, h: cand.height });
-                      results.toasts.push('Found: ' + label);
                     }
                   }
                 }
-              } catch (e) {
-                // AI failed for this candidate, skip
-              }
-
-              // Check time budget
+              } catch (e) {}
               if (Date.now() - startTime > RUN_MS) { stopRequested = true; break; }
             }
           };
 
-          // Frame loop
-          const loop = () => new Promise(resolve => {
+          await new Promise(resolve => {
             const tick = async () => {
-              if (stopRequested || Date.now() - startTime > RUN_MS) {
-                resolve();
-                return;
-              }
+              if (stopRequested || Date.now() - startTime > RUN_MS) { resolve(); return; }
               await processFrame();
               if ('requestVideoFrameCallback' in video) {
                 video.requestVideoFrameCallback(tick);
-              } else {
-                setTimeout(tick, 1000 / 12);
-              }
+              } else { setTimeout(tick, 1000 / 12); }
             };
             if ('requestVideoFrameCallback' in video) {
               video.requestVideoFrameCallback(tick);
-            } else {
-              setTimeout(tick, 1000 / 12);
-            }
+            } else { setTimeout(tick, 1000 / 12); }
           });
 
-          await loop();
-
           if (prevGray) prevGray.delete();
-          session.destroy();
-          results.toasts.push('Sprite extraction stopped');
         } catch (e) {
           results.errors.push(e.message || String(e));
         }
-
         return JSON.stringify(results);
       })()`,
-      contextId: isolatedContextId,
-      awaitPromise: true,
-      timeout: 300000,
-    });
+        contextId: isolatedContextId,
+        awaitPromise: true,
+        timeout: 300000,
+      });
 
-    let results;
-    if (extractResult.exceptionDetails) {
-      const desc =
-        extractResult.exceptionDetails.exception?.description ||
-        extractResult.exceptionDetails.text;
-      console.log(`  Pipeline exception: ${desc}`);
-      results = { toasts: [], sprites: [], errors: [desc], candidates: 0 };
-    } else {
-      results = JSON.parse(extractResult.result.value);
+      let segResults;
+      if (extractResult.exceptionDetails) {
+        const desc =
+          extractResult.exceptionDetails.exception?.description ||
+          extractResult.exceptionDetails.text;
+        console.log(`  Exception: ${desc}`);
+        segResults = { sprites: [], errors: [desc], candidates: 0 };
+      } else {
+        segResults = JSON.parse(extractResult.result.value);
+      }
+
+      totalCandidates += segResults.candidates;
+      allSprites.push(...segResults.sprites);
+      console.log(
+        `  Candidates: ${segResults.candidates}, New sprites: ${segResults.sprites.length}`
+      );
+      segResults.sprites.forEach((s) =>
+        console.log(`    "${s.label}" (${s.w}×${s.h})`)
+      );
+      if (segResults.errors.length > 0)
+        console.log(`  Errors: ${segResults.errors.join('; ')}`);
     }
 
-    console.log(`  Candidates detected by OpenCV: ${results.candidates}`);
-    console.log(`  Sprites verified by AI: ${results.sprites.length}`);
-    results.toasts.forEach((t) => console.log(`    "${t}"`));
-    if (results.errors.length > 0) {
-      console.log(`  Errors:`);
-      results.errors.forEach((e) => console.log(`    ${e}`));
-    }
+    console.log(`\n  === TOTALS ===`);
+    console.log(`  Total candidates: ${totalCandidates}`);
+    console.log(`  Total sprites: ${allSprites.length}`);
+    allSprites.forEach((s) => console.log(`    "${s.label}" (${s.w}×${s.h})`));
 
     await assert('extraction started (OpenCV + AI session)', async () => {
       if (!results.toasts.includes('Finding sprites for test_game…'))
@@ -371,7 +378,9 @@ async function run() {
 
     await assert('OpenCV detected candidates from video frames', async () => {
       if (results.candidates === 0)
-        throw new Error('No contour candidates detected — frame diff may not be working');
+        throw new Error(
+          'No contour candidates detected — frame diff may not be working'
+        );
     });
 
     await assert('AI verified at least one sprite', async () => {
@@ -394,8 +403,7 @@ async function run() {
     });
 
     await assert('no critical errors', async () => {
-      if (results.errors.length > 0)
-        throw new Error(results.errors.join('; '));
+      if (results.errors.length > 0) throw new Error(results.errors.join('; '));
     });
   } finally {
     await browser.close();

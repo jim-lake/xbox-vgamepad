@@ -78,17 +78,26 @@ async function runExtraction(gameName: string): Promise<void> {
   }
 
   // Capture and process loop
-  const canvas = new OffscreenCanvas(video.videoWidth || 1920, video.videoHeight || 1080);
+  const canvas = new OffscreenCanvas(
+    video.videoWidth || 1920,
+    video.videoHeight || 1080
+  );
   const ctx = canvas.getContext('2d');
-  if (!ctx) {return;}
+  if (!ctx) {
+    return;
+  }
   const cvState: { prevGray: CVMat | null } = { prevGray: null };
   let frameCount = 0;
 
   const processFrame = async (): Promise<void> => {
-    if (extractionState.stopRequested) {return;}
+    if (extractionState.stopRequested) {
+      return;
+    }
 
     frameCount++;
-    if (frameCount % 5 !== 0) {return;}
+    if (frameCount % 5 !== 0) {
+      return;
+    }
 
     canvas.width = video.videoWidth || 1920;
     canvas.height = video.videoHeight || 1080;
@@ -100,7 +109,6 @@ async function runExtraction(gameName: string): Promise<void> {
     cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
     frame.delete();
 
-     
     if (!cvState.prevGray) {
       cvState.prevGray = gray;
       return;
@@ -117,7 +125,13 @@ async function runExtraction(gameName: string): Promise<void> {
 
     const contours = new cv.MatVector();
     const hierarchy = new cv.Mat();
-    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    cv.findContours(
+      thresh,
+      contours,
+      hierarchy,
+      cv.RETR_EXTERNAL,
+      cv.CHAIN_APPROX_SIMPLE
+    );
     thresh.delete();
     hierarchy.delete();
 
@@ -125,18 +139,28 @@ async function runExtraction(gameName: string): Promise<void> {
     const frameArea = canvas.width * canvas.height;
     for (let i = 0; i < contours.size(); i++) {
       const rect = cv.boundingRect(contours.get(i));
-      if (rect.width < 8 || rect.height < 8) {continue;}
-      if (rect.width * rect.height > frameArea * 0.25) {continue;}
+      if (rect.width < 8 || rect.height < 8) {
+        continue;
+      }
+      if (rect.width * rect.height > frameArea * 0.25) {
+        continue;
+      }
       candidates.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
     }
     contours.delete();
 
     for (const cand of candidates.slice(0, 2)) {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- externally mutated via blur/stop
-      if (extractionState.stopRequested) {break;}
+      if (extractionState.stopRequested) {
+        break;
+      }
 
       const cropBitmap = await createImageBitmap(
-        imageData, cand.x, cand.y, cand.w, cand.h
+        imageData,
+        cand.x,
+        cand.y,
+        cand.w,
+        cand.h
       );
 
       try {
@@ -148,7 +172,7 @@ async function runExtraction(gameName: string): Promise<void> {
               {
                 type: 'text',
                 value:
-                  'What is this game element? Reply ONLY with JSON: {"label":"your_description_here","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a descriptive label like health_bar, player, enemy, tree, button.',
+                  'What is this game element? Reply ONLY with JSON: {"label":"your description","accept":true} if it is a clear game sprite or UI element, or {"label":"noise","accept":false} if not. Use a plain descriptive name like "health bar", "knight enemy", "tree", "gold coin".',
               },
             ],
           },
@@ -160,7 +184,9 @@ async function runExtraction(gameName: string): Promise<void> {
 
           const cropCanvas = new OffscreenCanvas(cand.w, cand.h);
           const cropCtx = cropCanvas.getContext('2d');
-          if (!cropCtx) {continue;}
+          if (!cropCtx) {
+            continue;
+          }
           cropCtx.drawImage(cropBitmap, 0, 0);
           const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
           const buffer = await blob.arrayBuffer();
@@ -185,12 +211,17 @@ async function runExtraction(gameName: string): Promise<void> {
 
   // Frame loop using requestVideoFrameCallback or fallback
   const loop = (): void => {
-    if (extractionState.stopRequested) {return;}
+    if (extractionState.stopRequested) {
+      return;
+    }
     void processFrame().then(() => {
       if (!extractionState.stopRequested) {
         if ('requestVideoFrameCallback' in video) {
-          (video as HTMLVideoElement & { requestVideoFrameCallback: (cb: () => void) => void })
-            .requestVideoFrameCallback(loop);
+          (
+            video as HTMLVideoElement & {
+              requestVideoFrameCallback: (cb: () => void) => void;
+            }
+          ).requestVideoFrameCallback(loop);
         } else {
           setTimeout(loop, 1000 / 12);
         }
@@ -199,8 +230,11 @@ async function runExtraction(gameName: string): Promise<void> {
   };
 
   if ('requestVideoFrameCallback' in video) {
-    (video as HTMLVideoElement & { requestVideoFrameCallback: (cb: () => void) => void })
-      .requestVideoFrameCallback(loop);
+    (
+      video as HTMLVideoElement & {
+        requestVideoFrameCallback: (cb: () => void) => void;
+      }
+    ).requestVideoFrameCallback(loop);
   } else {
     setTimeout(loop, 1000 / 12);
   }
@@ -222,16 +256,20 @@ async function runExtraction(gameName: string): Promise<void> {
   postToast('Sprite extraction stopped');
 }
 
-function parseAIResponse(text: string): { label: string; accept: boolean } | null {
+function parseAIResponse(
+  text: string
+): { label: string; accept: boolean } | null {
   try {
     const match = text.match(/\{[^}]+\}/);
-    if (!match) {return null;}
+    if (!match) {
+      return null;
+    }
     const obj = JSON.parse(match[0]) as Record<string, unknown>;
-    if (typeof obj['label'] === 'string' && typeof obj['accept'] === 'boolean') {
-      return {
-        label: obj['label'].toLowerCase().replace(/[^a-z0-9_]/g, '_'),
-        accept: obj['accept'],
-      };
+    if (
+      typeof obj['label'] === 'string' &&
+      typeof obj['accept'] === 'boolean'
+    ) {
+      return { label: obj['label'].trim(), accept: obj['accept'] };
     }
   } catch {
     // parse error
@@ -256,9 +294,26 @@ interface OpenCVModule {
   matFromImageData(data: ImageData): CVMat;
   cvtColor(src: CVMat, dst: CVMat, code: number): void;
   absdiff(a: CVMat, b: CVMat, dst: CVMat): void;
-  threshold(src: CVMat, dst: CVMat, thresh: number, maxval: number, type: number): void;
-  findContours(src: CVMat, contours: CVMatVector, hierarchy: CVMat, mode: number, method: number): void;
-  boundingRect(contour: CVMat): { x: number; y: number; width: number; height: number };
+  threshold(
+    src: CVMat,
+    dst: CVMat,
+    thresh: number,
+    maxval: number,
+    type: number
+  ): void;
+  findContours(
+    src: CVMat,
+    contours: CVMatVector,
+    hierarchy: CVMat,
+    mode: number,
+    method: number
+  ): void;
+  boundingRect(contour: CVMat): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
   COLOR_RGBA2GRAY: number;
   THRESH_BINARY: number;
   RETR_EXTERNAL: number;
@@ -268,10 +323,14 @@ interface OpenCVModule {
 let cvModule: OpenCVModule | null = null;
 
 async function loadOpenCV(): Promise<OpenCVModule | null> {
-  if (cvModule) {return cvModule;}
+  if (cvModule) {
+    return cvModule;
+  }
   try {
     const mod = await import('@techstark/opencv-js');
-    const cv = mod.default as unknown as OpenCVModule & { onRuntimeInitialized?: () => void };
+    const cv = mod.default as unknown as OpenCVModule & {
+      onRuntimeInitialized?: () => void;
+    };
     if (typeof cv.onRuntimeInitialized === 'undefined') {
       cvModule = cv;
       return cv;
