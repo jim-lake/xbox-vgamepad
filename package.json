@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.842",
+  "version": "0.0.845",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,10 @@
     "test:patch": "vite build --mode test && node test/patch/run.cjs",
     "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs",
     "test:extract": "vite build --mode test && node test/extract/extract.test.cjs",
+    "test:extract:early": "vite build --mode test && node test/extract/extract-early.test.cjs",
+    "test:extract:mid": "vite build --mode test && node test/extract/extract-mid.test.cjs",
+    "test:extract:late": "vite build --mode test && node test/extract/extract-late.test.cjs",
+    "test:extract:full": "vite build --mode test && node test/extract/extract-full.test.cjs",
     "test:extract:smoke": "node test/extract/extract-smoke.test.cjs",
     "test:extract:setup": "vite build --mode test && node test/extract/extract-setup.cjs",
     "test:extract:smoke:setup": "vite build --mode test && node test/extract/extract-smoke-setup.cjs"

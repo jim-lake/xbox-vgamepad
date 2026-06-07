@@ -1,6 +1,8 @@
 /**
- * Smoke test: verifies Chrome Prompt API (LanguageModel) works in the
- * extension's isolated world content script context.
+ * Smoke test: verifies the extension loads via CDP and the Chrome Prompt API
+ * (LanguageModel) works in the extension's real content script context.
+ *
+ * Uses Extensions.loadUnpacked (the only working method in Canary 151+).
  *
  * Requires:
  * - Chrome Canary with Gemini Nano model downloaded
@@ -8,11 +10,13 @@
  *
  * Usage: npm run test:extract:smoke
  */
+'use strict';
+
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 const http = require('http');
 
-const DIST_DIR = path.join(__dirname, '..', '..', 'build-test');
+const DIST_DIR = path.resolve(path.join(__dirname, '..', '..', 'build-test'));
 const PROFILE_DIR = path.join(__dirname, 'profile');
 const CHROME =
   process.env.CHROME_PATH ||
@@ -25,7 +29,9 @@ function startServer() {
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<html><body><button id="btn">click</button></body></html>');
+      res.end(
+        '<html><head><title>Test Game | Xbox Cloud Gaming</title></head><body><button id="btn">click</button></body></html>'
+      );
     });
     server.listen(PORT, '127.0.0.1', () => resolve());
   });
@@ -42,11 +48,22 @@ async function run() {
     args: [
       '--remote-debugging-port=0',
       `--user-data-dir=${PROFILE_DIR}`,
-      `--disable-extensions-except=${DIST_DIR}`,
-      `--load-extension=${DIST_DIR}`,
+      '--enable-unsafe-extension-debugging',
       '--no-first-run',
       '--no-default-browser-check',
-      '--enable-features=OptimizationGuideOnDeviceModel,PromptAPIForGeminiNano,PromptAPIForGeminiNanoMultimodalInput,AILanguageModel',
+      '--disable-session-crashed-bubble',
+      '--disable-infobars',
+      '--disable-breakpad',
+      '--disable-component-update',
+      '--disable-background-networking',
+      '--disable-sync',
+      '--disable-translate',
+      '--disable-features=Translate,AcceptCHFrame,MediaRouter',
+      '--enable-features=OptimizationHints,OptimizationGuideOnDeviceModel:bypass_perf_requirement/true,OnDeviceModelBackgroundDownload,PromptAPIForGeminiNano,PromptAPIForGeminiNanoMultimodalInput,AILanguageModel',
+      '--hide-crash-restore-bubble',
+      '--noerrdialogs',
+      '--no-service-autorun',
+      '--password-store=basic',
       'about:blank',
     ],
   });
@@ -67,35 +84,59 @@ async function run() {
   }
 
   try {
+    // Load extension via CDP
+    const browserSession = await browser.target().createCDPSession();
+    const loadResult = await browserSession.send('Extensions.loadUnpacked', {
+      path: DIST_DIR,
+    });
+
+    console.log('Chrome Prompt API smoke test (real extension)\n');
+    console.log(`  Extension loaded: ${loadResult.id}`);
+
+    await new Promise((r) => setTimeout(r, 2000));
+
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
-    await page.click('#btn');
-
-    console.log('Chrome Prompt API smoke test (isolated world)\n');
+    await new Promise((r) => setTimeout(r, 3000));
 
     const cdp = await page.createCDPSession();
-    let isolatedContextId = null;
+    const contexts = [];
     cdp.on('Runtime.executionContextCreated', (event) => {
-      if (
-        event.context.auxData?.type === 'isolated' &&
-        event.context.origin !== ''
-      ) {
-        isolatedContextId = event.context.id;
-      }
+      contexts.push(event.context);
     });
     await cdp.send('Runtime.enable');
     await new Promise((r) => setTimeout(r, 2000));
 
-    await assert('isolated world context found', async () => {
-      if (!isolatedContextId) throw new Error('No isolated execution context');
+    // Find the extension's isolated world (not puppeteer's utility world)
+    const extContext = contexts.find(
+      (c) =>
+        c.auxData?.type === 'isolated' &&
+        c.origin !== '' &&
+        !c.name.includes('__puppeteer_utility_world__')
+    );
+
+    await assert('extension content script context found', async () => {
+      if (!extContext)
+        throw new Error(
+          'No extension isolated context — extension did not inject'
+        );
     });
 
-    if (!isolatedContextId) return;
+    if (!extContext) return;
+
+    await assert('chrome.runtime available in content script', async () => {
+      const result = await cdp.send('Runtime.evaluate', {
+        expression: 'typeof chrome?.runtime?.sendMessage',
+        contextId: extContext.id,
+      });
+      if (result.result.value !== 'function')
+        throw new Error(`chrome.runtime.sendMessage is ${result.result.value}`);
+    });
 
     await assert('LanguageModel global exists', async () => {
       const result = await cdp.send('Runtime.evaluate', {
         expression: 'typeof LanguageModel',
-        contextId: isolatedContextId,
+        contextId: extContext.id,
       });
       if (result.result.value === 'undefined')
         throw new Error('LanguageModel is undefined');
@@ -114,21 +155,21 @@ async function run() {
             return JSON.stringify({ error: e.message });
           }
         })()`,
-        contextId: isolatedContextId,
+        contextId: extContext.id,
         awaitPromise: true,
       });
       const parsed = JSON.parse(result.result.value);
       if (parsed.error) throw new Error(parsed.error);
       console.log(`      status: "${parsed.available}"`);
       if (parsed.available === 'unavailable')
-        throw new Error(
-          'Model unavailable — ensure Gemini Nano is downloaded in Chrome Canary'
-        );
+        throw new Error('Model unavailable — ensure Gemini Nano is downloaded');
     });
 
-    await assert('can create session and prompt', async () => {
-      const result = await cdp.send('Runtime.evaluate', {
-        expression: `(async () => {
+    await assert(
+      'can create session and prompt in extension context',
+      async () => {
+        const result = await cdp.send('Runtime.evaluate', {
+          expression: `(async () => {
           try {
             const t0 = performance.now();
             const session = await LanguageModel.create({
@@ -150,17 +191,18 @@ async function run() {
             return JSON.stringify({ error: e.message });
           }
         })()`,
-        contextId: isolatedContextId,
-        awaitPromise: true,
-        timeout: 120000,
-      });
-      const parsed = JSON.parse(result.result.value);
-      if (parsed.error) throw new Error(parsed.error);
-      console.log(
-        `      create: ${parsed.createMs}ms, prompt: ${parsed.promptMs}ms`
-      );
-      console.log(`      response: "${parsed.response}"`);
-    });
+          contextId: extContext.id,
+          awaitPromise: true,
+          timeout: 120000,
+        });
+        const parsed = JSON.parse(result.result.value);
+        if (parsed.error) throw new Error(parsed.error);
+        console.log(
+          `      create: ${parsed.createMs}ms, prompt: ${parsed.promptMs}ms`
+        );
+        console.log(`      response: "${parsed.response}"`);
+      }
+    );
   } finally {
     await browser.close();
     server.close();
