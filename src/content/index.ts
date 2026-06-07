@@ -265,6 +265,12 @@ window.addEventListener('message', (event: MessageEvent) => {
     trySendMessage({ ...msg, source: MSG_SOURCE });
   } else if (msg.type === 'START_FIND_SPRITES') {
     void startFindSprites(state.gameName);
+  } else if (msg.type === 'VERIFY_OPENCV') {
+    // OpenCV removed — image ops are pure JS, always available
+    window.postMessage(
+      { source: MSG_SOURCE, type: 'VERIFY_OPENCV_RESULT', success: true },
+      '*'
+    );
   }
 });
 

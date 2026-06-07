@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.845",
+  "version": "0.0.920",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,15 +17,18 @@
     "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs",
     "test:extract": "vite build --mode test && node test/extract/extract.test.cjs",
     "test:extract:early": "vite build --mode test && node test/extract/extract-early.test.cjs",
+    "test:extract:quarter": "vite build --mode test && node test/extract/extract-quarter.test.cjs",
     "test:extract:mid": "vite build --mode test && node test/extract/extract-mid.test.cjs",
+    "test:extract:3quarter": "vite build --mode test && node test/extract/extract-3quarter.test.cjs",
     "test:extract:late": "vite build --mode test && node test/extract/extract-late.test.cjs",
     "test:extract:full": "vite build --mode test && node test/extract/extract-full.test.cjs",
+    "test:extract:mega": "vite build --mode test && node test/extract/extract-mega.test.cjs",
     "test:extract:smoke": "node test/extract/extract-smoke.test.cjs",
+    "test:extract:smoke-extension": "vite build --mode test && node test/extract/extract-smoke-extension.test.cjs",
     "test:extract:setup": "vite build --mode test && node test/extract/extract-setup.cjs",
     "test:extract:smoke:setup": "vite build --mode test && node test/extract/extract-smoke-setup.cjs"
   },
   "dependencies": {
-    "@techstark/opencv-js": "^4.12.0-release.1",
     "aphrodite": "^2.4.0",
     "events": "^3.3.0",
     "ioctl": "^2.0.2",

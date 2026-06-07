@@ -153,6 +153,16 @@ export interface ShowToastMessage {
   duration?: number;
 }
 
+export interface VerifyOpenCVMessage {
+  source: typeof MSG_SOURCE;
+  type: 'VERIFY_OPENCV';
+}
+
+export interface VerifyOpenCVResponse {
+  success: boolean;
+  error?: string;
+}
+
 export function isExtensionMessage(data: unknown): data is ExtensionMessage {
   return (
     data !== null &&
@@ -169,7 +179,8 @@ export type PageToContentMessage =
   | ScriptCountMessage
   | InputSuspendedMessage
   | GamepadStatusMessage
-  | StartFindSpritesMessage;
+  | StartFindSpritesMessage
+  | VerifyOpenCVMessage;
 
 export type BackgroundToPageMessage =
   | ActivateGamepadConfigMessage
@@ -199,4 +210,5 @@ export type ExtensionMessage =
   | StartFindSpritesMessage
   | SaveSpriteMessage
   | LoadSpritesMessage
-  | ShowToastMessage;
+  | ShowToastMessage
+  | VerifyOpenCVMessage;
