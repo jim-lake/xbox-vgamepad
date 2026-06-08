@@ -186,6 +186,34 @@
 		return null;
 	}
 	//#endregion
+	//#region src/types/gamepad.ts
+	var BUTTON_MAP = {
+		a: 0,
+		b: 1,
+		x: 2,
+		y: 3,
+		leftShoulder: 4,
+		rightShoulder: 5,
+		leftTrigger: 6,
+		rightTrigger: 7,
+		select: 8,
+		start: 9,
+		leftStickPressed: 10,
+		rightStickPressed: 11,
+		dpadUp: 12,
+		dpadDown: 13,
+		dpadLeft: 14,
+		dpadRight: 15,
+		home: 16
+	};
+	var Direction = {
+		UP: "UP",
+		DOWN: "DOWN",
+		LEFT: "LEFT",
+		RIGHT: "RIGHT"
+	};
+	var DEFAULT_SENSITIVITY = 1e3;
+	//#endregion
 	//#region src/injected/gamepad-simulator.ts
 	var GAMEPAD_ID = "Xbox 360 Controller (XInput STANDARD GAMEPAD)";
 	var AxisDirection = {
@@ -523,33 +551,6 @@
 	function setMode(mode) {
 		g_mode = mode ?? "separate";
 	}
-	//#endregion
-	//#region src/types/gamepad.ts
-	var BUTTON_MAP = {
-		a: 0,
-		b: 1,
-		x: 2,
-		y: 3,
-		leftShoulder: 4,
-		rightShoulder: 5,
-		leftTrigger: 6,
-		rightTrigger: 7,
-		select: 8,
-		start: 9,
-		leftStickPressed: 10,
-		rightStickPressed: 11,
-		dpadUp: 12,
-		dpadDown: 13,
-		dpadLeft: 14,
-		dpadRight: 15,
-		home: 16
-	};
-	var Direction = {
-		UP: "UP",
-		DOWN: "DOWN",
-		LEFT: "LEFT",
-		RIGHT: "RIGHT"
-	};
 	//#endregion
 	//#region src/injected/script-actions.ts
 	var AXIS_ACTION_MAP = {
@@ -1131,7 +1132,7 @@
 	var g_scriptMap = /* @__PURE__ */ new Map();
 	var g_scriptManager = new ScriptManager(onScriptCountChange);
 	var g_mouseTarget = null;
-	var g_sensitivity = 10;
+	var g_sensitivity = DEFAULT_SENSITIVITY;
 	var g_active = false;
 	var g_config = null;
 	var g_activeIndices = /* @__PURE__ */ new Set();
@@ -1173,8 +1174,9 @@
 			if (g_mouseTarget !== null) getSimulator(g_mouseTarget.gamepadIndex).moveStick(g_mouseTarget.stick, 0, 0);
 			g_stopTimer = null;
 		}, MOUSE_STOP_MS);
-		const x = Math.max(-1, Math.min(1, g_accX / g_sensitivity));
-		const y = Math.max(-1, Math.min(1, g_accY / g_sensitivity));
+		const scale = g_sensitivity / 1e3;
+		const x = Math.max(-1, Math.min(1, g_accX * scale));
+		const y = Math.max(-1, Math.min(1, g_accY * scale));
 		g_accX = 0;
 		g_accY = 0;
 		if (g_mouseTarget !== null) getSimulator(g_mouseTarget.gamepadIndex).moveStick(g_mouseTarget.stick, x, y);
@@ -1312,7 +1314,7 @@
 		if (opts?.resetDismissed) setMinimizedDismissed(false);
 		const prevMouseTarget = g_mouseTarget;
 		const mouseTarget = config.mouseConfig.mouseControls[0] ?? null;
-		g_sensitivity = mouseTarget?.sensitivity ?? 10;
+		g_sensitivity = config.mouseSensitivity ?? mouseTarget?.sensitivity ?? 1e3;
 		g_mouseTarget = mouseTarget ? {
 			stick: mouseTarget.stick === "left" ? 0 : 1,
 			gamepadIndex: mouseTarget.gamepadIndex
@@ -1499,6 +1501,7 @@
 		const data = event.data;
 		if (!isExtensionMessage(data)) return;
 		if (data.type === "SETTINGS_CHANGED") handleSettingsChanged(data);
+		else if (data.type === "SHOW_TOAST") showToast(data.text);
 		else handleGameMessage(data);
 	});
 	debugLog("[gamepad]: Load main-world, logging enabled:", String(localStorage.getItem("xvg-enableLogging")));
