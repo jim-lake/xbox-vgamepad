@@ -125,7 +125,7 @@ async function runExtraction(gameName: string): Promise<void> {
       candidates.push(rect);
     }
 
-    for (const cand of candidates.slice(0, 2)) {
+    for (const cand of candidates) {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- externally mutated via blur/stop
       if (extractionState.stopRequested) {
         break;
@@ -166,13 +166,19 @@ async function runExtraction(gameName: string): Promise<void> {
           cropCtx.drawImage(cropBitmap, 0, 0);
           const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
           const buffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i] ?? 0);
+          }
+          const b64 = btoa(binary);
 
           await chrome.runtime.sendMessage({
             source: MSG_SOURCE,
             type: 'SAVE_SPRITE',
             game: gameName,
             spriteType: parsed.label,
-            buffer,
+            b64,
             w: cand.w,
             h: cand.h,
           });

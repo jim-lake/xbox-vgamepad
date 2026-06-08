@@ -77,6 +77,12 @@ function startServer() {
 }
 
 async function launchBrowser() {
+  // Clear stale service worker cache so the fresh build's SW code is used
+  const swCachePath = path.join(PROFILE_DIR, 'Default', 'Service Worker');
+  if (fs.existsSync(swCachePath)) {
+    fs.rmSync(swCachePath, { recursive: true, force: true });
+  }
+
   const browser = await puppeteer.launch({
     headless: false,
     executablePath: CHROME,
@@ -201,10 +207,7 @@ async function runRealExtraction(page, seekTo, durationMs) {
   // Collect results
   const toasts = await page.evaluate(() => window.__extractToasts || []);
 
-  // Check for errors in console (already captured if needed)
-  const errors = [];
-
-  return { toasts, errors };
+  return { toasts, errors: [] };
 }
 
 /**
@@ -319,6 +322,151 @@ async function aiVerifyLabels(cdp, contextId, labels) {
   }
 }
 
+/**
+ * Clear all sprites from the extension's IndexedDB.
+ * @param {object} browser - Puppeteer browser instance
+ */
+async function clearSpritesDB(browser) {
+  const swTarget = await browser
+    .waitForTarget(
+      (t) =>
+        t.type() === 'service_worker' && t.url().includes('service-worker'),
+      { timeout: 5000 }
+    )
+    .catch(() => null);
+  if (!swTarget) return;
+
+  const cdpSW = await swTarget.createCDPSession();
+  await cdpSW.send('Runtime.enable');
+  await cdpSW.send('Runtime.evaluate', {
+    expression: `(async () => {
+      const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('xvg-sprites', 1);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          if (!d.objectStoreNames.contains('sprites')) d.createObjectStore('sprites');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('sprites', 'readwrite');
+        tx.objectStore('sprites').clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    })()`,
+    awaitPromise: true,
+    timeout: 5000,
+  });
+  await cdpSW.detach();
+}
+
+/**
+ * Load sprites from the extension's IndexedDB by evaluating in the service worker.
+ * The service worker has the xvg-sprites DB in the extension's origin.
+ * @param {object} browser - Puppeteer browser instance
+ * @param {string} game - Game name
+ * @returns {Array<{label: string, w: number, h: number, png: number[]}>}
+ */
+async function loadSpritesFromExtension(browser, contextId, game) {
+  // Wake the service worker — it may have been killed during the wait.
+  // Send a dummy message from the content script's isolated world via CDP.
+  const pages = await browser.pages();
+  const page = pages.find((p) => p.url().includes('127.0.0.1'));
+  if (page && contextId) {
+    const cdpPage = await page.createCDPSession();
+    await cdpPage.send('Runtime.enable');
+    await cdpPage
+      .send('Runtime.evaluate', {
+        expression: `chrome.runtime.sendMessage({ type: '__ping' }).catch(() => {})`,
+        contextId,
+        awaitPromise: true,
+        timeout: 3000,
+      })
+      .catch(() => {});
+    await cdpPage.detach();
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  // Find the service worker target
+  const swTarget = await browser
+    .waitForTarget(
+      (t) =>
+        t.type() === 'service_worker' && t.url().includes('service-worker'),
+      { timeout: 5000 }
+    )
+    .catch(() => null);
+  if (!swTarget) return [];
+
+  const cdpSW = await swTarget.createCDPSession();
+  await cdpSW.send('Runtime.enable');
+
+  const result = await cdpSW.send('Runtime.evaluate', {
+    expression: `(async () => {
+      const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('xvg-sprites', 1);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          if (!d.objectStoreNames.contains('sprites')) d.createObjectStore('sprites');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      const all = await new Promise((resolve, reject) => {
+        const tx = db.transaction('sprites', 'readonly');
+        const store = tx.objectStore('sprites');
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      const game = ${JSON.stringify(game)};
+      const filtered = all.filter(r => r.game === game);
+      return JSON.stringify(filtered.map(s => {
+        const bytes = new Uint8Array(s.buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return { label: s.spriteType, w: s.w, h: s.h, b64: btoa(binary) };
+      }));
+    })()`,
+    awaitPromise: true,
+    timeout: 10000,
+  });
+
+  await cdpSW.detach();
+
+  try {
+    const items = JSON.parse(result.result.value);
+    return items.map((s) => ({
+      label: s.label,
+      w: s.w,
+      h: s.h,
+      png: [...Buffer.from(s.b64, 'base64')],
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save extracted sprites to disk as PNG files for review.
+ * @param {Array<{label: string, w: number, h: number, png: number[]}>} sprites
+ * @param {string} testName - Test identifier for the directory name
+ * @returns {string} Directory path where sprites were saved
+ */
+function saveSpritesToDisk(sprites, testName) {
+  const dir = `/tmp/extract-test-${testName}-${Date.now()}`;
+  fs.mkdirSync(dir, { recursive: true });
+  for (const sprite of sprites) {
+    const safeName = sprite.label.replace(/[^a-z0-9_-]/gi, '_');
+    const filePath = path.join(dir, `${safeName}_${sprite.w}x${sprite.h}.png`);
+    fs.writeFileSync(filePath, Buffer.from(sprite.png));
+  }
+  return dir;
+}
+
 module.exports = {
   DIST_DIR,
   PORT,
@@ -326,6 +474,9 @@ module.exports = {
   launchBrowser,
   setupPage,
   runRealExtraction,
+  clearSpritesDB,
+  loadSpritesFromExtension,
   validateSprites,
   aiVerifyLabels,
+  saveSpritesToDisk,
 };

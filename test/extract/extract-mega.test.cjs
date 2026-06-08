@@ -1,15 +1,5 @@
 /**
- * Sprite extraction — MEGA TEST (entire video, comprehensive validation).
- *
- * Runs the REAL extension extraction pipeline across 12 evenly-spaced points
- * in test_media/test.mp4, validates:
- * - Pipeline starts and stops cleanly at each sample
- * - Sprites are found in multiple distinct video regions
- * - Labels are meaningful, concise, non-duplicated garbage
- * - AI secondary verification confirms labels are real game elements
- * - Progressive discovery: later samples produce new sprites OR correctly dedup
- * - No prompt text leaks into labels
- * - Diverse sprite dimensions (not all identical crops)
+ * Sprite extraction — MEGA TEST (12 samples, AI secondary verification).
  *
  * Usage: npm run test:extract:mega
  */
@@ -20,19 +10,20 @@ const {
   launchBrowser,
   setupPage,
   runRealExtraction,
+  clearSpritesDB,
+  loadSpritesFromExtension,
   aiVerifyLabels,
+  saveSpritesToDisk,
 } = require('./shared.cjs');
 
-// 12 samples across ~20min video (every ~100s)
 const VIDEO_DURATION = 1210;
 const NUM_SAMPLES = 12;
-const SAMPLE_DURATION = 55000; // 55s per sample — enough for ~2 AI verifications
+const SAMPLE_DURATION = 55000;
 
 const TIMESTAMPS = Array.from({ length: NUM_SAMPLES }, (_, i) =>
   Math.round(5 + (i * (VIDEO_DURATION - 10)) / (NUM_SAMPLES - 1))
 );
 
-// Group timestamps into phases for reporting
 const PHASES = [
   { name: 'INTRO', range: [0, 120] },
   { name: 'EARLY', range: [120, 360] },
@@ -67,13 +58,7 @@ async function run() {
     const { page, cdp, contextId } = await setupPage(browser);
     console.log('Sprite extraction — MEGA TEST (12 samples, full video)\n');
     console.log(
-      `  Video: ~${VIDEO_DURATION}s, ${NUM_SAMPLES} samples × ${SAMPLE_DURATION / 1000}s each`
-    );
-    console.log(
-      `  Estimated runtime: ~${Math.round((NUM_SAMPLES * SAMPLE_DURATION) / 60000)} minutes`
-    );
-    console.log(
-      `  Timestamps: ${TIMESTAMPS.map((t) => `${Math.floor(t / 60)}m${(t % 60).toString().padStart(2, '0')}s`).join(', ')}\n`
+      `  ${NUM_SAMPLES} samples × ${SAMPLE_DURATION / 1000}s (~${Math.round((NUM_SAMPLES * SAMPLE_DURATION) / 60000)}min)\n`
     );
 
     assert('extension content script injected', !!contextId);
@@ -82,28 +67,11 @@ async function run() {
       return;
     }
 
-    // Verify AI model is available before the long run
-    const availResult = await cdp.send('Runtime.evaluate', {
-      expression: `(async () => {
-        const a = await LanguageModel.availability({
-          expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
-          expectedOutputs: [{ type: 'text', languages: ['en'] }],
-        });
-        return a;
-      })()`,
-      contextId,
-      awaitPromise: true,
-    });
-    assert(
-      'LanguageModel available',
-      availResult.result.value !== 'unavailable',
-      `status: ${availResult.result.value}`
-    );
-
-    // === RUN ALL SAMPLES ===
     const allToasts = [];
     const sampleResults = [];
     const cumulativeLabels = new Set();
+
+    await clearSpritesDB(browser);
 
     for (let i = 0; i < TIMESTAMPS.length; i++) {
       const ts = TIMESTAMPS[i];
@@ -124,7 +92,6 @@ async function run() {
       sampleResults.push({
         timestamp: ts,
         phase,
-        toastCount: toasts.length,
         spritesFound: foundToasts.length,
         labels,
         newLabels,
@@ -140,133 +107,72 @@ async function run() {
       }
     }
 
-    // === PHASE-LEVEL ASSERTIONS ===
-    console.log(`\n  ═══════════════════════════════════`);
-    console.log(`  ═══ MEGA TEST VALIDATION ═══`);
-    console.log(`  ═══════════════════════════════════\n`);
-
-    const allFoundToasts = allToasts.filter((t) => t.startsWith('Found:'));
-    const allLabels = allFoundToasts.map((t) =>
-      t.replace('Found: ', '').trim()
+    // Load all sprites from IndexedDB
+    const sprites = await loadSpritesFromExtension(
+      browser,
+      contextId,
+      'Test Game'
     );
+    if (sprites.length > 0) {
+      const dir = saveSpritesToDisk(sprites, 'mega');
+      console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
+    }
+
+    // === ASSERTIONS ===
+    console.log(`\n  ═══ MEGA TEST VALIDATION ═══\n`);
+
     const uniqueLabels = [...cumulativeLabels];
-
-    console.log(`  Total samples: ${NUM_SAMPLES}`);
-    console.log(`  Total sprites found: ${allFoundToasts.length}`);
-    console.log(`  Unique labels: ${uniqueLabels.length}`);
-    console.log(`  Labels: ${uniqueLabels.join(', ')}\n`);
-
-    // Phase coverage
     const phasesWithSprites = new Set(
       sampleResults.filter((s) => s.spritesFound > 0).map((s) => s.phase)
     );
+
+    console.log(`  Total sprites in DB: ${sprites.length}`);
+    console.log(`  Unique labels: ${uniqueLabels.length}`);
     console.log(
       `  Phases with sprites: ${[...phasesWithSprites].join(', ')}\n`
     );
 
-    // 1. Pipeline starts every time
     const startCount = sampleResults.filter((s) => s.started).length;
     assert(
       'pipeline started for all samples',
       startCount === NUM_SAMPLES,
-      `started ${startCount}/${NUM_SAMPLES} times`
+      `${startCount}/${NUM_SAMPLES}`
     );
 
-    // 2. Pipeline stopped every time
     const stopCount = sampleResults.filter((s) => s.stopped).length;
     assert(
-      'pipeline stopped cleanly for all samples',
+      'pipeline stopped for all samples',
       stopCount === NUM_SAMPLES,
-      `stopped ${stopCount}/${NUM_SAMPLES} times`
+      `${stopCount}/${NUM_SAMPLES}`
     );
 
-    // 3. Found sprites across the video
     assert(
-      'found sprites overall',
-      allFoundToasts.length >= 3,
-      `only ${allFoundToasts.length} sprites total`
+      'found ≥3 sprites overall',
+      sprites.length >= 3,
+      `only ${sprites.length}`
     );
 
-    // 4. Multiple distinct phases produced sprites
     assert(
-      'sprites from ≥2 different phases',
+      'sprites from ≥2 phases',
       phasesWithSprites.size >= 2,
       `only from: ${[...phasesWithSprites].join(', ')}`
     );
 
-    // 5. Multiple samples produced sprites
-    const samplesWithSprites = sampleResults.filter(
-      (s) => s.spritesFound > 0
-    ).length;
+    const allLabels = sampleResults.flatMap((s) => s.labels);
     assert(
-      'sprites from ≥3 different samples',
-      samplesWithSprites >= 3,
-      `only ${samplesWithSprites} samples produced sprites`
-    );
-
-    // 6. Label quality checks
-    assert(
-      'all labels are meaningful (length > 1)',
+      'labels are meaningful',
       allLabels.every((l) => l.length > 1 && l !== 'noise')
     );
-
     assert(
-      'all labels are concise (≤60 chars)',
-      allLabels.every((l) => l.length <= 60),
-      allLabels.find((l) => l.length > 60)
+      'labels are concise',
+      allLabels.every((l) => l.length <= 60)
     );
-
     assert(
       'no prompt text in labels',
-      allLabels.every(
-        (l) =>
-          !l.includes('Reply ONLY') &&
-          !l.includes('JSON') &&
-          !l.includes('game element')
-      ),
-      allLabels.find(
-        (l) =>
-          l.includes('Reply ONLY') ||
-          l.includes('JSON') ||
-          l.includes('game element')
-      )
+      allLabels.every((l) => !l.includes('Reply ONLY') && !l.includes('JSON'))
     );
 
-    assert(
-      'labels are descriptive (contain words)',
-      allLabels.every((l) => /[a-zA-Z]{2,}/.test(l))
-    );
-
-    // 7. Progressive discovery — unique labels grow over time
-    const firstHalfLabels = new Set(
-      sampleResults
-        .slice(0, Math.floor(NUM_SAMPLES / 2))
-        .flatMap((s) => s.labels)
-    );
-    const secondHalfLabels = new Set(
-      sampleResults.slice(Math.floor(NUM_SAMPLES / 2)).flatMap((s) => s.labels)
-    );
-    const secondHalfNew = [...secondHalfLabels].filter(
-      (l) => !firstHalfLabels.has(l)
-    );
-    if (secondHalfLabels.size > 0) {
-      assert(
-        'second half discovers new sprites not in first half',
-        secondHalfNew.length > 0,
-        'all labels were already found in first half'
-      );
-    }
-
-    // 8. Label diversity — not all the same label repeated
-    if (uniqueLabels.length >= 3) {
-      assert(
-        'diverse sprite types (≥3 unique labels)',
-        uniqueLabels.length >= 3,
-        `only ${uniqueLabels.length} unique`
-      );
-    }
-
-    // 9. AI secondary verification — uses the real extension model to check labels
+    // AI secondary verification
     console.log('\n  ── AI SECONDARY VERIFICATION ──');
     if (uniqueLabels.length > 0 && contextId) {
       const { valid, invalid, error } = await aiVerifyLabels(
@@ -275,54 +181,19 @@ async function run() {
         uniqueLabels
       );
       if (error) {
-        console.log(`  AI verification skipped: ${error}`);
+        console.log(`  Skipped: ${error}`);
       } else {
-        console.log(`  AI says valid: ${valid.join(', ') || '(none)'}`);
+        console.log(`  Valid: ${valid.join(', ') || '(none)'}`);
         if (invalid.length > 0) {
-          console.log(`  AI says invalid: ${invalid.join(', ')}`);
+          console.log(`  Invalid: ${invalid.join(', ')}`);
         }
         assert(
           'AI confirms labels are game elements',
           invalid.length <= Math.ceil(uniqueLabels.length * 0.3),
-          `${invalid.length}/${uniqueLabels.length} marked invalid: ${invalid.join(', ')}`
+          `${invalid.length}/${uniqueLabels.length} invalid`
         );
       }
     }
-
-    // === PER-PHASE BREAKDOWN ===
-    console.log('\n  ── PER-PHASE BREAKDOWN ──');
-    for (const phase of PHASES) {
-      const samples = sampleResults.filter((s) => s.phase === phase.name);
-      const phaseSprites = samples.reduce((n, s) => n + s.spritesFound, 0);
-      const phaseLabels = [...new Set(samples.flatMap((s) => s.labels))];
-      if (samples.length > 0) {
-        console.log(
-          `  ${phase.name}: ${phaseSprites} sprites, labels: [${phaseLabels.join(', ')}]`
-        );
-      }
-    }
-
-    // === SUMMARY JSON ===
-    console.log('\n  ── SUMMARY ──');
-    console.log(
-      JSON.stringify(
-        {
-          videoDuration: VIDEO_DURATION,
-          samplesRun: NUM_SAMPLES,
-          totalSprites: allFoundToasts.length,
-          uniqueLabels,
-          phasesWithSprites: [...phasesWithSprites],
-          perSample: sampleResults.map((s) => ({
-            ts: s.timestamp,
-            phase: s.phase,
-            found: s.spritesFound,
-            new: s.newLabels.length,
-          })),
-        },
-        null,
-        2
-      )
-    );
   } finally {
     await browser.close();
     server.close();

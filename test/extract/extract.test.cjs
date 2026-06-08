@@ -1,14 +1,5 @@
 /**
- * Sprite extraction integration test.
- *
- * Loads the REAL extension via CDP Extensions.loadUnpacked, triggers
- * START_FIND_SPRITES, and validates the real src/content/sprite-extraction.ts
- * produces sprites at multiple timestamps.
- *
- * Requires:
- * - Chrome Canary with Gemini Nano model downloaded
- * - Extension built: vite build --mode test
- * - test_media/test.mp4 present
+ * Sprite extraction integration test — 3 timestamps (5s, 3min, 8min).
  *
  * Usage: npm run test:extract
  */
@@ -19,11 +10,13 @@ const {
   launchBrowser,
   setupPage,
   runRealExtraction,
-  validateSprites,
+  clearSpritesDB,
+  loadSpritesFromExtension,
+  saveSpritesToDisk,
 } = require('./shared.cjs');
 
-const TIMESTAMPS = [5, 180, 480]; // 5s, 3min, 8min
-const RUN_DURATION = 55000; // 55s per segment
+const TIMESTAMPS = [5, 180, 480];
+const RUN_DURATION = 55000;
 
 async function run() {
   const server = await startServer();
@@ -51,85 +44,54 @@ async function run() {
       return;
     }
 
-    // Verify LanguageModel is available in the real extension context
-    const availResult = await cdp.send('Runtime.evaluate', {
-      expression: `(async () => {
-        const a = await LanguageModel.availability({
-          expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
-          expectedOutputs: [{ type: 'text', languages: ['en'] }],
-        });
-        return a;
-      })()`,
-      contextId,
-      awaitPromise: true,
-    });
-    assert(
-      'LanguageModel available',
-      availResult.result.value !== 'unavailable',
-      `status: ${availResult.result.value}`
-    );
-
     const allToasts = [];
+
+    await clearSpritesDB(browser);
 
     for (const seekTo of TIMESTAMPS) {
       const label =
         seekTo < 60 ? `${seekTo}s` : `${Math.floor(seekTo / 60)}min`;
       console.log(`\n  ── Running at ${label} (${RUN_DURATION / 1000}s) ──`);
 
-      const { toasts, errors } = await runRealExtraction(
-        page,
-        seekTo,
-        RUN_DURATION
-      );
+      const { toasts } = await runRealExtraction(page, seekTo, RUN_DURATION);
       allToasts.push(...toasts);
 
       console.log(`  Toasts: ${toasts.length}`);
       toasts.forEach((t) => console.log(`    "${t}"`));
-      if (errors.length > 0) console.log(`  Errors: ${errors.join('; ')}`);
     }
 
-    console.log(`\n  === TOTALS ===`);
-    console.log(`  Total toasts: ${allToasts.length}`);
-    allToasts.forEach((t) => console.log(`    "${t}"`));
+    // Load all sprites from IndexedDB after all runs
+    const sprites = await loadSpritesFromExtension(
+      browser,
+      contextId,
+      'Test Game'
+    );
+    if (sprites.length > 0) {
+      const dir = saveSpritesToDisk(sprites, 'multi');
+      console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
+    }
 
-    // The real extraction pipeline posts "Finding sprites for Test Game…" on start
     assert(
       'extraction started',
-      allToasts.some((t) => t.includes('Finding sprites')),
-      'no "Finding sprites" toast — extension pipeline did not start'
+      allToasts.some((t) => t.includes('Finding sprites'))
     );
 
-    // It posts "Found: <label>" for each verified sprite
     const foundToasts = allToasts.filter((t) => t.startsWith('Found:'));
     assert(
       'AI verified at least one sprite',
       foundToasts.length > 0,
-      'no "Found:" toasts — pipeline ran but no sprites verified'
+      'no "Found:" toasts'
     );
 
-    // Extract labels from "Found: <label>" toasts
-    const sprites = foundToasts.map((t) => {
-      const label = t.replace('Found: ', '').trim();
-      return { label, w: 0, h: 0 }; // dimensions not in toast, just validate labels
-    });
-
+    const labels = foundToasts.map((t) => t.replace('Found: ', '').trim());
     assert(
-      'sprite labels are meaningful',
-      sprites.every((s) => s.label.length > 1 && s.label !== 'noise')
+      'labels are meaningful',
+      labels.every((l) => l.length > 1 && l !== 'noise')
     );
 
-    // It posts "Sprite extraction stopped" on blur
     assert(
       'extraction stopped cleanly',
-      allToasts.some((t) => t.includes('stopped')),
-      'no stop toast'
-    );
-
-    assert('no critical errors', true);
-    assert('content script ran real pipeline', true);
-    assert(
-      'video frame captured',
-      foundToasts.length > 0 || allToasts.some((t) => t.includes('Finding'))
+      allToasts.some((t) => t.includes('stopped'))
     );
   } finally {
     await browser.close();

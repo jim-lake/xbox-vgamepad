@@ -67,10 +67,16 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'SAVE_SPRITE') {
+      const binary = atob(message.b64);
+      const buffer = new ArrayBuffer(binary.length);
+      const view = new Uint8Array(buffer);
+      for (let i = 0; i < binary.length; i++) {
+        view[i] = binary.charCodeAt(i);
+      }
       void saveSprite(
         message.game,
         message.spriteType,
-        message.buffer,
+        buffer,
         message.w,
         message.h
       ).then(

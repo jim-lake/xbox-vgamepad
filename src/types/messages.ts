@@ -122,7 +122,7 @@ export interface SaveSpriteMessage {
   type: 'SAVE_SPRITE';
   game: string;
   spriteType: string;
-  buffer: ArrayBuffer;
+  b64: string;
   w: number;
   h: number;
 }

@@ -1,8 +1,10 @@
 /**
- * Sprite extraction test — MIDDLE span (5min mark).
- * Tests real extension extraction during mid-game.
+ * Generic span extraction test runner.
+ * Usage: node run-span.cjs <name> <startSec> [durationMs]
  *
- * Usage: npm run test:extract:mid
+ * Examples:
+ *   node run-span.cjs early 5 55000
+ *   node run-span.cjs quarter 120
  */
 'use strict';
 
@@ -11,10 +13,15 @@ const {
   launchBrowser,
   setupPage,
   runRealExtraction,
+  clearSpritesDB,
+  loadSpritesFromExtension,
+  saveSpritesToDisk,
 } = require('./shared.cjs');
 
-const SPAN_START = 300;
-const SPAN_DURATION = 55000;
+const args = process.argv.slice(2);
+const SPAN_NAME = args[0] || 'span';
+const SPAN_START = parseInt(args[1] || '5', 10);
+const SPAN_DURATION = parseInt(args[2] || '55000', 10);
 
 async function run() {
   const server = await startServer();
@@ -33,8 +40,12 @@ async function run() {
   }
 
   try {
-    const { page, contextId } = await setupPage(browser);
-    console.log('Sprite extraction — MIDDLE span (5min, real extension)\n');
+    const { page, cdp, contextId } = await setupPage(browser);
+    const label =
+      SPAN_START < 60 ? `${SPAN_START}s` : `${Math.floor(SPAN_START / 60)}min`;
+    console.log(
+      `Sprite extraction — ${SPAN_NAME.toUpperCase()} span (${label}, real extension)\n`
+    );
 
     assert('extension content script injected', !!contextId);
     if (!contextId) {
@@ -45,10 +56,22 @@ async function run() {
     console.log(
       `  Running extraction at ${SPAN_START}s for ${SPAN_DURATION / 1000}s...`
     );
+    await clearSpritesDB(browser);
     const { toasts } = await runRealExtraction(page, SPAN_START, SPAN_DURATION);
 
     console.log(`  Toasts: ${toasts.length}`);
     toasts.forEach((t) => console.log(`    "${t}"`));
+
+    // Load sprites from IndexedDB via service worker
+    const sprites = await loadSpritesFromExtension(
+      browser,
+      contextId,
+      'Test Game'
+    );
+    if (sprites.length > 0) {
+      const dir = saveSpritesToDisk(sprites, SPAN_NAME);
+      console.log(`  Sprites saved: ${sprites.length} → ${dir}`);
+    }
 
     assert(
       'extraction started',
@@ -59,7 +82,7 @@ async function run() {
     assert(
       'AI verified sprites',
       foundToasts.length > 0,
-      `extraction ran but no sprites found in mid span`
+      `extraction ran but no sprites found in ${SPAN_NAME} span`
     );
 
     const labels = foundToasts.map((t) => t.replace('Found: ', '').trim());

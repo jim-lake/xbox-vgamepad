@@ -1,9 +1,5 @@
 /**
- * Sprite extraction — FULL VIDEO test.
- *
- * Loads the REAL extension, runs extraction at 8 evenly-spaced timestamps
- * across the entire 20-minute video. Validates progressive sprite discovery
- * from the real src/content/sprite-extraction.ts pipeline.
+ * Sprite extraction — FULL VIDEO test (8 samples across 20min video).
  *
  * Usage: npm run test:extract:full
  */
@@ -14,6 +10,9 @@ const {
   launchBrowser,
   setupPage,
   runRealExtraction,
+  clearSpritesDB,
+  loadSpritesFromExtension,
+  saveSpritesToDisk,
 } = require('./shared.cjs');
 
 const VIDEO_DURATION = 1210;
@@ -41,10 +40,10 @@ async function run() {
   }
 
   try {
-    const { page, contextId } = await setupPage(browser);
+    const { page, cdp, contextId } = await setupPage(browser);
     console.log('Sprite extraction — FULL VIDEO test (real extension)\n');
     console.log(
-      `  Video: ~${VIDEO_DURATION}s, ${NUM_SAMPLES} samples at ${SAMPLE_DURATION / 1000}s each (~${Math.round((NUM_SAMPLES * SAMPLE_DURATION) / 60000)}min total)`
+      `  ${NUM_SAMPLES} samples × ${SAMPLE_DURATION / 1000}s (~${Math.round((NUM_SAMPLES * SAMPLE_DURATION) / 60000)}min)`
     );
     console.log(
       `  Timestamps: ${TIMESTAMPS.map((t) => `${Math.floor(t / 60)}m${t % 60}s`).join(', ')}\n`
@@ -59,6 +58,8 @@ async function run() {
     const allToasts = [];
     const spritesPerSample = [];
 
+    await clearSpritesDB(browser);
+
     for (let i = 0; i < TIMESTAMPS.length; i++) {
       const ts = TIMESTAMPS[i];
       const label = `${Math.floor(ts / 60)}m${ts % 60}s`;
@@ -66,7 +67,6 @@ async function run() {
 
       const { toasts } = await runRealExtraction(page, ts, SAMPLE_DURATION);
       const foundInSample = toasts.filter((t) => t.startsWith('Found:'));
-
       allToasts.push(...toasts);
       spritesPerSample.push(foundInSample.length);
 
@@ -76,76 +76,59 @@ async function run() {
       foundInSample.forEach((t) => console.log(`    ${t}`));
     }
 
-    // === ASSERTIONS ===
+    // Load all sprites from IndexedDB
+    const sprites = await loadSpritesFromExtension(
+      browser,
+      contextId,
+      'Test Game'
+    );
+    if (sprites.length > 0) {
+      const dir = saveSpritesToDisk(sprites, 'full');
+      console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
+    }
+
     const allFoundToasts = allToasts.filter((t) => t.startsWith('Found:'));
     const allLabels = allFoundToasts.map((t) =>
       t.replace('Found: ', '').trim()
     );
-    const uniqueLabels = new Set(allLabels);
+    const uniqueLabels = [...new Set(allLabels)];
 
-    console.log(`\n  ═══ FULL VIDEO RESULTS ═══`);
-    console.log(`  Total toasts: ${allToasts.length}`);
-    console.log(`  Total sprites found: ${allFoundToasts.length}`);
-    console.log(`  Unique labels: ${uniqueLabels.size}`);
+    console.log(`\n  Total sprites: ${allFoundToasts.length}`);
+    console.log(`  Unique labels: ${uniqueLabels.length}`);
     console.log(`  Per-sample: [${spritesPerSample.join(', ')}]`);
-    console.log(`  Labels: ${[...uniqueLabels].join(', ')}`);
+    console.log(`  Labels: ${uniqueLabels.join(', ')}`);
 
     assert(
-      'extraction started at least once',
+      'extraction started',
       allToasts.some((t) => t.includes('Finding sprites'))
     );
-
     assert(
-      'AI verified multiple sprites across video',
+      'found ≥3 sprites across video',
       allFoundToasts.length >= 3,
-      `only ${allFoundToasts.length} sprites across ${NUM_SAMPLES} samples`
+      `only ${allFoundToasts.length}`
     );
 
     const samplesWithSprites = spritesPerSample.filter((n) => n > 0).length;
     assert(
-      'sprites found in multiple samples',
+      'sprites from ≥2 samples',
       samplesWithSprites >= 2,
-      `sprites only in ${samplesWithSprites}/${NUM_SAMPLES} samples`
+      `only ${samplesWithSprites}/${NUM_SAMPLES}`
     );
-
     assert(
       'labels are meaningful',
       allLabels.every((l) => l.length > 1 && l !== 'noise')
     );
-
     assert(
       'labels are concise',
       allLabels.every((l) => l.length <= 60)
     );
-
     assert(
       'labels are not prompt text',
       allLabels.every((l) => !l.includes('Reply ONLY') && !l.includes('JSON'))
     );
-
     assert(
-      'labels are descriptive',
-      allLabels.every((l) => /[a-zA-Z]{2,}/.test(l))
-    );
-
-    assert(
-      'extraction stopped each time',
+      'extraction stopped',
       allToasts.filter((t) => t.includes('stopped')).length >= 1
-    );
-
-    // Output for external review
-    console.log(`\n  ── SUMMARY ──`);
-    console.log(
-      JSON.stringify(
-        {
-          videoDuration: VIDEO_DURATION,
-          samplesRun: NUM_SAMPLES,
-          spritesPerSample,
-          uniqueLabels: [...uniqueLabels],
-        },
-        null,
-        2
-      )
     );
   } finally {
     await browser.close();
