@@ -178,25 +178,30 @@ async function runRealExtraction(page, seekTo, durationMs) {
   await page.evaluate(() => {
     window.__extractToasts = [];
     window.__extractCandidates = [];
+    window.__extractDebug = [];
     window.addEventListener('message', (e) => {
       if (e.data?.source === 'xbox-vgamepad-content-script') {
         if (e.data.type === 'SHOW_TOAST') {
           window.__extractToasts.push(e.data.text);
-        } else if (e.data.type === 'CANDIDATE_FOUND') {
-          const bytes = e.data.buffer ? new Uint8Array(e.data.buffer) : null;
-          let b64 = null;
-          if (bytes) {
+        } else if (e.data.type === 'EXTRACT_DEBUG') {
+          const entry = { phase: e.data.phase, meta: e.data.meta };
+          if (e.data.buffer) {
+            const bytes = new Uint8Array(e.data.buffer);
             let binary = '';
             for (let i = 0; i < bytes.length; i++)
               binary += String.fromCharCode(bytes[i]);
-            b64 = btoa(binary);
+            entry.b64 = btoa(binary);
           }
-          window.__extractCandidates.push({
-            rect: e.data.rect,
-            index: e.data.index,
-            frameNum: e.data.frameNum,
-            b64,
-          });
+          window.__extractDebug.push(entry);
+          // Also populate __extractCandidates for backward compat
+          if (e.data.phase === 'candidate') {
+            window.__extractCandidates.push({
+              rect: e.data.meta.rect,
+              index: e.data.meta.index,
+              frameNum: e.data.meta.frameNum,
+              b64: entry.b64 || null,
+            });
+          }
         }
       }
     });
@@ -224,8 +229,9 @@ async function runRealExtraction(page, seekTo, durationMs) {
   const candidates = await page.evaluate(
     () => window.__extractCandidates || []
   );
+  const debug = await page.evaluate(() => window.__extractDebug || []);
 
-  return { toasts, candidates, errors: [] };
+  return { toasts, candidates, debug, errors: [] };
 }
 
 /**
@@ -469,16 +475,20 @@ async function loadSpritesFromExtension(browser, contextId, game) {
 }
 
 /**
- * Save extraction results (sprites + candidates) to a single timestamped directory.
- * Structure: /tmp/extract-{testName}-{ts}/sprites/ and /tmp/extract-{testName}-{ts}/candidates/
+ * Save extraction results (sprites + candidates + debug) to a single timestamped directory.
+ * Structure:
+ *   /tmp/extract-{testName}-{ts}/sprites/
+ *   /tmp/extract-{testName}-{ts}/candidates/
+ *   /tmp/extract-{testName}-{ts}/debug/{phase}/
  *
  * @param {object} opts
  * @param {Array<{label: string, w: number, h: number, png: number[]}>} opts.sprites
  * @param {Array<{rect: {x:number,y:number,w:number,h:number}, index: number, frameNum: number, b64: string|null}>} opts.candidates
+ * @param {Array<{phase: string, meta: object, b64?: string}>} opts.debug
  * @param {string} opts.testName
  * @returns {string} Root directory path
  */
-function saveResultsToDisk({ sprites, candidates, testName }) {
+function saveResultsToDisk({ sprites, candidates, debug, testName }) {
   const root = `/tmp/extract-${testName}-${Date.now()}`;
 
   if (sprites && sprites.length > 0) {
@@ -499,7 +509,10 @@ function saveResultsToDisk({ sprites, candidates, testName }) {
     for (const c of candidates) {
       if (c.b64) {
         fs.writeFileSync(
-          path.join(dir, `candidate_${c.index}_f${c.frameNum}_${c.rect.w}x${c.rect.h}.png`),
+          path.join(
+            dir,
+            `candidate_${c.index}_f${c.frameNum}_${c.rect.w}x${c.rect.h}.png`
+          ),
           Buffer.from(c.b64, 'base64')
         );
       }
@@ -516,6 +529,32 @@ function saveResultsToDisk({ sprites, candidates, testName }) {
       path.join(dir, 'candidates.json'),
       JSON.stringify(manifest, null, 2)
     );
+  }
+
+  if (debug && debug.length > 0) {
+    const debugDir = path.join(root, 'debug');
+    fs.mkdirSync(debugDir, { recursive: true });
+
+    // Group by phase, write images + metadata per entry
+    const phaseCounters = {};
+    for (const entry of debug) {
+      const phase = entry.phase;
+      phaseCounters[phase] = (phaseCounters[phase] || 0) + 1;
+      const idx = phaseCounters[phase];
+      const phaseDir = path.join(debugDir, phase);
+      fs.mkdirSync(phaseDir, { recursive: true });
+
+      if (entry.b64) {
+        fs.writeFileSync(
+          path.join(phaseDir, `${idx}.png`),
+          Buffer.from(entry.b64, 'base64')
+        );
+      }
+      fs.writeFileSync(
+        path.join(phaseDir, `${idx}.json`),
+        JSON.stringify(entry.meta, null, 2)
+      );
+    }
   }
 
   return root;

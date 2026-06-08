@@ -68,6 +68,7 @@ async function run() {
     }
 
     const allToasts = [];
+    const allDebug = [];
     const sampleResults = [];
     const cumulativeLabels = new Set();
 
@@ -81,7 +82,12 @@ async function run() {
         `\n  ── Sample ${i + 1}/${NUM_SAMPLES} at ${label} [${phase}] ──`
       );
 
-      const { toasts } = await runRealExtraction(page, ts, SAMPLE_DURATION);
+      const { toasts, debug } = await runRealExtraction(
+        page,
+        ts,
+        SAMPLE_DURATION
+      );
+      allDebug.push(...(debug || []));
       const foundToasts = toasts.filter((t) => t.startsWith('Found:'));
       const labels = foundToasts.map((t) => t.replace('Found: ', '').trim());
       const newLabels = labels.filter((l) => !cumulativeLabels.has(l));
@@ -114,7 +120,12 @@ async function run() {
       'Test Game'
     );
     if (sprites.length > 0) {
-      const dir = saveResultsToDisk({ sprites, candidates: [], testName: 'mega' });
+      const dir = saveResultsToDisk({
+        sprites,
+        candidates: [],
+        debug: allDebug,
+        testName: 'mega',
+      });
       console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
     }
 

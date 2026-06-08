@@ -46,6 +46,7 @@ async function run() {
 
     const allToasts = [];
     const allCandidates = [];
+    const allDebug = [];
 
     await clearSpritesDB(browser);
 
@@ -54,13 +55,14 @@ async function run() {
         seekTo < 60 ? `${seekTo}s` : `${Math.floor(seekTo / 60)}min`;
       console.log(`\n  ── Running at ${label} (${RUN_DURATION / 1000}s) ──`);
 
-      const { toasts, candidates } = await runRealExtraction(
+      const { toasts, candidates, debug } = await runRealExtraction(
         page,
         seekTo,
         RUN_DURATION
       );
       allToasts.push(...toasts);
       allCandidates.push(...candidates);
+      allDebug.push(...(debug || []));
 
       console.log(
         `  Toasts: ${toasts.length}, Candidates: ${candidates.length}`
@@ -79,10 +81,13 @@ async function run() {
     const dir = saveResultsToDisk({
       sprites,
       candidates: allCandidates,
+      debug: allDebug,
       testName: 'multi',
     });
     console.log(`\n  Results saved → ${dir}`);
-    console.log(`    candidates: ${allCandidates.length}, sprites: ${sprites.length}`);
+    console.log(
+      `    candidates: ${allCandidates.length}, sprites: ${sprites.length}`
+    );
 
     assert(
       'extraction started',

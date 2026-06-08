@@ -57,7 +57,7 @@ async function run() {
       `  Running extraction at ${SPAN_START}s for ${SPAN_DURATION / 1000}s...`
     );
     await clearSpritesDB(browser);
-    const { toasts, candidates } = await runRealExtraction(
+    const { toasts, candidates, debug } = await runRealExtraction(
       page,
       SPAN_START,
       SPAN_DURATION
@@ -77,10 +77,13 @@ async function run() {
     const dir = saveResultsToDisk({
       sprites,
       candidates,
+      debug,
       testName: SPAN_NAME,
     });
     console.log(`  Results saved → ${dir}`);
-    console.log(`    candidates: ${candidates.length}, sprites: ${sprites.length}`);
+    console.log(
+      `    candidates: ${candidates.length}, sprites: ${sprites.length}`
+    );
 
     assert(
       'extraction started',

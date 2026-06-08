@@ -57,6 +57,7 @@ async function run() {
 
     const allToasts = [];
     const allCandidates = [];
+    const allDebug = [];
     const spritesPerSample = [];
 
     await clearSpritesDB(browser);
@@ -66,7 +67,7 @@ async function run() {
       const label = `${Math.floor(ts / 60)}m${ts % 60}s`;
       console.log(`\n  ── Sample ${i + 1}/${NUM_SAMPLES} at ${label} ──`);
 
-      const { toasts, candidates } = await runRealExtraction(
+      const { toasts, candidates, debug } = await runRealExtraction(
         page,
         ts,
         SAMPLE_DURATION
@@ -74,6 +75,7 @@ async function run() {
       const foundInSample = toasts.filter((t) => t.startsWith('Found:'));
       allToasts.push(...toasts);
       allCandidates.push(...candidates);
+      allDebug.push(...(debug || []));
       spritesPerSample.push(foundInSample.length);
 
       console.log(
@@ -93,10 +95,13 @@ async function run() {
     const dir = saveResultsToDisk({
       sprites,
       candidates: allCandidates,
+      debug: allDebug,
       testName: 'full',
     });
     console.log(`\n  Results saved → ${dir}`);
-    console.log(`    candidates: ${allCandidates.length}, sprites: ${sprites.length}`);
+    console.log(
+      `    candidates: ${allCandidates.length}, sprites: ${sprites.length}`
+    );
 
     const allFoundToasts = allToasts.filter((t) => t.startsWith('Found:'));
     const allLabels = allFoundToasts.map((t) =>

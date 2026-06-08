@@ -1,5 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import type { LoadSpritesResponse } from '@/types/messages';
+import { errorLog } from '@/tools/log';
 import { rgbaToGray, absdiff, threshold, findBoundingRects } from './image-ops';
 
 const extractionState = { running: false, stopRequested: false };
@@ -8,23 +9,72 @@ function postToast(text: string): void {
   window.postMessage({ source: MSG_SOURCE, type: 'SHOW_TOAST', text }, '*');
 }
 
-function postCandidate(
-  rect: { x: number; y: number; w: number; h: number },
-  index: number,
-  frameNum: number,
-  buffer: ArrayBuffer
+/**
+ * Emit a debug artifact from the pipeline. Tests collect these generically.
+ * `phase` identifies which pipeline step produced it, `meta` carries arbitrary
+ * structured data, and `buffer` is an optional PNG image.
+ */
+function emitDebug(
+  phase: string,
+  meta: Record<string, unknown>,
+  buffer?: ArrayBuffer
 ): void {
   window.postMessage(
-    {
-      source: MSG_SOURCE,
-      type: 'CANDIDATE_FOUND',
-      rect,
-      index,
-      frameNum,
-      buffer,
-    },
+    { source: MSG_SOURCE, type: 'EXTRACT_DEBUG', phase, meta, buffer },
     '*'
   );
+}
+
+/** Convert a grayscale Uint8Array region to a PNG ArrayBuffer via OffscreenCanvas. */
+async function grayToPng(
+  gray: Uint8Array,
+  frameW: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): Promise<ArrayBuffer> {
+  const oc = new OffscreenCanvas(w, h);
+  const octx = oc.getContext('2d');
+  if (!octx) {
+    return new ArrayBuffer(0);
+  }
+  const imgData = octx.createImageData(w, h);
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const src = (y + py) * frameW + (x + px);
+      const dst = (py * w + px) * 4;
+      const v = gray[src] ?? 0;
+      imgData.data[dst] = v;
+      imgData.data[dst + 1] = v;
+      imgData.data[dst + 2] = v;
+      imgData.data[dst + 3] = 255;
+    }
+  }
+  octx.putImageData(imgData, 0, 0);
+  const blob = await oc.convertToBlob({ type: 'image/png' });
+  return blob.arrayBuffer();
+}
+
+/** Draw colored rects on an ImageData and return as PNG. */
+async function drawRectsOnFrame(
+  imageData: ImageData,
+  rects: Array<{ x: number; y: number; w: number; h: number }>,
+  color: [number, number, number]
+): Promise<ArrayBuffer> {
+  const oc = new OffscreenCanvas(imageData.width, imageData.height);
+  const octx = oc.getContext('2d');
+  if (!octx) {
+    return new ArrayBuffer(0);
+  }
+  octx.putImageData(imageData, 0, 0);
+  octx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+  octx.lineWidth = 2;
+  for (const r of rects) {
+    octx.strokeRect(r.x, r.y, r.w, r.h);
+  }
+  const blob = await oc.convertToBlob({ type: 'image/png' });
+  return blob.arrayBuffer();
 }
 
 export function stopFindSprites(): void {
@@ -52,13 +102,15 @@ export async function startFindSprites(gameName: string | null): Promise<void> {
 
   try {
     await runExtraction(gameName);
+  } catch (err: unknown) {
+    errorLog('[sprite-extraction] runExtraction error:', err);
   } finally {
     window.removeEventListener('blur', onBlur);
     extractionState.running = false;
   }
 }
 
-/** Merge overlapping or nearby bounding rects into larger rects. */
+/** Merge overlapping or nearby bounding rects. */
 function mergeRects(
   rects: Array<{ x: number; y: number; w: number; h: number }>,
   gap: number
@@ -94,7 +146,6 @@ function mergeRects(
         }
         const rx2 = r.x + r.w;
         const ry2 = r.y + r.h;
-        // Check if rects overlap or are within gap pixels
         if (
           r.x <= x2 + gap &&
           rx2 >= x - gap &&
@@ -115,22 +166,56 @@ function mergeRects(
   return merged;
 }
 
-/** Spatial key for deduplication — grid cell at 64px resolution. */
-function spatialKey(rect: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}): string {
-  const cx = Math.round((rect.x + rect.w / 2) / 64);
-  const cy = Math.round((rect.y + rect.h / 2) / 64);
-  const sw = Math.round(rect.w / 32);
-  const sh = Math.round(rect.h / 32);
-  return `${cx},${cy},${sw},${sh}`;
+/**
+ * Compute a simple perceptual hash for a crop (average luminance in 8x8 grid).
+ * Returns a 64-bit hash as a string of '0'/'1'.
+ */
+function perceptualHash(
+  gray: Uint8Array,
+  frameW: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): string {
+  const cellW = w / 8;
+  const cellH = h / 8;
+  const values: number[] = [];
+
+  for (let cy = 0; cy < 8; cy++) {
+    for (let cx = 0; cx < 8; cx++) {
+      const sx = Math.floor(x + cx * cellW);
+      const sy = Math.floor(y + cy * cellH);
+      const ex = Math.floor(x + (cx + 1) * cellW);
+      const ey = Math.floor(y + (cy + 1) * cellH);
+      let sum = 0;
+      let count = 0;
+      for (let py = sy; py < ey; py++) {
+        for (let px = sx; px < ex; px++) {
+          sum += gray[py * frameW + px] ?? 0;
+          count++;
+        }
+      }
+      values.push(count > 0 ? sum / count : 0);
+    }
+  }
+
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  return values.map((v) => (v >= mean ? '1' : '0')).join('');
+}
+
+/** Hamming distance between two hash strings. */
+function hammingDist(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      d++;
+    }
+  }
+  return d;
 }
 
 async function runExtraction(gameName: string): Promise<void> {
-  // Load existing sprites
   const resp: LoadSpritesResponse = await chrome.runtime.sendMessage({
     source: MSG_SOURCE,
     type: 'LOAD_SPRITES',
@@ -140,19 +225,18 @@ async function runExtraction(gameName: string): Promise<void> {
 
   postToast(`Finding sprites for ${gameName}…`);
 
-  // Create AI session
   let session: LanguageModel;
   try {
     session = await LanguageModel.create({
       expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
       expectedOutputs: [{ type: 'text', languages: ['en'] }],
     });
-  } catch {
+  } catch (err: unknown) {
+    errorLog('[sprite-extraction] LanguageModel.create failed:', err);
     postToast('AI model unavailable — ensure Gemini Nano is downloaded');
     return;
   }
 
-  // Find video element
   const video = document.querySelector('video');
   if (!video) {
     postToast('No video element found');
@@ -160,20 +244,56 @@ async function runExtraction(gameName: string): Promise<void> {
     return;
   }
 
-  // Capture and process loop
-  const canvas = new OffscreenCanvas(
-    video.videoWidth || 1920,
-    video.videoHeight || 1080
-  );
+  const w = video.videoWidth || 1920;
+  const h = video.videoHeight || 1080;
+  const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     session.destroy();
     return;
   }
-  let prevGray: Uint8Array | null = null;
+
+  // --- STEP 1: Build background model (median of N frames) ---
+  const BG_FRAMES = 15;
+  const BG_INTERVAL = 100; // ms between captures
+  const frameHistory: Uint8Array[] = [];
+
+  for (let i = 0; i < BG_FRAMES; i++) {
+    if (extractionState.stopRequested) {
+      session.destroy();
+      return;
+    }
+    canvas.width = w;
+    canvas.height = h;
+    ctx.drawImage(video, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    frameHistory.push(rgbaToGray(imgData.data, w, h));
+    await new Promise<void>((r) => setTimeout(r, BG_INTERVAL));
+  }
+
+  // Compute median background
+  const bgModel = new Uint8Array(w * h);
+  const pixelCount = w * h;
+  const sortBuf = new Uint8Array(BG_FRAMES);
+  for (let i = 0; i < pixelCount; i++) {
+    for (let f = 0; f < BG_FRAMES; f++) {
+      const frame = frameHistory[f];
+      sortBuf[f] = frame ? (frame[i] ?? 0) : 0;
+    }
+    sortBuf.sort();
+    bgModel[i] = sortBuf[Math.floor(BG_FRAMES / 2)] ?? 0;
+  }
+
+  // Emit the background model image
+  const bgPng = await grayToPng(bgModel, w, 0, 0, w, h);
+  emitDebug('background_model', { w, h, frames: BG_FRAMES }, bgPng);
+
+  // --- STEP 2: Extract moving objects by subtracting background ---
   let frameCount = 0;
-  const seenSpatialKeys = new Set<string>();
   let candidateIndex = 0;
+  const seenHashes: string[] = [];
+  const HASH_THRESHOLD = 14; // hamming distance threshold for "same" candidate
+  const maxDim = Math.min(w, h) * 0.2; // sprites rarely exceed ~200px on 1080p
 
   const processFrame = async (): Promise<void> => {
     if (extractionState.stopRequested) {
@@ -185,79 +305,171 @@ async function runExtraction(gameName: string): Promise<void> {
       return;
     }
 
-    const w = video.videoWidth || 1920;
-    const h = video.videoHeight || 1080;
     canvas.width = w;
     canvas.height = h;
     ctx.drawImage(video, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
-
     const gray = rgbaToGray(imageData.data, w, h);
 
-    if (!prevGray) {
-      prevGray = gray;
+    // Subtract background model
+    const diff = absdiff(gray, bgModel);
+    const binary = threshold(diff, 35);
+
+    // Check if this is a scene change (>15% pixels changed = camera pan)
+    let changedPixels = 0;
+    for (let i = 0; i < binary.length; i++) {
+      if (binary[i] !== 0) {
+        changedPixels++;
+      }
+    }
+    const changeRatio = changedPixels / pixelCount;
+    if (changeRatio > 0.15) {
+      // Scene shift — rebuild background model from this frame
+      for (let i = 0; i < pixelCount; i++) {
+        bgModel[i] = gray[i] ?? 0;
+      }
+      emitDebug('scene_change', { frameNum: frameCount, changeRatio });
       return;
     }
 
-    const diff = absdiff(gray, prevGray);
-    prevGray = gray;
+    // Emit the binary diff mask for this frame
+    const diffPng = await grayToPng(binary, w, 0, 0, w, h);
+    emitDebug(
+      'binary_diff',
+      { frameNum: frameCount, changedPixels, changeRatio },
+      diffPng
+    );
 
-    const binary = threshold(diff, 40);
     const rawRects = findBoundingRects(binary, w, h);
 
-    // Filter by size
-    const frameArea = w * h;
+    // Filter small noise
     const sizeFiltered: Array<{ x: number; y: number; w: number; h: number }> =
       [];
     for (const rect of rawRects) {
-      if (rect.w < 12 || rect.h < 12) {
+      if (rect.w < 10 || rect.h < 10) {
         continue;
       }
-      if (rect.w * rect.h > frameArea * 0.25) {
+      if (rect.w > maxDim || rect.h > maxDim) {
         continue;
       }
       sizeFiltered.push(rect);
     }
 
-    // Merge nearby rects (fragments of same sprite)
-    const merged = mergeRects(sizeFiltered, 8);
+    emitDebug(
+      'size_filter',
+      {
+        frameNum: frameCount,
+        rawCount: rawRects.length,
+        afterFilter: sizeFiltered.length,
+        rects: sizeFiltered,
+      },
+      await drawRectsOnFrame(imageData, sizeFiltered, [0, 255, 0])
+    );
 
-    // Filter merged: require minimum area and reasonable aspect ratio
+    // Merge nearby fragments of the same moving object
+    const merged = mergeRects(sizeFiltered, 6);
+
+    emitDebug(
+      'merge_rects',
+      {
+        frameNum: frameCount,
+        beforeMerge: sizeFiltered.length,
+        afterMerge: merged.length,
+        rects: merged,
+      },
+      await drawRectsOnFrame(imageData, merged, [255, 255, 0])
+    );
+
+    // Filter merged candidates
     const candidates: Array<{ x: number; y: number; w: number; h: number }> =
       [];
+    const rejected: Array<{
+      rect: { x: number; y: number; w: number; h: number };
+      reason: string;
+    }> = [];
     for (const rect of merged) {
       const area = rect.w * rect.h;
-      if (area < 400) {
-        continue; // at least 20x20 equivalent
-      }
-      const aspect = Math.max(rect.w, rect.h) / Math.min(rect.w, rect.h);
-      if (aspect > 10) {
-        continue; // too thin/long — likely an edge artifact
-      }
-      // Deduplicate by spatial position
-      const key = spatialKey(rect);
-      if (seenSpatialKeys.has(key)) {
+      if (area < 300) {
+        rejected.push({ rect, reason: 'area_too_small' });
         continue;
       }
-      seenSpatialKeys.add(key);
+      if (rect.w > maxDim || rect.h > maxDim) {
+        rejected.push({ rect, reason: 'dim_too_large' });
+        continue;
+      }
+      if (area > w * h * 0.04) {
+        rejected.push({ rect, reason: 'area_exceeds_4pct' });
+        continue;
+      }
+      const aspect = Math.max(rect.w, rect.h) / Math.min(rect.w, rect.h);
+      if (aspect > 5) {
+        rejected.push({ rect, reason: 'aspect_ratio' });
+        continue;
+      }
+      // Reject sparse regions — require at least 20% foreground density
+      let fgCount = 0;
+      for (let py = rect.y; py < rect.y + rect.h; py++) {
+        for (let px = rect.x; px < rect.x + rect.w; px++) {
+          if (binary[py * w + px] !== 0) {
+            fgCount++;
+          }
+        }
+      }
+      const density = fgCount / area;
+      if (density < 0.2) {
+        rejected.push({
+          rect,
+          reason: `density_${(density * 100).toFixed(0)}pct`,
+        });
+        continue;
+      }
       candidates.push(rect);
     }
 
+    emitDebug(
+      'density_filter',
+      {
+        frameNum: frameCount,
+        accepted: candidates.length,
+        rejected: rejected.length,
+        rejections: rejected,
+        candidates,
+      },
+      await drawRectsOnFrame(imageData, candidates, [0, 255, 255])
+    );
+
+    // --- STEP 3: Crop with padding and fuzzy dedup ---
     for (const cand of candidates) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- externally mutated via blur/stop
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- externally mutated
       if (extractionState.stopRequested) {
         break;
       }
 
-      const cropBitmap = await createImageBitmap(
-        imageData,
-        cand.x,
-        cand.y,
-        cand.w,
-        cand.h
-      );
+      // Pad the crop to include surrounding context (25% on each side)
+      const pad = Math.round(Math.max(cand.w, cand.h) * 0.25);
+      const cx = Math.max(0, cand.x - pad);
+      const cy = Math.max(0, cand.y - pad);
+      const cw = Math.min(w - cx, cand.w + pad * 2);
+      const ch = Math.min(h - cy, cand.h + pad * 2);
 
-      const cropCanvas = new OffscreenCanvas(cand.w, cand.h);
+      // Compute perceptual hash on the cropped gray content (position-independent)
+      const hash = perceptualHash(gray, w, cx, cy, cw, ch);
+      const isDup = seenHashes.some(
+        (h) => hammingDist(hash, h) < HASH_THRESHOLD
+      );
+      if (isDup) {
+        emitDebug('dedup_rejected', {
+          frameNum: frameCount,
+          candidateIndex,
+          rect: { x: cx, y: cy, w: cw, h: ch },
+          hash,
+        });
+        continue;
+      }
+      seenHashes.push(hash);
+
+      const cropBitmap = await createImageBitmap(imageData, cx, cy, cw, ch);
+      const cropCanvas = new OffscreenCanvas(cw, ch);
       const cropCtx = cropCanvas.getContext('2d');
       if (!cropCtx) {
         continue;
@@ -266,7 +478,16 @@ async function runExtraction(gameName: string): Promise<void> {
       const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
       const buffer = await blob.arrayBuffer();
 
-      postCandidate(cand, candidateIndex++, frameCount, buffer);
+      emitDebug(
+        'candidate',
+        {
+          frameNum: frameCount,
+          index: candidateIndex,
+          rect: { x: cx, y: cy, w: cw, h: ch },
+          hash,
+        },
+        buffer
+      );
 
       try {
         const result = await session.prompt([
@@ -284,28 +505,49 @@ async function runExtraction(gameName: string): Promise<void> {
         ]);
 
         const parsed = parseAIResponse(result);
+        emitDebug('ai_result', {
+          frameNum: frameCount,
+          candidateIndex,
+          rawResponse: result,
+          parsed,
+        });
+
         if (parsed && parsed.accept && !knownLabels.has(parsed.label)) {
           knownLabels.add(parsed.label);
-
           await chrome.runtime.sendMessage({
             source: MSG_SOURCE,
             type: 'SAVE_SPRITE',
             game: gameName,
             spriteType: parsed.label,
             buffer,
-            w: cand.w,
-            h: cand.h,
+            w: cw,
+            h: ch,
           });
-
           postToast(`Found: ${parsed.label}`);
         }
-      } catch {
-        // AI prompt failed for this candidate, skip
+      } catch (err: unknown) {
+        errorLog('[sprite-extraction] AI prompt error:', err);
+        emitDebug('ai_error', {
+          frameNum: frameCount,
+          candidateIndex,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      candidateIndex++;
+    }
+
+    // Slowly adapt background model (blend in static parts of current frame)
+    for (let i = 0; i < pixelCount; i++) {
+      if (binary[i] === 0) {
+        bgModel[i] = Math.round(
+          (bgModel[i] ?? 0) * 0.95 + (gray[i] ?? 0) * 0.05
+        );
       }
     }
   };
 
-  // Frame loop using requestVideoFrameCallback or fallback
+  // Frame loop
   const loop = (): void => {
     if (extractionState.stopRequested) {
       return;
@@ -364,8 +606,8 @@ function parseAIResponse(
     ) {
       return { label: obj['label'].trim(), accept: obj['accept'] };
     }
-  } catch {
-    // parse error
+  } catch (err: unknown) {
+    errorLog('[sprite-extraction] parseAIResponse error:', err);
   }
   return null;
 }
