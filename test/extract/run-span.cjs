@@ -15,7 +15,7 @@ const {
   runRealExtraction,
   clearSpritesDB,
   loadSpritesFromExtension,
-  saveSpritesToDisk,
+  saveResultsToDisk,
 } = require('./shared.cjs');
 
 const args = process.argv.slice(2);
@@ -57,9 +57,13 @@ async function run() {
       `  Running extraction at ${SPAN_START}s for ${SPAN_DURATION / 1000}s...`
     );
     await clearSpritesDB(browser);
-    const { toasts } = await runRealExtraction(page, SPAN_START, SPAN_DURATION);
+    const { toasts, candidates } = await runRealExtraction(
+      page,
+      SPAN_START,
+      SPAN_DURATION
+    );
 
-    console.log(`  Toasts: ${toasts.length}`);
+    console.log(`  Toasts: ${toasts.length}, Candidates: ${candidates.length}`);
     toasts.forEach((t) => console.log(`    "${t}"`));
 
     // Load sprites from IndexedDB via service worker
@@ -68,14 +72,25 @@ async function run() {
       contextId,
       'Test Game'
     );
-    if (sprites.length > 0) {
-      const dir = saveSpritesToDisk(sprites, SPAN_NAME);
-      console.log(`  Sprites saved: ${sprites.length} → ${dir}`);
-    }
+
+    // Save results to disk
+    const dir = saveResultsToDisk({
+      sprites,
+      candidates,
+      testName: SPAN_NAME,
+    });
+    console.log(`  Results saved → ${dir}`);
+    console.log(`    candidates: ${candidates.length}, sprites: ${sprites.length}`);
 
     assert(
       'extraction started',
       toasts.some((t) => t.includes('Finding sprites'))
+    );
+
+    assert(
+      'candidates were found',
+      candidates.length > 0,
+      'no candidates extracted from video'
     );
 
     const foundToasts = toasts.filter((t) => t.startsWith('Found:'));

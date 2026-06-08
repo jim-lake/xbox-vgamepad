@@ -13,7 +13,7 @@ const {
   clearSpritesDB,
   loadSpritesFromExtension,
   aiVerifyLabels,
-  saveSpritesToDisk,
+  saveResultsToDisk,
 } = require('./shared.cjs');
 
 const VIDEO_DURATION = 1210;
@@ -114,7 +114,7 @@ async function run() {
       'Test Game'
     );
     if (sprites.length > 0) {
-      const dir = saveSpritesToDisk(sprites, 'mega');
+      const dir = saveResultsToDisk({ sprites, candidates: [], testName: 'mega' });
       console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
     }
 

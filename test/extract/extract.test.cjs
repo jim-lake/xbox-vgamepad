@@ -12,7 +12,7 @@ const {
   runRealExtraction,
   clearSpritesDB,
   loadSpritesFromExtension,
-  saveSpritesToDisk,
+  saveResultsToDisk,
 } = require('./shared.cjs');
 
 const TIMESTAMPS = [5, 180, 480];
@@ -45,6 +45,7 @@ async function run() {
     }
 
     const allToasts = [];
+    const allCandidates = [];
 
     await clearSpritesDB(browser);
 
@@ -53,10 +54,17 @@ async function run() {
         seekTo < 60 ? `${seekTo}s` : `${Math.floor(seekTo / 60)}min`;
       console.log(`\n  ── Running at ${label} (${RUN_DURATION / 1000}s) ──`);
 
-      const { toasts } = await runRealExtraction(page, seekTo, RUN_DURATION);
+      const { toasts, candidates } = await runRealExtraction(
+        page,
+        seekTo,
+        RUN_DURATION
+      );
       allToasts.push(...toasts);
+      allCandidates.push(...candidates);
 
-      console.log(`  Toasts: ${toasts.length}`);
+      console.log(
+        `  Toasts: ${toasts.length}, Candidates: ${candidates.length}`
+      );
       toasts.forEach((t) => console.log(`    "${t}"`));
     }
 
@@ -66,14 +74,25 @@ async function run() {
       contextId,
       'Test Game'
     );
-    if (sprites.length > 0) {
-      const dir = saveSpritesToDisk(sprites, 'multi');
-      console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
-    }
+
+    // Save results to disk
+    const dir = saveResultsToDisk({
+      sprites,
+      candidates: allCandidates,
+      testName: 'multi',
+    });
+    console.log(`\n  Results saved → ${dir}`);
+    console.log(`    candidates: ${allCandidates.length}, sprites: ${sprites.length}`);
 
     assert(
       'extraction started',
       allToasts.some((t) => t.includes('Finding sprites'))
+    );
+
+    assert(
+      'candidates were found',
+      allCandidates.length > 0,
+      'no candidates extracted from video'
     );
 
     const foundToasts = allToasts.filter((t) => t.startsWith('Found:'));

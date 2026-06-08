@@ -12,7 +12,7 @@ const {
   runRealExtraction,
   clearSpritesDB,
   loadSpritesFromExtension,
-  saveSpritesToDisk,
+  saveResultsToDisk,
 } = require('./shared.cjs');
 
 const VIDEO_DURATION = 1210;
@@ -56,6 +56,7 @@ async function run() {
     }
 
     const allToasts = [];
+    const allCandidates = [];
     const spritesPerSample = [];
 
     await clearSpritesDB(browser);
@@ -65,13 +66,18 @@ async function run() {
       const label = `${Math.floor(ts / 60)}m${ts % 60}s`;
       console.log(`\n  ── Sample ${i + 1}/${NUM_SAMPLES} at ${label} ──`);
 
-      const { toasts } = await runRealExtraction(page, ts, SAMPLE_DURATION);
+      const { toasts, candidates } = await runRealExtraction(
+        page,
+        ts,
+        SAMPLE_DURATION
+      );
       const foundInSample = toasts.filter((t) => t.startsWith('Found:'));
       allToasts.push(...toasts);
+      allCandidates.push(...candidates);
       spritesPerSample.push(foundInSample.length);
 
       console.log(
-        `  Toasts: ${toasts.length}, Sprites found: ${foundInSample.length}`
+        `  Toasts: ${toasts.length}, Candidates: ${candidates.length}, Sprites: ${foundInSample.length}`
       );
       foundInSample.forEach((t) => console.log(`    ${t}`));
     }
@@ -82,10 +88,15 @@ async function run() {
       contextId,
       'Test Game'
     );
-    if (sprites.length > 0) {
-      const dir = saveSpritesToDisk(sprites, 'full');
-      console.log(`\n  Sprites saved: ${sprites.length} → ${dir}`);
-    }
+
+    // Save results to disk
+    const dir = saveResultsToDisk({
+      sprites,
+      candidates: allCandidates,
+      testName: 'full',
+    });
+    console.log(`\n  Results saved → ${dir}`);
+    console.log(`    candidates: ${allCandidates.length}, sprites: ${sprites.length}`);
 
     const allFoundToasts = allToasts.filter((t) => t.startsWith('Found:'));
     const allLabels = allFoundToasts.map((t) =>
@@ -94,6 +105,7 @@ async function run() {
     const uniqueLabels = [...new Set(allLabels)];
 
     console.log(`\n  Total sprites: ${allFoundToasts.length}`);
+    console.log(`  Total candidates: ${allCandidates.length}`);
     console.log(`  Unique labels: ${uniqueLabels.length}`);
     console.log(`  Per-sample: [${spritesPerSample.join(', ')}]`);
     console.log(`  Labels: ${uniqueLabels.join(', ')}`);
@@ -101,6 +113,11 @@ async function run() {
     assert(
       'extraction started',
       allToasts.some((t) => t.includes('Finding sprites'))
+    );
+    assert(
+      'candidates were found',
+      allCandidates.length > 0,
+      'no candidates extracted from video'
     );
     assert(
       'found ≥3 sprites across video',

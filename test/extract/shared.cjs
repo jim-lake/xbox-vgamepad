@@ -162,7 +162,7 @@ async function setupPage(browser) {
  * @param {object} page - Puppeteer page
  * @param {number} seekTo - Video timestamp to seek to before extraction
  * @param {number} durationMs - How long to let extraction run
- * @returns {{ toasts: string[], sprites: object[], errors: string[] }}
+ * @returns {{ toasts: string[], candidates: object[], errors: string[] }}
  */
 async function runRealExtraction(page, seekTo, durationMs) {
   // Seek the video
@@ -174,15 +174,30 @@ async function runRealExtraction(page, seekTo, durationMs) {
   await page.evaluate(() => document.querySelector('video').play());
   await new Promise((r) => setTimeout(r, 500));
 
-  // Set up toast listener before triggering extraction
+  // Set up toast and candidate listener before triggering extraction
   await page.evaluate(() => {
     window.__extractToasts = [];
+    window.__extractCandidates = [];
     window.addEventListener('message', (e) => {
-      if (
-        e.data?.source === 'xbox-vgamepad-content-script' &&
-        e.data?.type === 'SHOW_TOAST'
-      ) {
-        window.__extractToasts.push(e.data.text);
+      if (e.data?.source === 'xbox-vgamepad-content-script') {
+        if (e.data.type === 'SHOW_TOAST') {
+          window.__extractToasts.push(e.data.text);
+        } else if (e.data.type === 'CANDIDATE_FOUND') {
+          const bytes = e.data.buffer ? new Uint8Array(e.data.buffer) : null;
+          let b64 = null;
+          if (bytes) {
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++)
+              binary += String.fromCharCode(bytes[i]);
+            b64 = btoa(binary);
+          }
+          window.__extractCandidates.push({
+            rect: e.data.rect,
+            index: e.data.index,
+            frameNum: e.data.frameNum,
+            b64,
+          });
+        }
       }
     });
   });
@@ -206,8 +221,11 @@ async function runRealExtraction(page, seekTo, durationMs) {
 
   // Collect results
   const toasts = await page.evaluate(() => window.__extractToasts || []);
+  const candidates = await page.evaluate(
+    () => window.__extractCandidates || []
+  );
 
-  return { toasts, errors: [] };
+  return { toasts, candidates, errors: [] };
 }
 
 /**
@@ -451,20 +469,56 @@ async function loadSpritesFromExtension(browser, contextId, game) {
 }
 
 /**
- * Save extracted sprites to disk as PNG files for review.
- * @param {Array<{label: string, w: number, h: number, png: number[]}>} sprites
- * @param {string} testName - Test identifier for the directory name
- * @returns {string} Directory path where sprites were saved
+ * Save extraction results (sprites + candidates) to a single timestamped directory.
+ * Structure: /tmp/extract-{testName}-{ts}/sprites/ and /tmp/extract-{testName}-{ts}/candidates/
+ *
+ * @param {object} opts
+ * @param {Array<{label: string, w: number, h: number, png: number[]}>} opts.sprites
+ * @param {Array<{rect: {x:number,y:number,w:number,h:number}, index: number, frameNum: number, b64: string|null}>} opts.candidates
+ * @param {string} opts.testName
+ * @returns {string} Root directory path
  */
-function saveSpritesToDisk(sprites, testName) {
-  const dir = `/tmp/extract-test-${testName}-${Date.now()}`;
-  fs.mkdirSync(dir, { recursive: true });
-  for (const sprite of sprites) {
-    const safeName = sprite.label.replace(/[^a-z0-9_-]/gi, '_');
-    const filePath = path.join(dir, `${safeName}_${sprite.w}x${sprite.h}.png`);
-    fs.writeFileSync(filePath, Buffer.from(sprite.png));
+function saveResultsToDisk({ sprites, candidates, testName }) {
+  const root = `/tmp/extract-${testName}-${Date.now()}`;
+
+  if (sprites && sprites.length > 0) {
+    const dir = path.join(root, 'sprites');
+    fs.mkdirSync(dir, { recursive: true });
+    for (const sprite of sprites) {
+      const safeName = sprite.label.replace(/[^a-z0-9_-]/gi, '_');
+      fs.writeFileSync(
+        path.join(dir, `${safeName}_${sprite.w}x${sprite.h}.png`),
+        Buffer.from(sprite.png)
+      );
+    }
   }
-  return dir;
+
+  if (candidates && candidates.length > 0) {
+    const dir = path.join(root, 'candidates');
+    fs.mkdirSync(dir, { recursive: true });
+    for (const c of candidates) {
+      if (c.b64) {
+        fs.writeFileSync(
+          path.join(dir, `candidate_${c.index}_f${c.frameNum}_${c.rect.w}x${c.rect.h}.png`),
+          Buffer.from(c.b64, 'base64')
+        );
+      }
+    }
+    const manifest = candidates.map((c) => ({
+      index: c.index,
+      frameNum: c.frameNum,
+      x: c.rect.x,
+      y: c.rect.y,
+      w: c.rect.w,
+      h: c.rect.h,
+    }));
+    fs.writeFileSync(
+      path.join(dir, 'candidates.json'),
+      JSON.stringify(manifest, null, 2)
+    );
+  }
+
+  return root;
 }
 
 module.exports = {
@@ -478,5 +532,5 @@ module.exports = {
   loadSpritesFromExtension,
   validateSprites,
   aiVerifyLabels,
-  saveSpritesToDisk,
+  saveResultsToDisk,
 };
