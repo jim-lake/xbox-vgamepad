@@ -11,16 +11,16 @@ function getInitialURL() {
 type EventHandler = (url: string) => void;
 
 function addEventListener(_ignore: string, handler: EventHandler) {
-  const eventHandler = () => {
+  function _eventHandler() {
     const url = window.location.href;
     if (url) {
       handler(url);
     }
   };
-  window.addEventListener('hashchange', eventHandler);
+  window.addEventListener('hashchange', _eventHandler);
   return {
     remove: () => {
-      window.removeEventListener('hashchange', eventHandler);
+      window.removeEventListener('hashchange', _eventHandler);
     },
   };
 }
