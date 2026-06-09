@@ -252,8 +252,10 @@ if (localStorage.getItem('xvg-patchRemoteMultigamepad') === 'false') {
 
   function installPushTrap(arr: unknown[][]): void {
     const nativePush = arr.push.bind(arr);
-    let currentPush: (...args: unknown[]) => number = (...args: unknown[]) =>
-      nativePush(...(args as unknown[][]));
+    function defaultPush(...args: unknown[]): number {
+      return nativePush(...(args as unknown[][]));
+    }
+    let currentPush: (...args: unknown[]) => number = defaultPush;
 
     Object.defineProperty(arr, 'push', {
       configurable: true,

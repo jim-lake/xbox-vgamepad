@@ -31,8 +31,9 @@ window.addEventListener(
 let g_fakeFullscreen = false;
 // eslint-disable-next-line @typescript-eslint/unbound-method
 const realRequestFullscreen = Element.prototype.requestFullscreen;
-const realExitFullscreen = () =>
-  Document.prototype.exitFullscreen.call(document);
+function realExitFullscreen(): Promise<void> {
+  return Document.prototype.exitFullscreen.call(document);
+}
 Element.prototype.requestFullscreen = function (
   options?: FullscreenOptions
 ): Promise<void> {

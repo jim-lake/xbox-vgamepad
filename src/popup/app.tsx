@@ -142,7 +142,7 @@ export default function App() {
       setActiveTab(0);
     })();
 
-    const listener = (message: unknown) => {
+    function listener(message: unknown) {
       const msg = message as {
         type?: string;
         connected?: [boolean, boolean, boolean, boolean];
@@ -169,7 +169,7 @@ export default function App() {
         }
         setLoading(false);
       }
-    };
+    }
     chrome.runtime.onMessage.addListener(listener);
     return () => {
       chrome.runtime.onMessage.removeListener(listener);

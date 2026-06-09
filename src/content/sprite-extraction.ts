@@ -63,9 +63,9 @@ export async function startFindSprites(
   extractionState.running = true;
   extractionState.stopRequested = false;
 
-  const onBlur = (): void => {
+  function onBlur(): void {
     extractionState.stopRequested = true;
-  };
+  }
   window.addEventListener('blur', onBlur);
 
   try {
@@ -94,8 +94,8 @@ async function runExtraction(
     '*'
   );
 
-  const video = document.querySelector('video');
-  if (!video) {
+  const videoEl = document.querySelector('video');
+  if (!videoEl) {
     window.postMessage(
       {
         source: MSG_SOURCE,
@@ -106,6 +106,7 @@ async function runExtraction(
     );
     return;
   }
+  const video: HTMLVideoElement = videoEl;
 
   const w = video.videoWidth || 1920;
   const h = video.videoHeight || 1080;
@@ -113,10 +114,11 @@ async function runExtraction(
   const frameArea = w * h;
   const maxDim = Math.min(w, h) * 0.2;
   const canvas = new OffscreenCanvas(w, h);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
+  const ctxOrNull = canvas.getContext('2d');
+  if (!ctxOrNull) {
     return;
   }
+  const ctx: OffscreenCanvasRenderingContext2D = ctxOrNull;
 
   // If videoStartTime specified, seek to it
   if (videoStartTime !== undefined) {
@@ -155,7 +157,7 @@ async function runExtraction(
   const seenHashes: string[] = [];
   const recentRects: Array<Rect & { frame: number }> = [];
 
-  const processFrame = async (): Promise<void> => {
+  async function processFrame(): Promise<void> {
     frameCount++;
 
     canvas.width = w;
@@ -298,7 +300,7 @@ async function runExtraction(
       addCandidate(gameName, cropData);
       candidateIndex++;
     }
-  };
+  }
 
   // Determine if we have a bounded time range
   const hasBounds = videoStartTime !== undefined && videoEndTime !== undefined;
@@ -306,7 +308,7 @@ async function runExtraction(
   // Frame loop
   await new Promise<void>((resolve) => {
     let loopCount = 0;
-    const loop = (): void => {
+    function loop(): void {
       if (extractionState.stopRequested) {
         resolve();
         return;
@@ -349,7 +351,7 @@ async function runExtraction(
           setTimeout(loop, 1000 / 12);
         }
       });
-    };
+    }
 
     if ('requestVideoFrameCallback' in video) {
       (
