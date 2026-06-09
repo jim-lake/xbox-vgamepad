@@ -60,4 +60,5 @@ export default defineConfig([
       ],
     },
   },
+  { files: ['test/**/*.ts'], rules: { 'no-console': 'off' } },
 ]);
