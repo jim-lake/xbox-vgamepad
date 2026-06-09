@@ -19,11 +19,11 @@ POPUP (src/popup/)
 ISOLATED WORLD — content script (src/content/)
   ├── Orchestrates all extraction logic
   ├── Captures frames from the WebRTC <video> element via OffscreenCanvas
-  ├── Builds background model (median of 15 frames)
-  ├── Background subtraction → threshold → flood fill → bounding rects
-  ├── Size filter → merge → density filter → perceptual hash dedup
-  ├── Uses the LanguageModel global (Chrome built-in Prompt API) for sprite
-  │   verification & canonical-label selection
+  ├── Builds per-pixel Gaussian background model (mean + variance)
+  ├── k-sigma foreground detection with state machine (learning/running)
+  ├── Size filter → merge → density filter → perceptual hash + spatial dedup
+  ├── Background-removed crop (exterior flood-fill → transparent)
+  ├── Async AI queue: LanguageModel (Gemini Nano) for sprite verification
   ├── Sends SAVE_SPRITE / LOAD_SPRITES messages to service worker for persistence
   ├── Posts SHOW_TOAST messages via window.postMessage for the main-world
   │   toast renderer
@@ -134,25 +134,30 @@ const result = await session.prompt([
 
 ## Extraction Pipeline
 
-### Step 1 — Background Model (1.5s startup)
+### Step 1 — Background Model (Per-Pixel Gaussian, 1.5s startup)
 
-Captures 15 frames at 100ms intervals and computes the **median** pixel value
-at each position in grayscale. The median is robust to transient objects (they
-appear in < 50% of frames and thus don't affect the median).
+Captures 15 frames at 100ms intervals and builds a per-pixel Gaussian model
+via `buildGaussianModel()` from `src/content/background-model.ts`.
 
-### Step 2 — Background Subtraction + Scene Change Detection
+- Each pixel gets its own `mean` and `variance` in `Float32Array`s
+- Multiple frames: mean = average, variance = measured (floored at `varianceFloor=25`)
+- Single frame fallback: mean = pixel value, variance = `initialVariance=200`
+- Model starts in `learning` state — detection suppressed for first 60 frames
 
-Each processed frame (every 5th via `requestVideoFrameCallback`) is compared
-against the background model:
+### Step 2 — Foreground Detection (k-sigma + State Machine)
+
+Each processed frame (every 5th via `requestVideoFrameCallback`) goes through
+`processFrame()` which manages detection and model adaptation:
 
 1. Convert RGBA → grayscale
-2. `absdiff(frame, bgModel)` → difference image
-3. `threshold(diff, 35)` → binary foreground mask
-4. Count changed pixels — if > 15% of frame area, it's a scene change:
-   - Replace background model instantly with current frame
-   - Skip candidate extraction for this frame
-5. For non-scene-change frames: slowly blend static pixels into background
-   (5% per frame) for gradual adaptation
+2. `gaussianSubtract(gray, mean, variance, k=2.5)` → binary mask
+   - Foreground if `(x - μ)² > k² * σ²` — per-pixel adaptive threshold
+3. Scene change detection: if >15% of pixels differ → transition to `learning`:
+   - Output suppressed (`null` returned), no candidates generated
+   - Variance widened to `initialVariance`, alpha raised to 0.05
+   - After 60 stable frames, transitions back to `running`
+4. During `running`: update mean/variance at `runningAlpha=0.005` (background pixels only)
+5. Variance floor (`25`) prevents zero-width detection bands
 
 ### Step 3 — Contour Detection + Size Filter
 
@@ -163,24 +168,32 @@ Filter: reject rects < 10×10px (noise) or > 20% of frame height (~216px at 1080
 ### Step 4 — Merge + Density + Constraint Filter
 
 1. **Merge**: combine rects within 6px gap (fragments of same sprite)
-2. **Area**: reject < 300px² or > 4% of frame area
+2. **Area**: reject < 600px² or > 4% of frame area
 3. **Aspect ratio**: reject > 5:1 (edge artifacts)
 4. **Density**: count binary-active pixels within rect; reject if < 20% of
    bounding box area (sparse compression artifacts)
 
-### Step 5 — Perceptual Hash Dedup
+### Step 5 — Deduplication (Perceptual Hash + Spatial Overlap)
 
-Compute 64-bit hash (8×8 grid of average luminance) on the padded crop.
-Reject if hamming distance < 14 from any previously seen hash. Prevents
-identical sprites at different positions from generating duplicate candidates.
+Two complementary dedup layers:
 
-### Step 6 — Crop + AI Verification
+1. **Perceptual hash**: 64-bit hash (8×8 grid of average luminance) on padded crop.
+   Reject if hamming distance < 10 from any previously seen hash.
+2. **Spatial overlap**: Reject if candidate overlaps >40% with any candidate seen
+   within the last 30 frames. Prevents same sprite generating candidates every frame.
+
+Limit: max 3 candidates per frame (largest area first).
+
+### Step 6 — Background-Removed Crop + AI Verification
 
 1. Pad candidate rect by 25% on each side (captures full sprite beyond motion boundary)
-2. `createImageBitmap()` from the frame's ImageData
-3. Send crop + prompt to Gemini Nano multimodal
-4. Parse JSON response: `{"label": "...", "accept": true/false}`
-5. If accepted and label not already known → SAVE_SPRITE to IndexedDB
+2. `buildExteriorMask()`: Flood-fill from crop edges through background pixels (binary=0)
+   to identify connected exterior regions
+3. `applyCropMask()`: Copy pixel data, setting exterior pixels to alpha=0 (transparent)
+4. Encode as PNG, emit `EXTRACT_DEBUG` candidate event
+5. Send to AI queue (`addCandidate()` in `ai-sprite.ts`)
+6. AI processes asynchronously: prompt Gemini Nano for `{"label": "...", "accept": true/false}`
+7. If accepted and label not already known → SAVE_SPRITE to IndexedDB
 
 ---
 
@@ -222,30 +235,49 @@ IndexedDB database `xvg-sprites`, object store `sprites`, keyed by `${game}::${s
 
 ## Image Operations (No OpenCV)
 
-**File:** `src/content/image-ops.ts`
-
-Pure TypeScript implementations — no OpenCV, no WASM, no eval/Function (MV3 CSP safe):
+### `src/content/image-ops.ts` — Basic pixel ops
 
 - `rgbaToGray(data, w, h)` → Uint8Array
 - `absdiff(a, b)` → Uint8Array
 - `threshold(src, thresh)` → Uint8Array (binary 0/255)
-- `findBoundingRects(binary, w, h)` → Array<{x, y, w, h}> (flood-fill connected components)
+- `findBoundingRects(binary, w, h)` → Array<Rect> (flood-fill connected components)
+
+### `src/content/background-model.ts` — Gaussian model
+
+- `buildGaussianModel(frames, pixelCount, varianceFloor?)` → BGSubtractor
+- `gaussianSubtract(gray, mean, variance, k?)` → Uint8Array (binary mask)
+- `gaussianUpdate(mean, variance, gray, binary, alpha?)` → void (in-place)
+- `detectSceneChange(binary, pixelCount, threshold)` → { isSceneChange, changeRatio }
+- `processFrame(sub, gray, options?)` → Uint8Array | null (full state machine)
+
+### `src/content/sprite-helpers.ts` — Pipeline helpers
+
+- `mergeRects(rects, gap)` → Rect[]
+- `sizeFilter(rects, minDim, maxDim)` → Rect[]
+- `densityFilter(rects, binary, frameW, frameArea, config)` → { accepted, rejected }
+- `perceptualHash(gray, frameW, rect)` → string (64-bit hash)
+- `isDuplicate(hash, seenHashes, threshold)` → boolean
+- `overlapsRecent(rect, recentRects, currentFrame, cooldown)` → boolean
+
+### `src/content/sprite-crop.ts` — Background removal
+
+- `buildExteriorMask(binary, frameW, cx, cy, cw, ch)` → Uint8Array (1=exterior)
+- `applyCropMask(srcData, srcW, exterior, cx, cy, cw, ch)` → ImageData (transparent bg)
+
+### `src/content/ai-sprite.ts` — AI verification queue
+
+- `addCandidate(gameName, imageData)` → void (enqueues)
+- `initKnownLabels(gameName)` → Promise<void> (loads existing from IndexedDB)
+- `resetAi()` → void (clears queue and session)
+- `isIdle()` → boolean (queue empty and not processing)
 
 ---
 
 ## Debug Output System
 
 The pipeline emits `EXTRACT_DEBUG` messages via `window.postMessage`. The test
-harness (`test/extract/shared.cjs`) collects all debug entries generically and
-saves them to disk organized by phase.
-
-Adding a new phase is a single `emitDebug('phase_name', { ...data }, optionalPngBuffer)`
-call — no test code changes needed.
-
-Each phase can emit:
-
-- A PNG image (rendered frame with annotations, binary mask, crop, etc.)
-- A JSON metadata object (rects, counts, filter reasons, AI responses)
+harness collects all debug entries generically and saves them to disk organized
+by phase. Adding a new phase requires no test code changes.
 
 Test output structure:
 
@@ -254,14 +286,14 @@ Test output structure:
   sprites/          # Final saved sprites
   candidates/       # All candidate crops
   debug/
-    background_model/  # 1.png (grayscale bg), 1.json
+    background_model/  # 1.png (grayscale mean), 1.json
     binary_diff/       # Per-frame foreground masks
     scene_change/      # Scene change events (json only)
     size_filter/       # Frame + green rects
     merge_rects/       # Frame + yellow rects
     density_filter/    # Frame + cyan rects (final accepted)
     dedup_rejected/    # Hash collision entries
-    candidate/         # Individual crop PNGs
+    candidate/         # Individual crop PNGs (transparent bg)
     ai_result/         # AI raw responses + parsed
     ai_error/          # AI failures
 ```
@@ -301,8 +333,8 @@ Extraction runs indefinitely — there is no stopping condition. The system does
 not know how many sprites exist or when it's "done." It continuously:
 
 1. Captures frames and extracts candidates.
-2. Deduplicates via perceptual hash against all previously seen candidates.
-3. Verifies new candidates against the AI.
+2. Deduplicates via perceptual hash + spatial overlap against previously seen candidates.
+3. Sends new candidates to the AI queue for asynchronous verification.
 4. Saves accepted sprites to IndexedDB.
 
 Extraction **stops** on window `blur` event — covers the user opening the
@@ -315,8 +347,12 @@ existing sprites from IndexedDB and skips known labels.
 
 | File                                  | Purpose                                                              |
 | ------------------------------------- | -------------------------------------------------------------------- |
-| `src/content/sprite-extraction.ts`    | Extraction orchestrator (background model + CV + AI pipeline)        |
+| `src/content/sprite-extraction.ts`    | Extraction orchestrator (pipeline coordination + config)             |
+| `src/content/background-model.ts`     | Per-pixel Gaussian background model + state machine                  |
 | `src/content/image-ops.ts`            | Pure TS image operations (grayscale, absdiff, threshold, flood fill) |
+| `src/content/sprite-helpers.ts`       | Stateless pipeline helpers (merge, filter, hash, dedup)              |
+| `src/content/sprite-crop.ts`          | Background removal (exterior flood-fill + transparent masking)       |
+| `src/content/ai-sprite.ts`            | AI verification queue (session, prompt, parse, save)                 |
 | `src/content/index.ts`                | Wires `START_FIND_SPRITES` → orchestrator                            |
 | `src/background/service-worker.ts`    | `SAVE_SPRITE` / `LOAD_SPRITES` handlers                              |
 | `src/background/sprite-store.ts`      | IndexedDB wrapper                                                    |

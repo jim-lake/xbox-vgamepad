@@ -83,10 +83,12 @@ The test mode patches the manifest to include `http://127.0.0.1:9444/*` in conte
 
 ## Specifications
 
-The `spec/` directory contains the authoritative design specs (00–10). `JSON.md` at the project root defines the gamepad configuration JSON format. The `docs/` directory contains additional design documents:
+The `spec/` directory contains the authoritative design specs (00–11). `JSON.md` at the project root defines the gamepad configuration JSON format. The `docs/` directory contains additional design documents:
 
 - `docs/COOP.md` — Co-op patch design and implementation details
 - `docs/PATCH.md` — Patch mechanism documentation
+- `EXTRACT.md` — Sprite extraction implementation status and test setup
+- `BACKGROUND.md` — Per-pixel Gaussian background model design
 
 These are the source of truth for behavior — always consult them before implementing features.
 
@@ -137,21 +139,29 @@ Integration tests for the co-op webpack interception in `test/patch/`. Requires 
 
 ```
 src/
-  background/    — Service worker (service-worker.ts)
-  content/       — Content script (message bridge)
-  injected/      — Main-world script (gamepad patch, input, detection, co-op patch, script runner)
-  popup/         — React popup UI
+  background/    — Service worker (service-worker.ts, sprite-store.ts)
+  content/       — Content script (message bridge, sprite extraction pipeline)
+    index.ts             — Message bridge + START_FIND_SPRITES wiring
+    sprite-extraction.ts — Extraction orchestrator (frame loop, pipeline coordination)
+    background-model.ts  — Per-pixel Gaussian background model + state machine
+    image-ops.ts         — Pure TS image ops (grayscale, absdiff, threshold, flood fill)
+    sprite-helpers.ts    — Stateless helpers (merge, filter, hash, dedup)
+    sprite-crop.ts       — Background removal (exterior flood-fill + transparent masking)
+    ai-sprite.ts         — AI verification queue (session, prompt, parse, save)
+  injected/      — Main-world script (gamepad patch, input, detection, co-op patch, script runner, toast)
+  popup/         — React popup UI (includes find-sprites-section.tsx)
   components/    — Shared UI components (base_components, buttons)
   tools/         — Utilities (log, busy, deep_equal)
   types/         — Global type declarations and shared types
   css/           — Shared stylesheets (base_components.css, colors.css)
   assets/img/    — Extension icons
-spec/            — Design specifications (00-10)
+spec/            — Design specifications (00-11)
 docs/            — Additional design docs (COOP.md, PATCH.md)
 test/            — Integration tests (Puppeteer)
   suites/        — Individual test suite files (40 files)
   unit/          — Unit tests (node:test runner)
   patch/         — Co-op patch integration tests
+  extract/       — Sprite extraction tests (requires Chrome Canary + Gemini Nano)
   harness.cjs    — Test runner, assert/expect helpers
   helpers.cjs    — Server, browser launch, page utilities
 scripts/         — Build scripts (version increment)
