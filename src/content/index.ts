@@ -264,7 +264,7 @@ window.addEventListener('message', (event: MessageEvent) => {
   } else if (msg.type === 'GAMEPAD_STATUS') {
     trySendMessage({ ...msg, source: MSG_SOURCE });
   } else if (msg.type === 'START_FIND_SPRITES') {
-    void startFindSprites(state.gameName);
+    void startFindSprites(state.gameName, msg.videoStartTime, msg.videoEndTime);
   } else if (msg.type === 'VERIFY_OPENCV') {
     // OpenCV removed — image ops are pure JS, always available
     window.postMessage(
@@ -279,7 +279,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
     return;
   }
   if (message.type === 'START_FIND_SPRITES') {
-    void startFindSprites(state.gameName);
+    void startFindSprites(
+      state.gameName,
+      message.videoStartTime,
+      message.videoEndTime
+    );
     return;
   }
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');

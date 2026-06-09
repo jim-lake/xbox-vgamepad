@@ -161,18 +161,11 @@ async function setupPage(browser) {
  *
  * @param {object} page - Puppeteer page
  * @param {number} seekTo - Video timestamp to seek to before extraction
- * @param {number} durationMs - How long to let extraction run
+ * @param {number} durationMs - How long to let extraction run (used as videoEndTime = seekTo + durationMs/1000)
  * @returns {{ toasts: string[], candidates: object[], errors: string[] }}
  */
 async function runRealExtraction(page, seekTo, durationMs) {
-  // Seek the video
-  await page.evaluate((ts) => {
-    const v = document.querySelector('video');
-    v.currentTime = ts;
-    return new Promise((r) => v.addEventListener('seeked', r, { once: true }));
-  }, seekTo);
-  await page.evaluate(() => document.querySelector('video').play());
-  await new Promise((r) => setTimeout(r, 500));
+  const videoEndTime = seekTo + durationMs / 1000;
 
   // Set up toast and candidate listener before triggering extraction
   // Remove previous listener to avoid accumulating duplicates across samples
@@ -183,10 +176,16 @@ async function runRealExtraction(page, seekTo, durationMs) {
     window.__extractToasts = [];
     window.__extractCandidates = [];
     window.__extractDebug = [];
+    window.__extractCandidatesDone = false;
+    window.__extractAiIdle = false;
     window.__extractListener = (e) => {
       if (e.data?.source === 'xbox-vgamepad-content-script') {
         if (e.data.type === 'SHOW_TOAST') {
           window.__extractToasts.push(e.data.text);
+        } else if (e.data.type === 'EXTRACT_CANDIDATES_DONE') {
+          window.__extractCandidatesDone = true;
+        } else if (e.data.type === 'EXTRACT_AI_IDLE') {
+          window.__extractAiIdle = true;
         } else if (e.data.type === 'EXTRACT_DEBUG') {
           const entry = { phase: e.data.phase, meta: e.data.meta };
           if (e.data.buffer) {
@@ -212,22 +211,44 @@ async function runRealExtraction(page, seekTo, durationMs) {
     window.addEventListener('message', window.__extractListener);
   });
 
-  // Trigger START_FIND_SPRITES via postMessage (content script listens for this)
-  await page.evaluate(() => {
-    window.postMessage(
-      { source: 'xbox-vgamepad-content-script', type: 'START_FIND_SPRITES' },
-      '*'
+  // Trigger START_FIND_SPRITES with video time bounds
+  await page.evaluate(
+    (start, end) => {
+      window.postMessage(
+        {
+          source: 'xbox-vgamepad-content-script',
+          type: 'START_FIND_SPRITES',
+          videoStartTime: start,
+          videoEndTime: end,
+        },
+        '*'
+      );
+    },
+    seekTo,
+    videoEndTime
+  );
+
+  // Wait for both EXTRACT_CANDIDATES_DONE and EXTRACT_AI_IDLE
+  // Timeout: video duration + 25 minutes for AI processing
+  const timeout = durationMs + 1500000;
+  try {
+    await page.waitForFunction(
+      () => window.__extractCandidatesDone && window.__extractAiIdle,
+      { timeout }
     );
-  });
-
-  // Let the real extraction pipeline run
-  await new Promise((r) => setTimeout(r, durationMs));
-
-  // Stop extraction by blurring the window
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event('blur'));
-  });
-  await new Promise((r) => setTimeout(r, 2000));
+  } catch (e) {
+    const status = await page.evaluate(() => ({
+      candidatesDone: window.__extractCandidatesDone,
+      aiIdle: window.__extractAiIdle,
+      toasts: window.__extractToasts,
+      candidates: window.__extractCandidates?.length,
+    }));
+    console.log(
+      '  waitForFunction timed out. Status:',
+      JSON.stringify(status, null, 2)
+    );
+    throw e;
+  }
 
   // Collect results
   const toasts = await page.evaluate(() => window.__extractToasts || []);

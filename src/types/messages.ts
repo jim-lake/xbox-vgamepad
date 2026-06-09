@@ -115,6 +115,8 @@ export interface SetBadgeMessage {
 export interface StartFindSpritesMessage {
   source: typeof MSG_SOURCE;
   type: 'START_FIND_SPRITES';
+  videoStartTime?: number;
+  videoEndTime?: number;
 }
 
 export interface SaveSpriteMessage {
