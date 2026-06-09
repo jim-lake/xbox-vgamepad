@@ -29,10 +29,28 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+  return btoa(binary);
+}
+
 export async function saveSprite(
   game: string,
   spriteType: string,
-  buffer: ArrayBuffer,
+  buffer: string,
   w: number,
   h: number
 ): Promise<void> {
@@ -40,7 +58,7 @@ export async function saveSprite(
   const record: SpriteRecord = {
     game,
     spriteType,
-    buffer,
+    buffer: base64ToArrayBuffer(buffer),
     w,
     h,
     updatedAt: Date.now(),
@@ -60,7 +78,7 @@ export async function saveSprite(
 export async function loadSprites(
   game: string
 ): Promise<
-  Array<{ spriteType: string; buffer: ArrayBuffer; w: number; h: number }>
+  Array<{ spriteType: string; buffer: string; w: number; h: number }>
 > {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -74,7 +92,7 @@ export async function loadSprites(
           .filter((r) => r.game === game)
           .map((r) => ({
             spriteType: r.spriteType,
-            buffer: r.buffer,
+            buffer: arrayBufferToBase64(r.buffer),
             w: r.w,
             h: r.h,
           }))

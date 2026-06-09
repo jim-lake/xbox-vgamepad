@@ -126,13 +126,19 @@ async function processNext(): Promise<void> {
         // Convert to PNG for storage
         const blob = await aiCanvas.convertToBlob({ type: 'image/png' });
         const buffer = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (const b of bytes) {
+          binary += String.fromCharCode(b);
+        }
+        const b64 = btoa(binary);
 
         await chrome.runtime.sendMessage({
           source: MSG_SOURCE,
           type: 'SAVE_SPRITE',
           game: candidate.gameName,
           spriteType: parsed.label,
-          buffer,
+          buffer: b64,
           w: imageData.width,
           h: imageData.height,
         });

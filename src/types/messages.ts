@@ -124,7 +124,7 @@ export interface SaveSpriteMessage {
   type: 'SAVE_SPRITE';
   game: string;
   spriteType: string;
-  buffer: ArrayBuffer;
+  buffer: string;
   w: number;
   h: number;
 }
@@ -140,12 +140,7 @@ export interface LoadSpritesMessage {
 }
 
 export interface LoadSpritesResponse {
-  sprites: Array<{
-    spriteType: string;
-    buffer: ArrayBuffer;
-    w: number;
-    h: number;
-  }>;
+  sprites: Array<{ spriteType: string; buffer: string; w: number; h: number }>;
 }
 
 export interface ShowToastMessage {
