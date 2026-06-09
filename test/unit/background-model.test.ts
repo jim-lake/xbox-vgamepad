@@ -1,134 +1,285 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rgbaToGray, absdiff, threshold } from '../../src/content/image-ops.ts';
+import { rgbaToGray } from '../../src/content/image-ops.ts';
 import {
-  buildMedianModel,
+  buildGaussianModel,
+  gaussianSubtract,
+  gaussianUpdate,
   detectSceneChange,
-  adaptiveBlend,
+  processFrame,
 } from '../../src/content/background-model.ts';
-import {
-  loadFrame,
-  BG_MODEL_FRAMES,
-  PROCESSING_FRAMES,
-} from './sprite-test-helpers.ts';
+import type { BGSubtractor } from '../../src/content/background-model.ts';
+import { loadFrame, FRAMES } from './sprite-test-helpers.ts';
 
-const bgGrayFrames: Uint8Array[] = [];
-let bgModel: Uint8Array = new Uint8Array(0);
-let frameW = 0;
-let frameH = 0;
-let pixelCount = 0;
+// --- Unit tests for individual functions ---
 
-// Load all background frames up front
-for (const num of BG_MODEL_FRAMES) {
-  const f = loadFrame(num);
-  frameW = f.width;
-  frameH = f.height;
-  bgGrayFrames.push(rgbaToGray(f.rgba, f.width, f.height));
-}
-pixelCount = frameW * frameH;
-bgModel = buildMedianModel(bgGrayFrames, pixelCount);
-
-void test('bg model: loads all 15 background frames at 1920x1080', () => {
-  assert.equal(bgGrayFrames.length, 15);
-  assert.equal(frameW, 1920);
-  assert.equal(frameH, 1080);
+void test('buildGaussianModel: single frame sets mean to pixel values and variance to initialVariance', () => {
+  const frame = new Uint8Array([100, 150, 200]);
+  const sub = buildGaussianModel([frame], 3);
+  assert.equal(sub.mean[0], 100);
+  assert.equal(sub.mean[1], 150);
+  assert.equal(sub.mean[2], 200);
+  assert.equal(sub.variance[0], 200);
+  assert.equal(sub.variance[1], 200);
+  assert.equal(sub.variance[2], 200);
+  assert.equal(sub.state, 'learning');
 });
 
-void test('bg model: buildMedianModel produces correct size output', () => {
-  assert.equal(bgModel.length, pixelCount);
+void test('buildGaussianModel: two identical frames produce varianceFloor', () => {
+  const frame = new Uint8Array([50, 100, 200]);
+  const sub = buildGaussianModel([frame, frame], 3, 25);
+  assert.equal(sub.mean[0], 50);
+  assert.equal(sub.mean[1], 100);
+  assert.equal(sub.mean[2], 200);
+  assert.equal(sub.variance[0], 25);
+  assert.equal(sub.variance[1], 25);
+  assert.equal(sub.variance[2], 25);
 });
 
-void test('bg model: median values span a realistic range', () => {
-  let min = 255;
-  let max = 0;
-  for (let i = 0; i < bgModel.length; i++) {
-    const v = bgModel[i] ?? 0;
-    if (v < min) {
-      min = v;
-    }
-    if (v > max) {
-      max = v;
-    }
+void test('buildGaussianModel: multiple frames compute correct mean and variance', () => {
+  const f1 = new Uint8Array([100, 200]);
+  const f2 = new Uint8Array([110, 200]);
+  const sub = buildGaussianModel([f1, f2], 2, 0);
+  assert.ok(Math.abs((sub.mean[0] ?? 0) - 105) < 0.01);
+  assert.ok(Math.abs((sub.mean[1] ?? 0) - 200) < 0.01);
+  assert.ok(Math.abs((sub.variance[0] ?? 0) - 25) < 0.01);
+  assert.ok((sub.variance[1] ?? 0) < 0.01);
+});
+
+void test('gaussianSubtract: identical frame produces all zeros', () => {
+  const mean = new Float32Array([100, 150, 200]);
+  const variance = new Float32Array([25, 25, 25]);
+  const gray = new Uint8Array([100, 150, 200]);
+  const binary = gaussianSubtract(gray, mean, variance);
+  assert.equal(binary[0], 0);
+  assert.equal(binary[1], 0);
+  assert.equal(binary[2], 0);
+});
+
+void test('gaussianSubtract: large delta with low variance → foreground', () => {
+  const mean = new Float32Array([100]);
+  const variance = new Float32Array([25]);
+  const gray = new Uint8Array([150]);
+  const binary = gaussianSubtract(gray, mean, variance, 2.5);
+  assert.equal(binary[0], 255);
+});
+
+void test('gaussianSubtract: small delta with high variance → background', () => {
+  const mean = new Float32Array([100]);
+  const variance = new Float32Array([200]);
+  const gray = new Uint8Array([103]);
+  const binary = gaussianSubtract(gray, mean, variance, 2.5);
+  assert.equal(binary[0], 0);
+});
+
+void test('gaussianUpdate: converges mean toward repeated value', () => {
+  const mean = new Float32Array([0]);
+  const variance = new Float32Array([100]);
+  const gray = new Uint8Array([100]);
+  const bg = new Uint8Array([0]);
+  for (let i = 0; i < 500; i++) {
+    gaussianUpdate(mean, variance, gray, bg, 0.05);
   }
-  assert.ok(min >= 0);
-  assert.ok(max <= 255);
-  assert.ok(max - min > 50, `expected range > 50, got ${max - min}`);
-});
-
-void test('bg model: bg frame subtraction produces low change ratio', () => {
-  const firstFrame = bgGrayFrames[0];
-  assert.ok(firstFrame);
-  const diff = absdiff(firstFrame, bgModel);
-  const bin = threshold(diff, 35);
-  const { changeRatio } = detectSceneChange(bin, pixelCount, 0.15);
   assert.ok(
-    changeRatio < 0.15,
-    `bg frame changeRatio ${changeRatio.toFixed(3)} exceeds scene threshold`
+    Math.abs((mean[0] ?? 0) - 100) < 1,
+    `mean converged to ${String(mean[0])}`
   );
 });
 
-void test('bg model: processing frames produce some foreground pixels', () => {
-  let anyForeground = false;
-  for (const num of PROCESSING_FRAMES) {
-    const f = loadFrame(num);
-    const gray = rgbaToGray(f.rgba, f.width, f.height);
-    const diff = absdiff(gray, bgModel);
-    const bin = threshold(diff, 35);
-    let fgPixels = 0;
-    for (let i = 0; i < bin.length; i++) {
-      if (bin[i] !== 0) {
-        fgPixels++;
-      }
-    }
-    if (fgPixels > 0) {
-      anyForeground = true;
-    }
-  }
-  assert.ok(
-    anyForeground,
-    'expected at least one processing frame with foreground pixels'
-  );
+void test('gaussianUpdate: does not modify foreground pixels', () => {
+  const mean = new Float32Array([50, 50]);
+  const variance = new Float32Array([25, 25]);
+  const gray = new Uint8Array([200, 200]);
+  const fg = new Uint8Array([255, 255]);
+  gaussianUpdate(mean, variance, gray, fg, 0.05);
+  assert.equal(mean[0], 50);
+  assert.equal(mean[1], 50);
+  assert.equal(variance[0], 25);
+  assert.equal(variance[1], 25);
 });
 
-void test('bg model: detectSceneChange returns false for normal frame', () => {
-  const f = loadFrame(PROCESSING_FRAMES[0]);
-  const gray = rgbaToGray(f.rgba, f.width, f.height);
-  const diff = absdiff(gray, bgModel);
-  const bin = threshold(diff, 35);
-  const { isSceneChange } = detectSceneChange(bin, pixelCount, 0.15);
+void test('gaussianUpdate: alpha=1.0 sets mean to gray instantly', () => {
+  const mean = new Float32Array([0]);
+  const variance = new Float32Array([100]);
+  const gray = new Uint8Array([77]);
+  const bg = new Uint8Array([0]);
+  gaussianUpdate(mean, variance, gray, bg, 1.0);
+  assert.ok(Math.abs((mean[0] ?? 0) - 77) < 0.01);
+});
+
+void test('detectSceneChange: low change returns false', () => {
+  const binary = new Uint8Array(100);
+  binary[0] = 255;
+  const { isSceneChange } = detectSceneChange(binary, 100, 0.15);
   assert.equal(isSceneChange, false);
 });
 
-void test('bg model: adaptiveBlend shifts static pixels toward current', () => {
-  const f = loadFrame(PROCESSING_FRAMES[0]);
-  const gray = rgbaToGray(f.rgba, f.width, f.height);
-  const diff = absdiff(gray, bgModel);
-  const bin = threshold(diff, 35);
-
-  const modelCopy = new Uint8Array(bgModel);
-  adaptiveBlend(modelCopy, gray, bin, 0.05);
-
-  let shifted = 0;
-  for (let i = 0; i < modelCopy.length; i++) {
-    if (bin[i] === 0 && modelCopy[i] !== bgModel[i]) {
-      shifted++;
-    }
-  }
-  assert.ok(shifted > 0, 'expected adaptiveBlend to shift some static pixels');
+void test('detectSceneChange: high change returns true', () => {
+  const binary = new Uint8Array(100).fill(255);
+  const { isSceneChange } = detectSceneChange(binary, 100, 0.15);
+  assert.equal(isSceneChange, true);
 });
 
-void test('bg model: adaptiveBlend does not modify foreground pixels', () => {
-  const f = loadFrame(PROCESSING_FRAMES[0]);
-  const gray = rgbaToGray(f.rgba, f.width, f.height);
-  const diff = absdiff(gray, bgModel);
-  const bin = threshold(diff, 35);
+void test('processFrame: running state with scene change transitions to learning', () => {
+  const sub: BGSubtractor = {
+    mean: new Float32Array(100).fill(0),
+    variance: new Float32Array(100).fill(25),
+    state: 'running',
+    framesInState: 10,
+  };
+  const gray = new Uint8Array(100).fill(200);
+  const result = processFrame(sub, gray, { sceneChangeRatio: 0.15 });
+  assert.equal(result, null);
+  assert.equal(sub.state, 'learning');
+});
 
-  const modelCopy = new Uint8Array(bgModel);
-  adaptiveBlend(modelCopy, gray, bin, 0.05);
+void test('processFrame: learning transitions to running after learnFrames', () => {
+  const sub: BGSubtractor = {
+    mean: new Float32Array(10).fill(100),
+    variance: new Float32Array(10).fill(25),
+    state: 'learning',
+    framesInState: 0,
+  };
+  const gray = new Uint8Array(10).fill(100);
+  for (let i = 0; i < 60; i++) {
+    processFrame(sub, gray, { learnFrames: 60 });
+  }
+  assert.equal(sub.state, 'running');
+});
 
-  for (let i = 0; i < modelCopy.length; i++) {
-    if (bin[i] !== 0) {
-      assert.equal(modelCopy[i], bgModel[i]);
+void test('processFrame: scene change mid-learning resets framesInState', () => {
+  const sub: BGSubtractor = {
+    mean: new Float32Array(100).fill(100),
+    variance: new Float32Array(100).fill(25),
+    state: 'learning',
+    framesInState: 30,
+  };
+  const gray = new Uint8Array(100).fill(250);
+  processFrame(sub, gray, { sceneChangeRatio: 0.15 });
+  assert.equal(sub.state, 'learning');
+  assert.equal(sub.framesInState, 1);
+});
+
+void test('processFrame: running state returns binary mask for stable frame', () => {
+  const sub: BGSubtractor = {
+    mean: new Float32Array(100).fill(100),
+    variance: new Float32Array(100).fill(25),
+    state: 'running',
+    framesInState: 0,
+  };
+  const gray = new Uint8Array(100).fill(100);
+  gray[0] = 200;
+  const result = processFrame(sub, gray, { sceneChangeRatio: 0.15 });
+  assert.ok(result !== null);
+  assert.equal(result[0], 255);
+  assert.equal(result[1], 0);
+});
+
+// --- Integration: feed 300 consecutive frames through processFrame ---
+
+void test('300 frames: model learns then detects foreground', () => {
+  const first = loadFrame(FRAMES[0] ?? 150);
+  const pixelCount = first.width * first.height;
+  const firstGray = rgbaToGray(first.rgba, first.width, first.height);
+  const sub = buildGaussianModel([firstGray], pixelCount);
+
+  let nullCount = 0;
+  let detectCount = 0;
+  let totalFgPixels = 0;
+
+  for (const num of FRAMES) {
+    const f = loadFrame(num);
+    const gray = rgbaToGray(f.rgba, f.width, f.height);
+    const result = processFrame(sub, gray);
+    if (result === null) {
+      nullCount++;
+    } else {
+      detectCount++;
+      for (let i = 0; i < result.length; i++) {
+        if ((result[i] ?? 0) !== 0) {
+          totalFgPixels++;
+        }
+      }
     }
   }
+
+  // Learning phase should produce nulls (at least learnFrames=60)
+  assert.ok(nullCount >= 60, `expected >=60 null frames, got ${nullCount}`);
+  // After learning, should produce detections
+  assert.ok(detectCount > 0, 'expected detection frames after learning');
+  // Should find some foreground pixels in detection frames
+  assert.ok(
+    totalFgPixels > 0,
+    'expected foreground pixels in detection output'
+  );
+  assert.equal(sub.state, 'running');
+});
+
+void test('300 frames: no scene change triggered during normal gameplay', () => {
+  const first = loadFrame(FRAMES[0] ?? 150);
+  const pixelCount = first.width * first.height;
+  const firstGray = rgbaToGray(first.rgba, first.width, first.height);
+  const sub = buildGaussianModel([firstGray], pixelCount);
+
+  let sceneChanges = 0;
+  let prevState: 'learning' | 'running' = 'learning';
+  let reachedRunning = false;
+
+  for (const num of FRAMES) {
+    const f = loadFrame(num);
+    const gray = rgbaToGray(f.rgba, f.width, f.height);
+    processFrame(sub, gray);
+    if (prevState === 'running' && sub.state === 'learning') {
+      sceneChanges++;
+    }
+    if (sub.state === 'running') {
+      reachedRunning = true;
+    }
+    prevState = sub.state;
+  }
+
+  assert.ok(reachedRunning, 'model should reach running state');
+  assert.equal(
+    sceneChanges,
+    0,
+    'no scene changes expected in continuous gameplay'
+  );
+});
+
+void test('300 frames: detection frames have reasonable fg ratio', () => {
+  const first = loadFrame(FRAMES[0] ?? 150);
+  const pixelCount = first.width * first.height;
+  const firstGray = rgbaToGray(first.rgba, first.width, first.height);
+  const sub = buildGaussianModel([firstGray], pixelCount);
+
+  const fgRatios: number[] = [];
+
+  for (const num of FRAMES) {
+    const f = loadFrame(num);
+    const gray = rgbaToGray(f.rgba, f.width, f.height);
+    const result = processFrame(sub, gray);
+    if (result !== null) {
+      let fg = 0;
+      for (let i = 0; i < result.length; i++) {
+        if ((result[i] ?? 0) !== 0) {
+          fg++;
+        }
+      }
+      fgRatios.push(fg / pixelCount);
+    }
+  }
+
+  // Foreground should never exceed scene change threshold
+  for (const ratio of fgRatios) {
+    assert.ok(
+      ratio < 0.15,
+      `fg ratio ${ratio.toFixed(3)} exceeds scene threshold`
+    );
+  }
+  // Should detect some foreground (sprites moving)
+  const maxRatio = Math.max(...fgRatios);
+  assert.ok(
+    maxRatio > 0.001,
+    `expected some fg pixels, max ratio was ${maxRatio.toFixed(4)}`
+  );
 });

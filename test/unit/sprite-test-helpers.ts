@@ -26,10 +26,5 @@ export function loadFrame(frameNum: number): FrameData {
   };
 }
 
-/** Frame numbers used in background model building (15 frames at 100ms from 5s). */
-export const BG_MODEL_FRAMES = [
-  150, 153, 156, 159, 162, 165, 168, 171, 174, 177, 180, 183, 186, 189, 192,
-] as const;
-
-/** Frame numbers for post-background processing. */
-export const PROCESSING_FRAMES = [210, 240, 270, 300] as const;
+/** 300 consecutive frames (150–449). */
+export const FRAMES = Array.from({ length: 300 }, (_, i) => 150 + i);

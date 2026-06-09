@@ -1,17 +1,16 @@
 /**
- * Manual background-removal visualization.
- * Outputs background model, binary masks, and foreground-only images to /tmp/.
+ * Manual background-removal visualization using Gaussian model.
+ * Feeds 300 consecutive frames through processFrame, saves outputs.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
-import { rgbaToGray, absdiff, threshold } from '../../src/content/image-ops.ts';
-import { buildMedianModel } from '../../src/content/background-model.ts';
+import { rgbaToGray } from '../../src/content/image-ops.ts';
 import {
-  loadFrame,
-  BG_MODEL_FRAMES,
-  PROCESSING_FRAMES,
-} from './sprite-test-helpers.ts';
+  buildGaussianModel,
+  processFrame,
+} from '../../src/content/background-model.ts';
+import { loadFrame, FRAMES } from './sprite-test-helpers.ts';
 
 const startTime = new Date().toISOString().replace(/[:.]/g, '-');
 const outDir = `/tmp/background-model-${startTime}`;
@@ -54,39 +53,39 @@ function saveRgbaMasked(
   writeFileSync(path, PNG.sync.write(png));
 }
 
-// Build background model
-const bgGrayFrames: Uint8Array[] = [];
-let frameW = 0;
-let frameH = 0;
-for (const num of BG_MODEL_FRAMES) {
-  const f = loadFrame(num);
-  frameW = f.width;
-  frameH = f.height;
-  bgGrayFrames.push(rgbaToGray(f.rgba, f.width, f.height));
+// Initialize model from first frame
+const firstNum = FRAMES[0];
+if (firstNum === undefined) {
+  throw new Error('No frames');
 }
-const pixelCount = frameW * frameH;
-const bgModel = buildMedianModel(bgGrayFrames, pixelCount);
+const first = loadFrame(firstNum);
+const w = first.width;
+const h = first.height;
+const pixelCount = w * h;
+const firstGray = rgbaToGray(first.rgba, w, h);
+const sub = buildGaussianModel([firstGray], pixelCount);
 
-// Save background model
-saveGrayPng(bgModel, frameW, frameH, `${outDir}/background_model.png`);
+// Feed all frames through processFrame, save every 30th detection
+let savedCount = 0;
+for (const num of FRAMES) {
+  const f = loadFrame(num);
+  const gray = rgbaToGray(f.rgba, w, h);
+  const result = processFrame(sub, gray);
+
+  if (result !== null && num % 30 === 0) {
+    saveGrayPng(result, w, h, `${outDir}/binary_${num}.png`);
+    saveRgbaMasked(f.rgba, result, w, h, `${outDir}/foreground_${num}.png`);
+    console.log(`Frame ${num} → binary_${num}.png, foreground_${num}.png`);
+    savedCount++;
+  }
+}
+
+// Save final mean as background model
+const meanU8 = new Uint8Array(pixelCount);
+for (let i = 0; i < pixelCount; i++) {
+  meanU8[i] = Math.round(Math.max(0, Math.min(255, sub.mean[i] ?? 0)));
+}
+saveGrayPng(meanU8, w, h, `${outDir}/background_model.png`);
 console.log(`Background model → ${outDir}/background_model.png`);
-
-// Process each frame: save binary mask + foreground-only
-for (const num of PROCESSING_FRAMES) {
-  const f = loadFrame(num);
-  const gray = rgbaToGray(f.rgba, f.width, f.height);
-  const diff = absdiff(gray, bgModel);
-  const bin = threshold(diff, 35);
-
-  saveGrayPng(bin, frameW, frameH, `${outDir}/binary_${num}.png`);
-  saveRgbaMasked(
-    f.rgba,
-    bin,
-    frameW,
-    frameH,
-    `${outDir}/foreground_${num}.png`
-  );
-  console.log(`Frame ${num} → binary_${num}.png, foreground_${num}.png`);
-}
-
+console.log(`Saved ${String(savedCount)} detection frames`);
 console.log(`\nResults → ${outDir}`);
