@@ -3,6 +3,13 @@
  * No eval/Function usage — safe for Chrome MV3 extension CSP.
  */
 
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export function rgbaToGray(
   data: Uint8ClampedArray,
   width: number,
@@ -46,9 +53,9 @@ export function findBoundingRects(
   binary: Uint8Array,
   width: number,
   height: number
-): Array<{ x: number; y: number; w: number; h: number }> {
+): Rect[] {
   const visited = new Uint8Array(binary.length);
-  const rects: Array<{ x: number; y: number; w: number; h: number }> = [];
+  const rects: Rect[] = [];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

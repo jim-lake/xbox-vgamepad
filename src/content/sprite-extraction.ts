@@ -1,31 +1,42 @@
 import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
 import { rgbaToGray, absdiff, threshold, findBoundingRects } from './image-ops';
+import type { Rect } from './image-ops';
+import {
+  mergeRects,
+  sizeFilter,
+  densityFilter,
+  perceptualHash,
+  isDuplicate,
+  overlapsRecent,
+} from './sprite-helpers';
+import {
+  buildMedianModel,
+  detectSceneChange,
+  adaptiveBlend,
+} from './background-model';
+import { buildExteriorMask, applyCropMask } from './sprite-crop';
 import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
 
+const EXTRACT_CONFIG = {
+  bgFrames: 15,
+  bgInterval: 100,
+  threshold: 35,
+  sceneChangeRatio: 0.15,
+  blendRate: 0.05,
+  minDim: 10,
+  minArea: 600,
+  maxAreaRatio: 0.04,
+  maxAspect: 5,
+  minDensity: 0.2,
+  mergeGap: 6,
+  hashThreshold: 10,
+  spatialCooldown: 30,
+  padRatio: 0.25,
+  maxCandidatesPerFrame: 3,
+} as const;
+
 const extractionState = { running: false, stopRequested: false };
-
-function postToast(text: string): void {
-  window.postMessage({ source: MSG_SOURCE, type: 'SHOW_TOAST', text }, '*');
-}
-
-function emitDebug(
-  phase: string,
-  meta: Record<string, unknown>,
-  buffer?: ArrayBuffer
-): void {
-  window.postMessage(
-    { source: MSG_SOURCE, type: 'EXTRACT_DEBUG', phase, meta, buffer },
-    '*'
-  );
-}
-
-function emitCandidatesDone(): void {
-  window.postMessage(
-    { source: MSG_SOURCE, type: 'EXTRACT_CANDIDATES_DONE' },
-    '*'
-  );
-}
 
 async function grayToPng(
   gray: Uint8Array,
@@ -59,7 +70,7 @@ async function grayToPng(
 
 async function drawRectsOnFrame(
   imageData: ImageData,
-  rects: Array<{ x: number; y: number; w: number; h: number }>,
+  rects: Rect[],
   color: [number, number, number]
 ): Promise<ArrayBuffer> {
   const oc = new OffscreenCanvas(imageData.width, imageData.height);
@@ -92,7 +103,10 @@ export async function startFindSprites(
   }
 
   if (!gameName) {
-    postToast('No game detected');
+    window.postMessage(
+      { source: MSG_SOURCE, type: 'SHOW_TOAST', text: 'No game detected' },
+      '*'
+    );
     return;
   }
 
@@ -116,120 +130,38 @@ export async function startFindSprites(
   }
 }
 
-function mergeRects(
-  rects: Array<{ x: number; y: number; w: number; h: number }>,
-  gap: number
-): Array<{ x: number; y: number; w: number; h: number }> {
-  if (rects.length === 0) {
-    return [];
-  }
-  const merged: Array<{ x: number; y: number; w: number; h: number }> = [];
-  const used = new Uint8Array(rects.length);
-
-  for (let i = 0; i < rects.length; i++) {
-    if (used[i]) {
-      continue;
-    }
-    const rect = rects[i];
-    if (!rect) {
-      continue;
-    }
-    let { x, y } = rect;
-    let x2 = x + rect.w;
-    let y2 = y + rect.h;
-    let changed = true;
-
-    while (changed) {
-      changed = false;
-      for (let j = i + 1; j < rects.length; j++) {
-        if (used[j]) {
-          continue;
-        }
-        const r = rects[j];
-        if (!r) {
-          continue;
-        }
-        const rx2 = r.x + r.w;
-        const ry2 = r.y + r.h;
-        if (
-          r.x <= x2 + gap &&
-          rx2 >= x - gap &&
-          r.y <= y2 + gap &&
-          ry2 >= y - gap
-        ) {
-          x = Math.min(x, r.x);
-          y = Math.min(y, r.y);
-          x2 = Math.max(x2, rx2);
-          y2 = Math.max(y2, ry2);
-          used[j] = 1;
-          changed = true;
-        }
-      }
-    }
-    merged.push({ x, y, w: x2 - x, h: y2 - y });
-  }
-  return merged;
-}
-
-function perceptualHash(
-  gray: Uint8Array,
-  frameW: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-): string {
-  const cellW = w / 8;
-  const cellH = h / 8;
-  const values: number[] = [];
-
-  for (let cy = 0; cy < 8; cy++) {
-    for (let cx = 0; cx < 8; cx++) {
-      const sx = Math.floor(x + cx * cellW);
-      const sy = Math.floor(y + cy * cellH);
-      const ex = Math.floor(x + (cx + 1) * cellW);
-      const ey = Math.floor(y + (cy + 1) * cellH);
-      let sum = 0;
-      let count = 0;
-      for (let py = sy; py < ey; py++) {
-        for (let px = sx; px < ex; px++) {
-          sum += gray[py * frameW + px] ?? 0;
-          count++;
-        }
-      }
-      values.push(count > 0 ? sum / count : 0);
-    }
-  }
-
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return values.map((v) => (v >= mean ? '1' : '0')).join('');
-}
-
-function hammingDist(a: string, b: string): number {
-  let d = 0;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      d++;
-    }
-  }
-  return d;
-}
-
 async function runExtraction(
   gameName: string,
   videoStartTime?: number,
   videoEndTime?: number
 ): Promise<void> {
-  postToast(`Finding sprites for ${gameName}…`);
+  window.postMessage(
+    {
+      source: MSG_SOURCE,
+      type: 'SHOW_TOAST',
+      text: `Finding sprites for ${gameName}…`,
+    },
+    '*'
+  );
 
   const video = document.querySelector('video');
   if (!video) {
-    postToast('No video element found');
+    window.postMessage(
+      {
+        source: MSG_SOURCE,
+        type: 'SHOW_TOAST',
+        text: 'No video element found',
+      },
+      '*'
+    );
     return;
   }
 
   const w = video.videoWidth || 1920;
   const h = video.videoHeight || 1080;
+  const pixelCount = w * h;
+  const frameArea = w * h;
+  const maxDim = Math.min(w, h) * 0.2;
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -252,11 +184,8 @@ async function runExtraction(
   }
 
   // --- STEP 1: Build background model (median of N frames) ---
-  const BG_FRAMES = 15;
-  const BG_INTERVAL = 100;
   const frameHistory: Uint8Array[] = [];
-
-  for (let i = 0; i < BG_FRAMES; i++) {
+  for (let i = 0; i < EXTRACT_CONFIG.bgFrames; i++) {
     if (extractionState.stopRequested) {
       return;
     }
@@ -265,66 +194,28 @@ async function runExtraction(
     ctx.drawImage(video, 0, 0, w, h);
     const imgData = ctx.getImageData(0, 0, w, h);
     frameHistory.push(rgbaToGray(imgData.data, w, h));
-    await new Promise<void>((r) => setTimeout(r, BG_INTERVAL));
+    await new Promise<void>((r) => setTimeout(r, EXTRACT_CONFIG.bgInterval));
   }
 
-  const bgModel = new Uint8Array(w * h);
-  const pixelCount = w * h;
-  const sortBuf = new Uint8Array(BG_FRAMES);
-  for (let i = 0; i < pixelCount; i++) {
-    for (let f = 0; f < BG_FRAMES; f++) {
-      const frame = frameHistory[f];
-      sortBuf[f] = frame ? (frame[i] ?? 0) : 0;
-    }
-    sortBuf.sort();
-    bgModel[i] = sortBuf[Math.floor(BG_FRAMES / 2)] ?? 0;
-  }
+  const bgModel = buildMedianModel(frameHistory, pixelCount);
 
   const bgPng = await grayToPng(bgModel, w, 0, 0, w, h);
-  emitDebug('background_model', { w, h, frames: BG_FRAMES }, bgPng);
+  window.postMessage(
+    {
+      source: MSG_SOURCE,
+      type: 'EXTRACT_DEBUG',
+      phase: 'background_model',
+      meta: { w, h, frames: EXTRACT_CONFIG.bgFrames },
+      buffer: bgPng,
+    },
+    '*'
+  );
 
-  // --- STEP 2: Frame loop — extract candidates, push to AI module ---
+  // --- STEP 2: Frame loop ---
   let frameCount = 0;
   let candidateIndex = 0;
   const seenHashes: string[] = [];
-  const HASH_THRESHOLD = 10;
-  const maxDim = Math.min(w, h) * 0.2;
-
-  // Spatial dedup: track recent candidate positions
-  const recentRects: Array<{
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    frame: number;
-  }> = [];
-  const SPATIAL_COOLDOWN = 30; // frames to remember a position
-
-  function overlapsRecent(
-    rect: { x: number; y: number; w: number; h: number },
-    currentFrame: number
-  ): boolean {
-    for (let i = recentRects.length - 1; i >= 0; i--) {
-      const r = recentRects[i]!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
-      if (currentFrame - r.frame > SPATIAL_COOLDOWN) {
-        recentRects.splice(0, i + 1);
-        break;
-      }
-      // Compute overlap ratio (intersection / smaller area)
-      const ix = Math.max(rect.x, r.x);
-      const iy = Math.max(rect.y, r.y);
-      const ix2 = Math.min(rect.x + rect.w, r.x + r.w);
-      const iy2 = Math.min(rect.y + rect.h, r.y + r.h);
-      if (ix < ix2 && iy < iy2) {
-        const intersection = (ix2 - ix) * (iy2 - iy);
-        const smaller = Math.min(rect.w * rect.h, r.w * r.h);
-        if (intersection / smaller > 0.4) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
+  const recentRects: Array<Rect & { frame: number }> = [];
 
   const processFrame = async (): Promise<void> => {
     frameCount++;
@@ -336,257 +227,217 @@ async function runExtraction(
     const gray = rgbaToGray(imageData.data, w, h);
 
     const diff = absdiff(gray, bgModel);
-    const binary = threshold(diff, 35);
+    const binary = threshold(diff, EXTRACT_CONFIG.threshold);
 
     // Scene change detection
-    let changedPixels = 0;
-    for (let i = 0; i < binary.length; i++) {
-      if (binary[i] !== 0) {
-        changedPixels++;
-      }
-    }
-    const changeRatio = changedPixels / pixelCount;
-    if (changeRatio > 0.15) {
+    const scene = detectSceneChange(
+      binary,
+      pixelCount,
+      EXTRACT_CONFIG.sceneChangeRatio
+    );
+    if (scene.isSceneChange) {
       for (let i = 0; i < pixelCount; i++) {
         bgModel[i] = gray[i] ?? 0;
       }
-      emitDebug('scene_change', { frameNum: frameCount, changeRatio });
+      window.postMessage(
+        {
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'scene_change',
+          meta: { frameNum: frameCount, changeRatio: scene.changeRatio },
+        },
+        '*'
+      );
       return;
     }
 
     // Adaptive background blending
-    for (let i = 0; i < pixelCount; i++) {
-      if (binary[i] === 0) {
-        bgModel[i] = Math.round(
-          (bgModel[i] ?? 0) * 0.95 + (gray[i] ?? 0) * 0.05
-        );
-      }
-    }
+    adaptiveBlend(bgModel, gray, binary, EXTRACT_CONFIG.blendRate);
 
     const emitFrameDebug = frameCount <= 25;
 
     if (emitFrameDebug) {
       const diffPng = await grayToPng(binary, w, 0, 0, w, h);
-      emitDebug(
-        'binary_diff',
-        { frameNum: frameCount, changedPixels, changeRatio },
-        diffPng
+      window.postMessage(
+        {
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'binary_diff',
+          meta: {
+            frameNum: frameCount,
+            changedPixels: Math.round(scene.changeRatio * pixelCount),
+            changeRatio: scene.changeRatio,
+          },
+          buffer: diffPng,
+        },
+        '*'
       );
     }
 
-    const rawRects = findBoundingRects(binary, w, h);
-
     // Size filter
-    const sizeFiltered: Array<{ x: number; y: number; w: number; h: number }> =
-      [];
-    for (const rect of rawRects) {
-      if (rect.w < 10 || rect.h < 10) {
-        continue;
-      }
-      if (rect.w > maxDim || rect.h > maxDim) {
-        continue;
-      }
-      sizeFiltered.push(rect);
-    }
+    const rawRects = findBoundingRects(binary, w, h);
+    const sizeFiltered = sizeFilter(rawRects, EXTRACT_CONFIG.minDim, maxDim);
 
     if (emitFrameDebug) {
-      emitDebug(
-        'size_filter',
+      window.postMessage(
         {
-          frameNum: frameCount,
-          rawCount: rawRects.length,
-          afterFilter: sizeFiltered.length,
-          rects: sizeFiltered,
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'size_filter',
+          meta: {
+            frameNum: frameCount,
+            rawCount: rawRects.length,
+            afterFilter: sizeFiltered.length,
+            rects: sizeFiltered,
+          },
+          buffer: await drawRectsOnFrame(imageData, sizeFiltered, [0, 255, 0]),
         },
-        await drawRectsOnFrame(imageData, sizeFiltered, [0, 255, 0])
+        '*'
       );
     }
 
     // Merge nearby fragments
-    const merged = mergeRects(sizeFiltered, 6);
+    const merged = mergeRects(sizeFiltered, EXTRACT_CONFIG.mergeGap);
 
     if (emitFrameDebug) {
-      emitDebug(
-        'merge_rects',
+      window.postMessage(
         {
-          frameNum: frameCount,
-          beforeMerge: sizeFiltered.length,
-          afterMerge: merged.length,
-          rects: merged,
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'merge_rects',
+          meta: {
+            frameNum: frameCount,
+            beforeMerge: sizeFiltered.length,
+            afterMerge: merged.length,
+            rects: merged,
+          },
+          buffer: await drawRectsOnFrame(imageData, merged, [255, 255, 0]),
         },
-        await drawRectsOnFrame(imageData, merged, [255, 255, 0])
+        '*'
       );
     }
 
     // Density + constraint filter
-    const candidates: Array<{ x: number; y: number; w: number; h: number }> =
-      [];
-    const rejected: Array<{
-      rect: { x: number; y: number; w: number; h: number };
-      reason: string;
-    }> = [];
-    for (const rect of merged) {
-      const area = rect.w * rect.h;
-      if (area < 600) {
-        rejected.push({ rect, reason: 'area_too_small' });
-        continue;
+    const { accepted: candidates, rejected } = densityFilter(
+      merged,
+      binary,
+      w,
+      frameArea,
+      {
+        minArea: EXTRACT_CONFIG.minArea,
+        maxDim,
+        maxAreaRatio: EXTRACT_CONFIG.maxAreaRatio,
+        maxAspect: EXTRACT_CONFIG.maxAspect,
+        minDensity: EXTRACT_CONFIG.minDensity,
       }
-      if (rect.w > maxDim || rect.h > maxDim) {
-        rejected.push({ rect, reason: 'dim_too_large' });
-        continue;
-      }
-      if (area > w * h * 0.04) {
-        rejected.push({ rect, reason: 'area_exceeds_4pct' });
-        continue;
-      }
-      const aspect = Math.max(rect.w, rect.h) / Math.min(rect.w, rect.h);
-      if (aspect > 5) {
-        rejected.push({ rect, reason: 'aspect_ratio' });
-        continue;
-      }
-      let fgCount = 0;
-      for (let py = rect.y; py < rect.y + rect.h; py++) {
-        for (let px = rect.x; px < rect.x + rect.w; px++) {
-          if (binary[py * w + px] !== 0) {
-            fgCount++;
-          }
-        }
-      }
-      const density = fgCount / area;
-      if (density < 0.2) {
-        rejected.push({
-          rect,
-          reason: `density_${(density * 100).toFixed(0)}pct`,
-        });
-        continue;
-      }
-      candidates.push(rect);
-    }
+    );
 
-    // Limit to top 3 candidates per frame (largest area = most likely real sprites)
+    // Limit to top N candidates per frame (largest area = most likely real sprites)
     candidates.sort((a, b) => b.w * b.h - a.w * a.h);
-    const frameCandidates = candidates.slice(0, 3);
+    const frameCandidates = candidates.slice(
+      0,
+      EXTRACT_CONFIG.maxCandidatesPerFrame
+    );
 
     if (emitFrameDebug) {
-      emitDebug(
-        'density_filter',
+      window.postMessage(
         {
-          frameNum: frameCount,
-          accepted: candidates.length,
-          rejected: rejected.length,
-          rejections: rejected,
-          candidates,
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'density_filter',
+          meta: {
+            frameNum: frameCount,
+            accepted: candidates.length,
+            rejected: rejected.length,
+            rejections: rejected,
+            candidates,
+          },
+          buffer: await drawRectsOnFrame(imageData, candidates, [0, 255, 255]),
         },
-        await drawRectsOnFrame(imageData, candidates, [0, 255, 255])
+        '*'
       );
     }
 
     // Crop, dedup, and send to AI module
     for (const cand of frameCandidates) {
-      const pad = Math.round(Math.max(cand.w, cand.h) * 0.25);
+      const pad = Math.round(
+        Math.max(cand.w, cand.h) * EXTRACT_CONFIG.padRatio
+      );
       const cx = Math.max(0, cand.x - pad);
       const cy = Math.max(0, cand.y - pad);
       const cw = Math.min(w - cx, cand.w + pad * 2);
       const ch = Math.min(h - cy, cand.h + pad * 2);
 
-      // Spatial overlap dedup — skip if similar position was recently extracted
-      const paddedRect = { x: cx, y: cy, w: cw, h: ch };
-      if (overlapsRecent(paddedRect, frameCount)) {
+      // Spatial overlap dedup
+      const paddedRect: Rect = { x: cx, y: cy, w: cw, h: ch };
+      if (
+        overlapsRecent(
+          paddedRect,
+          recentRects,
+          frameCount,
+          EXTRACT_CONFIG.spatialCooldown
+        )
+      ) {
         continue;
       }
 
       // Perceptual hash dedup
-      const hash = perceptualHash(gray, w, cx, cy, cw, ch);
-      const isDup = seenHashes.some(
-        (h) => hammingDist(hash, h) < HASH_THRESHOLD
-      );
-      if (isDup) {
-        emitDebug('dedup_rejected', {
-          frameNum: frameCount,
-          candidateIndex,
-          rect: { x: cx, y: cy, w: cw, h: ch },
-          hash,
-        });
+      const hash = perceptualHash(gray, w, paddedRect);
+      if (isDuplicate(hash, seenHashes, EXTRACT_CONFIG.hashThreshold)) {
+        window.postMessage(
+          {
+            source: MSG_SOURCE,
+            type: 'EXTRACT_DEBUG',
+            phase: 'dedup_rejected',
+            meta: {
+              frameNum: frameCount,
+              candidateIndex,
+              rect: paddedRect,
+              hash,
+            },
+          },
+          '*'
+        );
         continue;
       }
       seenHashes.push(hash);
       recentRects.push({ ...paddedRect, frame: frameCount });
 
       // Build background-removed crop
+      const exterior = buildExteriorMask(binary, w, cx, cy, cw, ch);
+      const cropData = applyCropMask(
+        imageData.data,
+        w,
+        exterior,
+        cx,
+        cy,
+        cw,
+        ch
+      );
+
       const cropCanvas = new OffscreenCanvas(cw, ch);
       const cropCtx = cropCanvas.getContext('2d');
       if (!cropCtx) {
         continue;
       }
-
-      const exterior = new Uint8Array(cw * ch);
-      const floodStack: number[] = [];
-      for (let px = 0; px < cw; px++) {
-        if (binary[cy * w + (cx + px)] === 0) {
-          floodStack.push(px);
-        }
-        if (binary[(cy + ch - 1) * w + (cx + px)] === 0) {
-          floodStack.push((ch - 1) * cw + px);
-        }
-      }
-      for (let py = 1; py < ch - 1; py++) {
-        if (binary[(cy + py) * w + cx] === 0) {
-          floodStack.push(py * cw);
-        }
-        if (binary[(cy + py) * w + (cx + cw - 1)] === 0) {
-          floodStack.push(py * cw + cw - 1);
-        }
-      }
-      for (const idx of floodStack) {
-        exterior[idx] = 1;
-      }
-      while (floodStack.length > 0) {
-        const idx = floodStack.pop()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
-        const px = idx % cw;
-        const py = (idx - px) / cw;
-        const neighbors = [
-          py > 0 ? idx - cw : -1,
-          py < ch - 1 ? idx + cw : -1,
-          px > 0 ? idx - 1 : -1,
-          px < cw - 1 ? idx + 1 : -1,
-        ];
-        for (const n of neighbors) {
-          if (n >= 0 && exterior[n] === 0) {
-            const nx = n % cw;
-            const ny = (n - nx) / cw;
-            if (binary[(cy + ny) * w + (cx + nx)] === 0) {
-              exterior[n] = 1;
-              floodStack.push(n);
-            }
-          }
-        }
-      }
-
-      const cropData = cropCtx.createImageData(cw, ch);
-      for (let py = 0; py < ch; py++) {
-        for (let px = 0; px < cw; px++) {
-          const srcIdx = ((cy + py) * w + (cx + px)) * 4;
-          const dstIdx = (py * cw + px) * 4;
-          cropData.data[dstIdx] = imageData.data[srcIdx] ?? 0;
-          cropData.data[dstIdx + 1] = imageData.data[srcIdx + 1] ?? 0;
-          cropData.data[dstIdx + 2] = imageData.data[srcIdx + 2] ?? 0;
-          cropData.data[dstIdx + 3] = exterior[py * cw + px] !== 0 ? 0 : 255;
-        }
-      }
-
-      // Emit candidate debug
       cropCtx.putImageData(cropData, 0, 0);
+
       const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
       const buffer = await blob.arrayBuffer();
-      emitDebug(
-        'candidate',
+      window.postMessage(
         {
-          frameNum: frameCount,
-          index: candidateIndex,
-          rect: { x: cx, y: cy, w: cw, h: ch },
-          hash,
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'candidate',
+          meta: {
+            frameNum: frameCount,
+            index: candidateIndex,
+            rect: paddedRect,
+            hash,
+          },
+          buffer,
         },
-        buffer
+        '*'
       );
 
       // Send to AI module
@@ -606,7 +457,6 @@ async function runExtraction(
         resolve();
         return;
       }
-      // Stop if video time exceeded the end bound
       if (hasBounds && video.currentTime >= videoEndTime) {
         resolve();
         return;
@@ -658,10 +508,19 @@ async function runExtraction(
     }
   });
 
-  postToast('Sprite extraction stopped');
-  emitCandidatesDone();
+  window.postMessage(
+    {
+      source: MSG_SOURCE,
+      type: 'SHOW_TOAST',
+      text: 'Sprite extraction stopped',
+    },
+    '*'
+  );
+  window.postMessage(
+    { source: MSG_SOURCE, type: 'EXTRACT_CANDIDATES_DONE' },
+    '*'
+  );
 
-  // If AI has no pending work, emit idle immediately
   if (isIdle()) {
     window.postMessage({ source: MSG_SOURCE, type: 'EXTRACT_AI_IDLE' }, '*');
   }

@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.1175",
+  "version": "0.0.1181",
   "type": "module",
   "scripts": {
     "dev": "vite",

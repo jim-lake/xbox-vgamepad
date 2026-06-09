@@ -20,25 +20,6 @@ const state: AiState = {
   knownLabels: new Set(),
 };
 
-function emitDebug(
-  phase: string,
-  meta: Record<string, unknown>,
-  buffer?: ArrayBuffer
-): void {
-  window.postMessage(
-    { source: MSG_SOURCE, type: 'EXTRACT_DEBUG', phase, meta, buffer },
-    '*'
-  );
-}
-
-function postToast(text: string): void {
-  window.postMessage({ source: MSG_SOURCE, type: 'SHOW_TOAST', text }, '*');
-}
-
-function emitIdle(): void {
-  window.postMessage({ source: MSG_SOURCE, type: 'EXTRACT_AI_IDLE' }, '*');
-}
-
 function parseAIResponse(
   text: string
 ): { label: string; accept: boolean } | null {
@@ -80,9 +61,19 @@ async function processNext(): Promise<void> {
         });
       } catch (err: unknown) {
         errorLog('[ai-sprite] LanguageModel.create failed:', err);
-        postToast('AI model unavailable — ensure Gemini Nano is downloaded');
+        window.postMessage(
+          {
+            source: MSG_SOURCE,
+            type: 'SHOW_TOAST',
+            text: 'AI model unavailable — ensure Gemini Nano is downloaded',
+          },
+          '*'
+        );
         state.processing = false;
-        emitIdle();
+        window.postMessage(
+          { source: MSG_SOURCE, type: 'EXTRACT_AI_IDLE' },
+          '*'
+        );
         return;
       }
     }
@@ -119,7 +110,15 @@ async function processNext(): Promise<void> {
       ]);
 
       const parsed = parseAIResponse(result);
-      emitDebug('ai_result', { rawResponse: result, parsed });
+      window.postMessage(
+        {
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'ai_result',
+          meta: { rawResponse: result, parsed },
+        },
+        '*'
+      );
 
       if (parsed && parsed.accept && !state.knownLabels.has(parsed.label)) {
         state.knownLabels.add(parsed.label);
@@ -137,13 +136,26 @@ async function processNext(): Promise<void> {
           w: imageData.width,
           h: imageData.height,
         });
-        postToast(`Found: ${parsed.label}`);
+        window.postMessage(
+          {
+            source: MSG_SOURCE,
+            type: 'SHOW_TOAST',
+            text: `Found: ${parsed.label}`,
+          },
+          '*'
+        );
       }
     } catch (err: unknown) {
       errorLog('[ai-sprite] AI prompt error:', err);
-      emitDebug('ai_error', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      window.postMessage(
+        {
+          source: MSG_SOURCE,
+          type: 'EXTRACT_DEBUG',
+          phase: 'ai_error',
+          meta: { error: err instanceof Error ? err.message : String(err) },
+        },
+        '*'
+      );
       // Destroy and recreate session on error (prompt may be stuck)
       state.session.destroy();
       state.session = null;
@@ -151,7 +163,7 @@ async function processNext(): Promise<void> {
   }
 
   state.processing = false;
-  emitIdle();
+  window.postMessage({ source: MSG_SOURCE, type: 'EXTRACT_AI_IDLE' }, '*');
 }
 
 export function addCandidate(gameName: string, imageData: ImageData): void {
