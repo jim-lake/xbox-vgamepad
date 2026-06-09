@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import { sendStartFindSprites } from './messaging';
+import { errorLog } from '@/tools/log';
 
 type ModelState =
   | 'checking'
@@ -101,7 +102,8 @@ export default function FindSpritesSection() {
       });
       session.destroy();
       setModelState('ready');
-    } catch {
+    } catch (e) {
+      errorLog('ensureReady: model create failed', e);
       setModelState('error');
     }
   }

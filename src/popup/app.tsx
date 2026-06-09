@@ -251,6 +251,7 @@ export default function App() {
   const createPreset = React.useCallback(
     async (name: string, popup: PopupConfig) => {
       if (presetNames.length >= MAX_PRESETS) {
+        errorLog('createPreset: max presets reached');
         return;
       }
       let uniqueName = name;
@@ -357,6 +358,7 @@ export default function App() {
           const popup = parseImportedConfig(parsed);
           if (popup) {
             if (presetNames.length >= MAX_PRESETS) {
+              errorLog('handleImport: max presets reached, ignoring import');
               return;
             }
             const baseName = file.name.replace(/\.json$/i, '') || 'Imported';
@@ -373,9 +375,11 @@ export default function App() {
             void saveAndBroadcastPopupConfig(name, popup).then(() =>
               setActiveConfig(name)
             );
+          } else {
+            errorLog('handleImport: parseImportedConfig returned null');
           }
-        } catch {
-          // invalid JSON, ignore
+        } catch (e) {
+          errorLog('handleImport: failed to parse JSON', e);
         }
       };
       reader.readAsText(file);
@@ -397,21 +401,16 @@ export default function App() {
 
   const updateActivePopup = useLatestCallback(
     (updater: (prev: PopupConfig) => PopupConfig) => {
-      let next: PopupConfig | undefined;
       setConfigs((prev) => {
         const prevConfig = prev[activeConfigName];
         if (!prevConfig) {
           errorLog('updateActivePopup: no config for', activeConfigName);
           return prev;
         }
-        next = updater(prevConfig);
+        const next = updater(prevConfig);
+        void persist(next);
         return { ...prev, [activeConfigName]: next };
       });
-      if (next) {
-        void persist(next);
-      } else {
-        errorLog('updateActivePopup: state updater did not run synchronously');
-      }
       setDirty(true);
     }
   );

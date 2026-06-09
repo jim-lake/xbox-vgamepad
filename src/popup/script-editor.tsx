@@ -7,6 +7,7 @@ import ScriptRow from '@/components/popup/script-row';
 import ScriptEditBox from '@/components/popup/script-edit-box';
 import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import type { ScriptEntry } from './script-helpers';
+import { errorLog } from '@/tools/log';
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column' },
@@ -70,11 +71,16 @@ export default function ScriptEditor({
 
     function addKey(code: string) {
       if (!scriptId) {
+        errorLog(
+          'addKey: could not resolve scriptId for listeningEntry',
+          entry
+        );
         onListeningEntryChange(null);
         return;
       }
       const binding = scriptBindings.find((b) => b.scriptId === scriptId);
       if (!binding) {
+        errorLog('addKey: no binding found for scriptId', scriptId);
         onListeningEntryChange(null);
         return;
       }

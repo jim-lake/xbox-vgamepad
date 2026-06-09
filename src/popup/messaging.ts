@@ -1,4 +1,5 @@
 import { MSG_SOURCE } from '@/types/messages';
+import { errorLog } from '@/tools/log';
 import type {
   ActivateGamepadConfigMessage,
   ConfigChangedMessage,
@@ -18,6 +19,7 @@ async function getActiveTabId(): Promise<number | undefined> {
 async function sendToActiveTab(msg: ExtensionMessage): Promise<void> {
   const tabId = await getActiveTabId();
   if (tabId === undefined) {
+    errorLog('sendToActiveTab: no active tab, dropping message', msg.type);
     return;
   }
   await chrome.tabs.sendMessage(tabId, msg);
