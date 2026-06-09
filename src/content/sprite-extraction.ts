@@ -1,6 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
-import { rgbaToGray, absdiff, threshold, findBoundingRects } from './image-ops';
+import { rgbaToGray, findBoundingRects } from './image-ops';
 import type { Rect } from './image-ops';
 import {
   mergeRects,
@@ -10,20 +10,21 @@ import {
   isDuplicate,
   overlapsRecent,
 } from './sprite-helpers';
-import {
-  buildMedianModel,
-  detectSceneChange,
-  adaptiveBlend,
-} from './background-model';
+import { buildGaussianModel, processFrame } from './background-model';
+import type { BGSubtractor } from './background-model';
 import { buildExteriorMask, applyCropMask } from './sprite-crop';
 import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
 
 const EXTRACT_CONFIG = {
   bgFrames: 15,
   bgInterval: 100,
-  threshold: 35,
+  k: 2.5,
   sceneChangeRatio: 0.15,
-  blendRate: 0.05,
+  runningAlpha: 0.005,
+  learningAlpha: 0.05,
+  learnFrames: 60,
+  initialVariance: 200,
+  varianceFloor: 25,
   minDim: 10,
   minArea: 600,
   maxAreaRatio: 0.04,
@@ -149,15 +150,16 @@ async function runExtraction(
     await new Promise<void>((r) => setTimeout(r, EXTRACT_CONFIG.bgInterval));
   }
 
-  const bgModel = buildMedianModel(frameHistory, pixelCount);
+  const bgModel = buildGaussianModel(frameHistory, pixelCount);
 
   // --- STEP 2: Frame loop ---
   let frameCount = 0;
   let candidateIndex = 0;
   const seenHashes: string[] = [];
   const recentRects: Array<Rect & { frame: number }> = [];
+  const sub: BGSubtractor = bgModel;
 
-  async function processFrame(): Promise<void> {
+  async function processVideoFrame(): Promise<void> {
     frameCount++;
 
     canvas.width = w;
@@ -166,24 +168,19 @@ async function runExtraction(
     const imageData = ctx.getImageData(0, 0, w, h);
     const gray = rgbaToGray(imageData.data, w, h);
 
-    const diff = absdiff(gray, bgModel);
-    const binary = threshold(diff, EXTRACT_CONFIG.threshold);
+    const binary = processFrame(sub, gray, {
+      k: EXTRACT_CONFIG.k,
+      runningAlpha: EXTRACT_CONFIG.runningAlpha,
+      learningAlpha: EXTRACT_CONFIG.learningAlpha,
+      learnFrames: EXTRACT_CONFIG.learnFrames,
+      sceneChangeRatio: EXTRACT_CONFIG.sceneChangeRatio,
+      initialVariance: EXTRACT_CONFIG.initialVariance,
+      varianceFloor: EXTRACT_CONFIG.varianceFloor,
+    });
 
-    // Scene change detection
-    const scene = detectSceneChange(
-      binary,
-      pixelCount,
-      EXTRACT_CONFIG.sceneChangeRatio
-    );
-    if (scene.isSceneChange) {
-      for (let i = 0; i < pixelCount; i++) {
-        bgModel[i] = gray[i] ?? 0;
-      }
+    if (!binary) {
       return;
     }
-
-    // Adaptive background blending
-    adaptiveBlend(bgModel, gray, binary, EXTRACT_CONFIG.blendRate);
 
     // Size filter
     const rawRects = findBoundingRects(binary, w, h);
@@ -332,7 +329,7 @@ async function runExtraction(
         return;
       }
 
-      void processFrame().then(() => {
+      void processVideoFrame().then(() => {
         if (extractionState.stopRequested) {
           resolve();
           return;
