@@ -6,6 +6,7 @@ import importPlugin from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import reactNative from 'eslint-plugin-react-native';
+import noBoundFunctions from './scripts/no-bound-functions.mjs';
 
 export default defineConfig([
   globalIgnores(['dist', 'build', 'scripts']),
@@ -17,7 +18,11 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
-    plugins: { import: importPlugin, '@react-native': reactNative },
+    plugins: {
+      local: { rules: { 'no-bound-functions': noBoundFunctions } },
+      import: importPlugin,
+      '@react-native': reactNative,
+    },
     settings: { 'import/resolver': { typescript: true } },
     languageOptions: {
       globals: globals.browser,
@@ -27,6 +32,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'local/no-bound-functions': 'error',
       '@react-native/no-inline-styles': 'error',
       '@react-native/no-unused-styles': 'error',
       curly: 'error',
@@ -41,6 +47,7 @@ export default defineConfig([
         'error',
         { argsIgnorePattern: '^_' },
       ],
+      'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
@@ -60,5 +67,5 @@ export default defineConfig([
       ],
     },
   },
-  { files: ['test/**/*.ts'], rules: { 'no-console': 'off' } },
+  { files: ['test/**/*.ts'], rules: { 'no-console': 'off', curly: 'error' } },
 ]);

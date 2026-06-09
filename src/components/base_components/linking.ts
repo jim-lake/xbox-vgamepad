@@ -16,7 +16,7 @@ function addEventListener(_ignore: string, handler: EventHandler) {
     if (url) {
       handler(url);
     }
-  };
+  }
   window.addEventListener('hashchange', _eventHandler);
   return {
     remove: () => {
