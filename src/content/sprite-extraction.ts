@@ -38,56 +38,6 @@ const EXTRACT_CONFIG = {
 
 const extractionState = { running: false, stopRequested: false };
 
-async function grayToPng(
-  gray: Uint8Array,
-  frameW: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-): Promise<ArrayBuffer> {
-  const oc = new OffscreenCanvas(w, h);
-  const octx = oc.getContext('2d');
-  if (!octx) {
-    return new ArrayBuffer(0);
-  }
-  const imgData = octx.createImageData(w, h);
-  for (let py = 0; py < h; py++) {
-    for (let px = 0; px < w; px++) {
-      const src = (y + py) * frameW + (x + px);
-      const dst = (py * w + px) * 4;
-      const v = gray[src] ?? 0;
-      imgData.data[dst] = v;
-      imgData.data[dst + 1] = v;
-      imgData.data[dst + 2] = v;
-      imgData.data[dst + 3] = 255;
-    }
-  }
-  octx.putImageData(imgData, 0, 0);
-  const blob = await oc.convertToBlob({ type: 'image/png' });
-  return blob.arrayBuffer();
-}
-
-async function drawRectsOnFrame(
-  imageData: ImageData,
-  rects: Rect[],
-  color: [number, number, number]
-): Promise<ArrayBuffer> {
-  const oc = new OffscreenCanvas(imageData.width, imageData.height);
-  const octx = oc.getContext('2d');
-  if (!octx) {
-    return new ArrayBuffer(0);
-  }
-  octx.putImageData(imageData, 0, 0);
-  octx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
-  octx.lineWidth = 2;
-  for (const r of rects) {
-    octx.strokeRect(r.x, r.y, r.w, r.h);
-  }
-  const blob = await oc.convertToBlob({ type: 'image/png' });
-  return blob.arrayBuffer();
-}
-
 export function stopFindSprites(): void {
   extractionState.stopRequested = true;
 }
@@ -199,18 +149,6 @@ async function runExtraction(
 
   const bgModel = buildMedianModel(frameHistory, pixelCount);
 
-  const bgPng = await grayToPng(bgModel, w, 0, 0, w, h);
-  window.postMessage(
-    {
-      source: MSG_SOURCE,
-      type: 'EXTRACT_DEBUG',
-      phase: 'background_model',
-      meta: { w, h, frames: EXTRACT_CONFIG.bgFrames },
-      buffer: bgPng,
-    },
-    '*'
-  );
-
   // --- STEP 2: Frame loop ---
   let frameCount = 0;
   let candidateIndex = 0;
@@ -239,86 +177,21 @@ async function runExtraction(
       for (let i = 0; i < pixelCount; i++) {
         bgModel[i] = gray[i] ?? 0;
       }
-      window.postMessage(
-        {
-          source: MSG_SOURCE,
-          type: 'EXTRACT_DEBUG',
-          phase: 'scene_change',
-          meta: { frameNum: frameCount, changeRatio: scene.changeRatio },
-        },
-        '*'
-      );
       return;
     }
 
     // Adaptive background blending
     adaptiveBlend(bgModel, gray, binary, EXTRACT_CONFIG.blendRate);
 
-    const emitFrameDebug = frameCount <= 25;
-
-    if (emitFrameDebug) {
-      const diffPng = await grayToPng(binary, w, 0, 0, w, h);
-      window.postMessage(
-        {
-          source: MSG_SOURCE,
-          type: 'EXTRACT_DEBUG',
-          phase: 'binary_diff',
-          meta: {
-            frameNum: frameCount,
-            changedPixels: Math.round(scene.changeRatio * pixelCount),
-            changeRatio: scene.changeRatio,
-          },
-          buffer: diffPng,
-        },
-        '*'
-      );
-    }
-
     // Size filter
     const rawRects = findBoundingRects(binary, w, h);
     const sizeFiltered = sizeFilter(rawRects, EXTRACT_CONFIG.minDim, maxDim);
 
-    if (emitFrameDebug) {
-      window.postMessage(
-        {
-          source: MSG_SOURCE,
-          type: 'EXTRACT_DEBUG',
-          phase: 'size_filter',
-          meta: {
-            frameNum: frameCount,
-            rawCount: rawRects.length,
-            afterFilter: sizeFiltered.length,
-            rects: sizeFiltered,
-          },
-          buffer: await drawRectsOnFrame(imageData, sizeFiltered, [0, 255, 0]),
-        },
-        '*'
-      );
-    }
-
     // Merge nearby fragments
     const merged = mergeRects(sizeFiltered, EXTRACT_CONFIG.mergeGap);
 
-    if (emitFrameDebug) {
-      window.postMessage(
-        {
-          source: MSG_SOURCE,
-          type: 'EXTRACT_DEBUG',
-          phase: 'merge_rects',
-          meta: {
-            frameNum: frameCount,
-            beforeMerge: sizeFiltered.length,
-            afterMerge: merged.length,
-            rects: merged,
-          },
-          buffer: await drawRectsOnFrame(imageData, merged, [255, 255, 0]),
-        },
-        '*'
-      );
-    }
-
     // Density + constraint filter
-    const { accepted: candidates, rejected } = densityFilter(
+    const { accepted: candidates } = densityFilter(
       merged,
       binary,
       w,
@@ -338,25 +211,6 @@ async function runExtraction(
       0,
       EXTRACT_CONFIG.maxCandidatesPerFrame
     );
-
-    if (emitFrameDebug) {
-      window.postMessage(
-        {
-          source: MSG_SOURCE,
-          type: 'EXTRACT_DEBUG',
-          phase: 'density_filter',
-          meta: {
-            frameNum: frameCount,
-            accepted: candidates.length,
-            rejected: rejected.length,
-            rejections: rejected,
-            candidates,
-          },
-          buffer: await drawRectsOnFrame(imageData, candidates, [0, 255, 255]),
-        },
-        '*'
-      );
-    }
 
     // Crop, dedup, and send to AI module
     for (const cand of frameCandidates) {
