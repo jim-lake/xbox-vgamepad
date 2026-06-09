@@ -175,11 +175,15 @@ async function runRealExtraction(page, seekTo, durationMs) {
   await new Promise((r) => setTimeout(r, 500));
 
   // Set up toast and candidate listener before triggering extraction
+  // Remove previous listener to avoid accumulating duplicates across samples
   await page.evaluate(() => {
+    if (window.__extractListener) {
+      window.removeEventListener('message', window.__extractListener);
+    }
     window.__extractToasts = [];
     window.__extractCandidates = [];
     window.__extractDebug = [];
-    window.addEventListener('message', (e) => {
+    window.__extractListener = (e) => {
       if (e.data?.source === 'xbox-vgamepad-content-script') {
         if (e.data.type === 'SHOW_TOAST') {
           window.__extractToasts.push(e.data.text);
@@ -204,7 +208,8 @@ async function runRealExtraction(page, seekTo, durationMs) {
           }
         }
       }
-    });
+    };
+    window.addEventListener('message', window.__extractListener);
   });
 
   // Trigger START_FIND_SPRITES via postMessage (content script listens for this)
