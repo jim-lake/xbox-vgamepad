@@ -13,6 +13,7 @@ export interface BGSubtractor {
 const DEFAULT_K = 2.5;
 const DEFAULT_RUNNING_ALPHA = 0.005;
 const DEFAULT_LEARNING_ALPHA = 0.05;
+const DEFAULT_FG_ALPHA = 0.015;
 const DEFAULT_LEARN_FRAMES = 60;
 const DEFAULT_INITIAL_VARIANCE = 200;
 const DEFAULT_VARIANCE_FLOOR = 25;
@@ -51,18 +52,18 @@ export function gaussianUpdate(
   gray: Uint8Array,
   binary: Uint8Array,
   alpha: number = DEFAULT_RUNNING_ALPHA,
-  varianceFloor: number = DEFAULT_VARIANCE_FLOOR
+  varianceFloor: number = DEFAULT_VARIANCE_FLOOR,
+  fgAlpha: number = DEFAULT_FG_ALPHA
 ): void {
   for (let i = 0; i < mean.length; i++) {
-    if ((binary[i] ?? 0) === 0) {
-      const x = gray[i] ?? 0;
-      const m = mean[i] ?? 0;
-      const v = variance[i] ?? 0;
-      const newMean = (1 - alpha) * m + alpha * x;
-      const d = x - newMean;
-      mean[i] = newMean;
-      variance[i] = Math.max((1 - alpha) * v + alpha * d * d, varianceFloor);
-    }
+    const x = gray[i] ?? 0;
+    const m = mean[i] ?? 0;
+    const v = variance[i] ?? 0;
+    const a = (binary[i] ?? 0) === 0 ? alpha : fgAlpha;
+    const newMean = (1 - a) * m + a * x;
+    const d = x - newMean;
+    mean[i] = newMean;
+    variance[i] = Math.max((1 - a) * v + a * d * d, varianceFloor);
   }
 }
 
@@ -93,6 +94,7 @@ export function processFrame(
     k?: number;
     runningAlpha?: number;
     learningAlpha?: number;
+    fgAlpha?: number;
     learnFrames?: number;
     sceneChangeRatio?: number;
     suppressRatio?: number;
@@ -104,6 +106,7 @@ export function processFrame(
     k = DEFAULT_K,
     runningAlpha = DEFAULT_RUNNING_ALPHA,
     learningAlpha = DEFAULT_LEARNING_ALPHA,
+    fgAlpha = DEFAULT_FG_ALPHA,
     learnFrames = DEFAULT_LEARN_FRAMES,
     sceneChangeRatio = 0.15,
     suppressRatio = 0.1,
@@ -135,7 +138,8 @@ export function processFrame(
       gray,
       binary,
       runningAlpha,
-      varianceFloor
+      varianceFloor,
+      fgAlpha
     );
     if (changeRatio > suppressRatio) {
       return { binary: null, changeRatio };
@@ -159,7 +163,8 @@ export function processFrame(
     gray,
     allBg,
     learningAlpha,
-    varianceFloor
+    varianceFloor,
+    fgAlpha
   );
 
   if (sub.framesInState >= learnFrames) {

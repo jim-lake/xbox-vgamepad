@@ -1,5 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
+import { arrayBufferToB64 } from '@/tools/array_b64';
 
 interface AiCandidate {
   gameName: string;
@@ -125,13 +126,7 @@ async function processNext(): Promise<void> {
 
         // Convert to PNG for storage
         const blob = await aiCanvas.convertToBlob({ type: 'image/png' });
-        const buffer = await blob.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (const b of bytes) {
-          binary += String.fromCharCode(b);
-        }
-        const b64 = btoa(binary);
+        const b64 = arrayBufferToB64(await blob.arrayBuffer());
 
         await chrome.runtime.sendMessage({
           source: MSG_SOURCE,

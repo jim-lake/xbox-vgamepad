@@ -1,3 +1,5 @@
+import { arrayBufferToB64, b64ToArrayBuffer } from '@/tools/array_b64';
+
 interface SpriteRecord {
   game: string;
   spriteType: string;
@@ -29,24 +31,6 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function base64ToArrayBuffer(b64: string): ArrayBuffer {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (const b of bytes) {
-    binary += String.fromCharCode(b);
-  }
-  return btoa(binary);
-}
-
 export async function saveSprite(
   game: string,
   spriteType: string,
@@ -58,7 +42,7 @@ export async function saveSprite(
   const record: SpriteRecord = {
     game,
     spriteType,
-    buffer: base64ToArrayBuffer(buffer),
+    buffer: b64ToArrayBuffer(buffer),
     w,
     h,
     updatedAt: Date.now(),
@@ -92,7 +76,7 @@ export async function loadSprites(
           .filter((r) => r.game === game)
           .map((r) => ({
             spriteType: r.spriteType,
-            buffer: arrayBufferToBase64(r.buffer),
+            buffer: arrayBufferToB64(r.buffer),
             w: r.w,
             h: r.h,
           }))

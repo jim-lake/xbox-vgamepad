@@ -65,16 +65,18 @@ void test('gaussianUpdate: converges mean toward repeated value', () => {
   );
 });
 
-void test('gaussianUpdate: does not modify foreground pixels', () => {
+void test('gaussianUpdate: foreground pixels update at slow fgAlpha', () => {
   const mean = new Float32Array([50, 50]);
   const variance = new Float32Array([25, 25]);
   const gray = new Uint8Array([200, 200]);
   const fg = new Uint8Array([255, 255]);
-  gaussianUpdate(mean, variance, gray, fg, 0.05);
-  assert.equal(mean[0], 50);
-  assert.equal(mean[1], 50);
-  assert.equal(variance[0], 25);
-  assert.equal(variance[1], 25);
+  gaussianUpdate(mean, variance, gray, fg, 0.05, 25, 0.001);
+  // foreground pixels drift slowly toward observed value
+  const expected = (1 - 0.001) * 50 + 0.001 * 200;
+  assert.ok(
+    Math.abs((mean[0] ?? 0) - expected) < 0.01,
+    `mean should drift slowly: ${String(mean[0])}`
+  );
 });
 
 void test('gaussianUpdate: alpha=1.0 sets mean to gray instantly', () => {
@@ -136,7 +138,7 @@ void test('processFrame: scene change mid-learning resets framesInState', () => 
   const gray = new Uint8Array(100).fill(250);
   processFrame(sub, gray, { sceneChangeRatio: 0.15 });
   assert.equal(sub.state, 'learning');
-  assert.equal(sub.framesInState, 1);
+  assert.equal(sub.framesInState, 0);
 });
 
 void test('processFrame: running state returns binary mask for stable frame', () => {

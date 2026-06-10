@@ -1,5 +1,6 @@
 import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
+import { arrayBufferToB64 } from '@/tools/array_b64';
 import { rgbaToGray, findBoundingRects } from './image-ops';
 import type { Rect } from './image-ops';
 import {
@@ -239,7 +240,6 @@ async function runExtraction(
       cropCtx.putImageData(cropData, 0, 0);
 
       const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
-      const buffer = await blob.arrayBuffer();
       window.postMessage(
         {
           source: MSG_SOURCE,
@@ -251,7 +251,7 @@ async function runExtraction(
             rect: paddedRect,
             hash,
           },
-          buffer,
+          buffer: arrayBufferToB64(await blob.arrayBuffer()),
         },
         '*'
       );

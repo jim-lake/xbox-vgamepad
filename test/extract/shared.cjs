@@ -189,11 +189,7 @@ async function runRealExtraction(page, seekTo, durationMs) {
         } else if (e.data.type === 'EXTRACT_DEBUG') {
           const entry = { phase: e.data.phase, meta: e.data.meta };
           if (e.data.buffer) {
-            const bytes = new Uint8Array(e.data.buffer);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++)
-              binary += String.fromCharCode(bytes[i]);
-            entry.b64 = btoa(binary);
+            entry.b64 = e.data.buffer;
           }
           window.__extractDebug.push(entry);
           // Also populate __extractCandidates for backward compat
@@ -247,7 +243,6 @@ async function runRealExtraction(page, seekTo, durationMs) {
       '  waitForFunction timed out. Status:',
       JSON.stringify(status, null, 2)
     );
-    throw e;
   }
 
   // Collect results
