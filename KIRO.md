@@ -87,8 +87,6 @@ The `spec/` directory contains the authoritative design specs (00–11). `JSON.m
 
 - `docs/COOP.md` — Co-op patch design and implementation details
 - `docs/PATCH.md` — Patch mechanism documentation
-- `EXTRACT.md` — Sprite extraction implementation status and test setup
-- `BACKGROUND.md` — Per-pixel Gaussian background model design
 
 These are the source of truth for behavior — always consult them before implementing features.
 

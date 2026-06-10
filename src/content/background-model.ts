@@ -117,6 +117,7 @@ export function processFrame(
     learningAlpha?: number;
     learnFrames?: number;
     sceneChangeRatio?: number;
+    suppressRatio?: number;
     initialVariance?: number;
     varianceFloor?: number;
   } = {}
@@ -127,13 +128,14 @@ export function processFrame(
     learningAlpha = DEFAULT_LEARNING_ALPHA,
     learnFrames = DEFAULT_LEARN_FRAMES,
     sceneChangeRatio = 0.15,
+    suppressRatio = 0.10,
     initialVariance = DEFAULT_INITIAL_VARIANCE,
     varianceFloor = DEFAULT_VARIANCE_FLOOR,
   } = options;
 
   const binary = gaussianSubtract(gray, sub.mean, sub.variance, k);
   const pixelCount = gray.length;
-  const { isSceneChange } = detectSceneChange(
+  const { isSceneChange, changeRatio } = detectSceneChange(
     binary,
     pixelCount,
     sceneChangeRatio
@@ -154,6 +156,9 @@ export function processFrame(
       if ((sub.variance[i] ?? 0) < varianceFloor) {
         sub.variance[i] = varianceFloor;
       }
+    }
+    if (changeRatio > suppressRatio) {
+      return null;
     }
     return binary;
   }

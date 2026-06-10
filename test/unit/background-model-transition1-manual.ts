@@ -1,6 +1,6 @@
 /**
- * Manual background-removal visualization using Gaussian model.
- * Feeds 300 consecutive frames through processFrame, saves outputs.
+ * Manual background-model visualization for seconds 90–100 (frames 2700–2999).
+ * Tests scene transition handling / re-learning behavior.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -12,9 +12,11 @@ import {
   gaussianSubtract,
   detectSceneChange,
 } from '../../src/content/background-model.ts';
-import { loadFrame, FRAMES } from './sprite-test-helpers.ts';
+import { loadFrame } from './sprite-test-helpers.ts';
 
-const testName = 'background-model-manual';
+const FRAMES = Array.from({ length: 300 }, (_, i) => 2700 + i);
+
+const testName = 'background-model-transition1-manual';
 const startTime = new Date().toISOString().replace(/[:.]/g, '-');
 const outDir = `/tmp/${testName}-${startTime}`;
 mkdirSync(outDir, { recursive: true });
@@ -56,7 +58,6 @@ function saveRgbaMasked(
   writeFileSync(path, PNG.sync.write(png));
 }
 
-// Initialize model from first frame
 const firstNum = FRAMES[0];
 if (firstNum === undefined) {
   throw new Error('No frames');
@@ -68,7 +69,6 @@ const pixelCount = w * h;
 const firstGray = rgbaToGray(first.rgba, w, h);
 const sub = buildGaussianModel([firstGray], pixelCount);
 
-// Feed all frames through processFrame, save every frame that produces output
 let savedCount = 0;
 let learningCount = 0;
 for (const num of FRAMES) {
@@ -81,7 +81,6 @@ for (const num of FRAMES) {
   const result = processFrame(sub, gray);
 
   if (result === null) {
-    // Learning mode — no image produced (expected)
     learningCount++;
     console.log(`Frame ${num} → learning (no output) changeRatio=${changeRatio.toFixed(4)}`);
   } else {
@@ -92,7 +91,6 @@ for (const num of FRAMES) {
   }
 }
 
-// Save final mean as background model
 const meanU8 = new Uint8Array(pixelCount);
 for (let i = 0; i < pixelCount; i++) {
   meanU8[i] = Math.round(Math.max(0, Math.min(255, sub.mean[i] ?? 0)));
