@@ -50,7 +50,8 @@ export function gaussianUpdate(
   variance: Float32Array,
   gray: Uint8Array,
   binary: Uint8Array,
-  alpha: number = DEFAULT_RUNNING_ALPHA
+  alpha: number = DEFAULT_RUNNING_ALPHA,
+  varianceFloor: number = DEFAULT_VARIANCE_FLOOR
 ): void {
   for (let i = 0; i < mean.length; i++) {
     if ((binary[i] ?? 0) === 0) {
@@ -60,7 +61,7 @@ export function gaussianUpdate(
       const newMean = (1 - alpha) * m + alpha * x;
       const d = x - newMean;
       mean[i] = newMean;
-      variance[i] = (1 - alpha) * v + alpha * d * d;
+      variance[i] = Math.max((1 - alpha) * v + alpha * d * d, varianceFloor);
     }
   }
 }
@@ -125,15 +126,17 @@ export function processFrame(
       for (let i = 0; i < sub.variance.length; i++) {
         sub.variance[i] = Math.max(sub.variance[i] ?? 0, initialVariance);
       }
-      gaussianUpdate(sub.mean, sub.variance, gray, binary, learningAlpha);
+      // just transition, don't update
       return { binary: null, changeRatio };
     }
-    gaussianUpdate(sub.mean, sub.variance, gray, binary, runningAlpha);
-    for (let i = 0; i < sub.variance.length; i++) {
-      if ((sub.variance[i] ?? 0) < varianceFloor) {
-        sub.variance[i] = varianceFloor;
-      }
-    }
+    gaussianUpdate(
+      sub.mean,
+      sub.variance,
+      gray,
+      binary,
+      runningAlpha,
+      varianceFloor
+    );
     if (changeRatio > suppressRatio) {
       return { binary: null, changeRatio };
     }
@@ -146,10 +149,18 @@ export function processFrame(
     for (let i = 0; i < sub.variance.length; i++) {
       sub.variance[i] = Math.max(sub.variance[i] ?? 0, initialVariance);
     }
+  } else {
+    sub.framesInState++;
   }
   const allBg = new Uint8Array(pixelCount);
-  gaussianUpdate(sub.mean, sub.variance, gray, allBg, learningAlpha);
-  sub.framesInState++;
+  gaussianUpdate(
+    sub.mean,
+    sub.variance,
+    gray,
+    allBg,
+    learningAlpha,
+    varianceFloor
+  );
 
   if (sub.framesInState >= learnFrames) {
     sub.state = 'running';
