@@ -11,20 +11,10 @@ import {
   overlapsRecent,
 } from './sprite-helpers';
 import { buildGaussianModel, processFrame } from './background-model';
-import type { BGSubtractor } from './background-model';
 import { buildExteriorMask, applyCropMask } from './sprite-crop';
 import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
 
 const EXTRACT_CONFIG = {
-  bgFrames: 15,
-  bgInterval: 100,
-  k: 2.5,
-  sceneChangeRatio: 0.15,
-  runningAlpha: 0.005,
-  learningAlpha: 0.05,
-  learnFrames: 60,
-  initialVariance: 200,
-  varianceFloor: 25,
   minDim: 10,
   minArea: 600,
   maxAreaRatio: 0.04,
@@ -34,7 +24,6 @@ const EXTRACT_CONFIG = {
   hashThreshold: 10,
   spatialCooldown: 30,
   padRatio: 0.25,
-  maxCandidatesPerFrame: 3,
 } as const;
 
 const extractionState = { running: false, stopRequested: false };
@@ -136,28 +125,17 @@ async function runExtraction(
     await video.play();
   }
 
-  // --- STEP 1: Build background model (median of N frames) ---
-  const frameHistory: Uint8Array[] = [];
-  for (let i = 0; i < EXTRACT_CONFIG.bgFrames; i++) {
-    if (extractionState.stopRequested) {
-      return;
-    }
-    canvas.width = w;
-    canvas.height = h;
-    ctx.drawImage(video, 0, 0, w, h);
-    const imgData = ctx.getImageData(0, 0, w, h);
-    frameHistory.push(rgbaToGray(imgData.data, w, h));
-    await new Promise<void>((r) => setTimeout(r, EXTRACT_CONFIG.bgInterval));
-  }
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(video, 0, 0, w, h);
+  const firstFrame = rgbaToGray(ctx.getImageData(0, 0, w, h).data, w, h);
+  const sub = buildGaussianModel(firstFrame, pixelCount);
 
-  const bgModel = buildGaussianModel(frameHistory, pixelCount);
-
-  // --- STEP 2: Frame loop ---
+  // Frame loop
   let frameCount = 0;
   let candidateIndex = 0;
   const seenHashes: string[] = [];
   const recentRects: Array<Rect & { frame: number }> = [];
-  const sub: BGSubtractor = bgModel;
 
   async function processVideoFrame(): Promise<void> {
     frameCount++;
@@ -168,15 +146,7 @@ async function runExtraction(
     const imageData = ctx.getImageData(0, 0, w, h);
     const gray = rgbaToGray(imageData.data, w, h);
 
-    const binary = processFrame(sub, gray, {
-      k: EXTRACT_CONFIG.k,
-      runningAlpha: EXTRACT_CONFIG.runningAlpha,
-      learningAlpha: EXTRACT_CONFIG.learningAlpha,
-      learnFrames: EXTRACT_CONFIG.learnFrames,
-      sceneChangeRatio: EXTRACT_CONFIG.sceneChangeRatio,
-      initialVariance: EXTRACT_CONFIG.initialVariance,
-      varianceFloor: EXTRACT_CONFIG.varianceFloor,
-    });
+    const { binary } = processFrame(sub, gray);
 
     if (!binary) {
       return;
@@ -204,15 +174,8 @@ async function runExtraction(
       }
     );
 
-    // Limit to top N candidates per frame (largest area = most likely real sprites)
-    candidates.sort((a, b) => b.w * b.h - a.w * a.h);
-    const frameCandidates = candidates.slice(
-      0,
-      EXTRACT_CONFIG.maxCandidatesPerFrame
-    );
-
     // Crop, dedup, and send to AI module
-    for (const cand of frameCandidates) {
+    for (const cand of candidates) {
       const pad = Math.round(
         Math.max(cand.w, cand.h) * EXTRACT_CONFIG.padRatio
       );

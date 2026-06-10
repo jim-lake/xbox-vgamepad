@@ -18,43 +18,15 @@ const DEFAULT_INITIAL_VARIANCE = 200;
 const DEFAULT_VARIANCE_FLOOR = 25;
 
 export function buildGaussianModel(
-  frames: Uint8Array[],
-  pixelCount: number,
-  varianceFloor: number = DEFAULT_VARIANCE_FLOOR
+  firstFrame: Uint8Array,
+  pixelCount: number
 ): BGSubtractor {
   const mean = new Float32Array(pixelCount);
   const variance = new Float32Array(pixelCount);
-
-  if (frames.length === 1) {
-    const frame = frames[0];
-    if (!frame) {
-      return { mean, variance, state: 'learning', framesInState: 0 };
-    }
-    for (let i = 0; i < pixelCount; i++) {
-      mean[i] = frame[i] ?? 0;
-      variance[i] = DEFAULT_INITIAL_VARIANCE;
-    }
-  } else {
-    for (let i = 0; i < pixelCount; i++) {
-      let sum = 0;
-      for (let f = 0; f < frames.length; f++) {
-        const frame = frames[f];
-        sum += frame ? (frame[i] ?? 0) : 0;
-      }
-      mean[i] = sum / frames.length;
-    }
-    for (let i = 0; i < pixelCount; i++) {
-      let sumSq = 0;
-      const m = mean[i] ?? 0;
-      for (let f = 0; f < frames.length; f++) {
-        const frame = frames[f];
-        const d = (frame ? (frame[i] ?? 0) : 0) - m;
-        sumSq += d * d;
-      }
-      variance[i] = Math.max(sumSq / frames.length, varianceFloor);
-    }
+  for (let i = 0; i < pixelCount; i++) {
+    mean[i] = firstFrame[i] ?? 0;
+    variance[i] = DEFAULT_INITIAL_VARIANCE;
   }
-
   return { mean, variance, state: 'learning', framesInState: 0 };
 }
 
@@ -108,6 +80,11 @@ export function detectSceneChange(
   return { isSceneChange: changeRatio > threshold, changeRatio };
 }
 
+export interface ProcessFrameResult {
+  binary: Uint8Array | null;
+  changeRatio: number;
+}
+
 export function processFrame(
   sub: BGSubtractor,
   gray: Uint8Array,
@@ -121,14 +98,14 @@ export function processFrame(
     initialVariance?: number;
     varianceFloor?: number;
   } = {}
-): Uint8Array | null {
+): ProcessFrameResult {
   const {
     k = DEFAULT_K,
     runningAlpha = DEFAULT_RUNNING_ALPHA,
     learningAlpha = DEFAULT_LEARNING_ALPHA,
     learnFrames = DEFAULT_LEARN_FRAMES,
     sceneChangeRatio = 0.15,
-    suppressRatio = 0.10,
+    suppressRatio = 0.1,
     initialVariance = DEFAULT_INITIAL_VARIANCE,
     varianceFloor = DEFAULT_VARIANCE_FLOOR,
   } = options;
@@ -149,7 +126,7 @@ export function processFrame(
         sub.variance[i] = Math.max(sub.variance[i] ?? 0, initialVariance);
       }
       gaussianUpdate(sub.mean, sub.variance, gray, binary, learningAlpha);
-      return null;
+      return { binary: null, changeRatio };
     }
     gaussianUpdate(sub.mean, sub.variance, gray, binary, runningAlpha);
     for (let i = 0; i < sub.variance.length; i++) {
@@ -158,9 +135,9 @@ export function processFrame(
       }
     }
     if (changeRatio > suppressRatio) {
-      return null;
+      return { binary: null, changeRatio };
     }
-    return binary;
+    return { binary, changeRatio };
   }
 
   // learning state
@@ -178,5 +155,5 @@ export function processFrame(
     sub.state = 'running';
     sub.framesInState = 0;
   }
-  return null;
+  return { binary: null, changeRatio };
 }

@@ -1,6 +1,6 @@
 /**
  * Manual background-model visualization for seconds 90–100 (frames 2700–2999).
- * Tests scene transition handling / re-learning behavior.
+ * Loads frames, runs production processFrame (with its built-in defaults), saves output.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -9,8 +9,6 @@ import { rgbaToGray } from '../../src/content/image-ops.ts';
 import {
   buildGaussianModel,
   processFrame,
-  gaussianSubtract,
-  detectSceneChange,
 } from '../../src/content/background-model.ts';
 import { loadFrame } from './sprite-test-helpers.ts';
 
@@ -58,45 +56,37 @@ function saveRgbaMasked(
   writeFileSync(path, PNG.sync.write(png));
 }
 
-const firstNum = FRAMES[0];
-if (firstNum === undefined) {
-  throw new Error('No frames');
-}
-const first = loadFrame(firstNum);
+const first = loadFrame(FRAMES[0] ?? 2700);
 const w = first.width;
 const h = first.height;
-const pixelCount = w * h;
-const firstGray = rgbaToGray(first.rgba, w, h);
-const sub = buildGaussianModel([firstGray], pixelCount);
+const sub = buildGaussianModel(rgbaToGray(first.rgba, w, h), w * h);
 
 let savedCount = 0;
 let learningCount = 0;
-for (const num of FRAMES) {
+for (const num of FRAMES.slice(1)) {
   const f = loadFrame(num);
-  const gray = rgbaToGray(f.rgba, w, h);
+  const { binary, changeRatio } = processFrame(sub, rgbaToGray(f.rgba, w, h));
 
-  const binary = gaussianSubtract(gray, sub.mean, sub.variance, 2.5);
-  const { changeRatio } = detectSceneChange(binary, pixelCount, 0.15);
-
-  const result = processFrame(sub, gray);
-
-  if (result === null) {
+  if (binary === null) {
     learningCount++;
-    console.log(`Frame ${num} → learning (no output) changeRatio=${changeRatio.toFixed(4)}`);
+    console.log(
+      `Frame ${num} → suppressed changeRatio=${changeRatio.toFixed(4)}`
+    );
   } else {
-    saveGrayPng(result, w, h, `${outDir}/binary_${num}.png`);
-    saveRgbaMasked(f.rgba, result, w, h, `${outDir}/foreground_${num}.png`);
-    console.log(`Frame ${num} → binary_${num}.png, foreground_${num}.png changeRatio=${changeRatio.toFixed(4)}`);
+    saveGrayPng(binary, w, h, `${outDir}/binary_${num}.png`);
+    saveRgbaMasked(f.rgba, binary, w, h, `${outDir}/foreground_${num}.png`);
+    console.log(
+      `Frame ${num} → binary_${num}.png, foreground_${num}.png changeRatio=${changeRatio.toFixed(4)}`
+    );
     savedCount++;
   }
 }
 
-const meanU8 = new Uint8Array(pixelCount);
-for (let i = 0; i < pixelCount; i++) {
+const meanU8 = new Uint8Array(w * h);
+for (let i = 0; i < w * h; i++) {
   meanU8[i] = Math.round(Math.max(0, Math.min(255, sub.mean[i] ?? 0)));
 }
 saveGrayPng(meanU8, w, h, `${outDir}/background_model.png`);
-console.log(`Background model → ${outDir}/background_model.png`);
-console.log(`Learning frames (no output): ${String(learningCount)}`);
+console.log(`\nLearning/suppressed frames: ${String(learningCount)}`);
 console.log(`Saved ${String(savedCount)} detection frames`);
-console.log(`\nResults → ${outDir}`);
+console.log(`Results → ${outDir}`);

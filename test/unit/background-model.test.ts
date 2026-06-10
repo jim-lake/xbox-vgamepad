@@ -13,9 +13,9 @@ import { loadFrame, FRAMES } from './sprite-test-helpers.ts';
 
 // --- Unit tests for individual functions ---
 
-void test('buildGaussianModel: single frame sets mean to pixel values and variance to initialVariance', () => {
+void test('buildGaussianModel: sets mean to pixel values and variance to initialVariance', () => {
   const frame = new Uint8Array([100, 150, 200]);
-  const sub = buildGaussianModel([frame], 3);
+  const sub = buildGaussianModel(frame, 3);
   assert.equal(sub.mean[0], 100);
   assert.equal(sub.mean[1], 150);
   assert.equal(sub.mean[2], 200);
@@ -23,27 +23,6 @@ void test('buildGaussianModel: single frame sets mean to pixel values and varian
   assert.equal(sub.variance[1], 200);
   assert.equal(sub.variance[2], 200);
   assert.equal(sub.state, 'learning');
-});
-
-void test('buildGaussianModel: two identical frames produce varianceFloor', () => {
-  const frame = new Uint8Array([50, 100, 200]);
-  const sub = buildGaussianModel([frame, frame], 3, 25);
-  assert.equal(sub.mean[0], 50);
-  assert.equal(sub.mean[1], 100);
-  assert.equal(sub.mean[2], 200);
-  assert.equal(sub.variance[0], 25);
-  assert.equal(sub.variance[1], 25);
-  assert.equal(sub.variance[2], 25);
-});
-
-void test('buildGaussianModel: multiple frames compute correct mean and variance', () => {
-  const f1 = new Uint8Array([100, 200]);
-  const f2 = new Uint8Array([110, 200]);
-  const sub = buildGaussianModel([f1, f2], 2, 0);
-  assert.ok(Math.abs((sub.mean[0] ?? 0) - 105) < 0.01);
-  assert.ok(Math.abs((sub.mean[1] ?? 0) - 200) < 0.01);
-  assert.ok(Math.abs((sub.variance[0] ?? 0) - 25) < 0.01);
-  assert.ok((sub.variance[1] ?? 0) < 0.01);
 });
 
 void test('gaussianSubtract: identical frame produces all zeros', () => {
@@ -129,7 +108,7 @@ void test('processFrame: running state with scene change transitions to learning
   };
   const gray = new Uint8Array(100).fill(200);
   const result = processFrame(sub, gray, { sceneChangeRatio: 0.15 });
-  assert.equal(result, null);
+  assert.equal(result.binary, null);
   assert.equal(sub.state, 'learning');
 });
 
@@ -170,9 +149,9 @@ void test('processFrame: running state returns binary mask for stable frame', ()
   const gray = new Uint8Array(100).fill(100);
   gray[0] = 200;
   const result = processFrame(sub, gray, { sceneChangeRatio: 0.15 });
-  assert.ok(result !== null);
-  assert.equal(result[0], 255);
-  assert.equal(result[1], 0);
+  assert.ok(result.binary !== null);
+  assert.equal(result.binary[0], 255);
+  assert.equal(result.binary[1], 0);
 });
 
 // --- Integration: feed 300 consecutive frames through processFrame ---
@@ -181,7 +160,7 @@ void test('300 frames: model learns then detects foreground', () => {
   const first = loadFrame(FRAMES[0] ?? 150);
   const pixelCount = first.width * first.height;
   const firstGray = rgbaToGray(first.rgba, first.width, first.height);
-  const sub = buildGaussianModel([firstGray], pixelCount);
+  const sub = buildGaussianModel(firstGray, pixelCount);
 
   let nullCount = 0;
   let detectCount = 0;
@@ -190,13 +169,13 @@ void test('300 frames: model learns then detects foreground', () => {
   for (const num of FRAMES) {
     const f = loadFrame(num);
     const gray = rgbaToGray(f.rgba, f.width, f.height);
-    const result = processFrame(sub, gray);
-    if (result === null) {
+    const { binary } = processFrame(sub, gray);
+    if (binary === null) {
       nullCount++;
     } else {
       detectCount++;
-      for (let i = 0; i < result.length; i++) {
-        if ((result[i] ?? 0) !== 0) {
+      for (let i = 0; i < binary.length; i++) {
+        if ((binary[i] ?? 0) !== 0) {
           totalFgPixels++;
         }
       }
@@ -219,7 +198,7 @@ void test('300 frames: no scene change triggered during normal gameplay', () => 
   const first = loadFrame(FRAMES[0] ?? 150);
   const pixelCount = first.width * first.height;
   const firstGray = rgbaToGray(first.rgba, first.width, first.height);
-  const sub = buildGaussianModel([firstGray], pixelCount);
+  const sub = buildGaussianModel(firstGray, pixelCount);
 
   let sceneChanges = 0;
   let prevState: 'learning' | 'running' = 'learning';
@@ -250,18 +229,18 @@ void test('300 frames: detection frames have reasonable fg ratio', () => {
   const first = loadFrame(FRAMES[0] ?? 150);
   const pixelCount = first.width * first.height;
   const firstGray = rgbaToGray(first.rgba, first.width, first.height);
-  const sub = buildGaussianModel([firstGray], pixelCount);
+  const sub = buildGaussianModel(firstGray, pixelCount);
 
   const fgRatios: number[] = [];
 
   for (const num of FRAMES) {
     const f = loadFrame(num);
     const gray = rgbaToGray(f.rgba, f.width, f.height);
-    const result = processFrame(sub, gray);
-    if (result !== null) {
+    const { binary } = processFrame(sub, gray);
+    if (binary !== null) {
       let fg = 0;
-      for (let i = 0; i < result.length; i++) {
-        if ((result[i] ?? 0) !== 0) {
+      for (let i = 0; i < binary.length; i++) {
+        if ((binary[i] ?? 0) !== 0) {
           fg++;
         }
       }
