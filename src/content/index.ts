@@ -286,6 +286,14 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
     );
     return;
   }
+  if (message.type === 'ACTIVATE_GAMEPAD_CONFIG') {
+    state.enabled = true;
+    state.activeConfig = message.name;
+    sendSetIcon(true);
+  } else if (message.type === 'DISABLE_GAMEPAD') {
+    state.enabled = false;
+    sendSetIcon(false);
+  }
   window.postMessage({ ...message, source: MSG_SOURCE }, '*');
 });
 
