@@ -29,22 +29,6 @@ export function rgbaToGray(
   return out;
 }
 
-export function absdiff(a: Uint8Array, b: Uint8Array): Uint8Array {
-  const out = new Uint8Array(a.length);
-  for (let i = 0; i < a.length; i++) {
-    out[i] = Math.abs((a[i] ?? 0) - (b[i] ?? 0));
-  }
-  return out;
-}
-
-export function threshold(src: Uint8Array, thresh: number): Uint8Array {
-  const out = new Uint8Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    out[i] = (src[i] ?? 0) > thresh ? 255 : 0;
-  }
-  return out;
-}
-
 /**
  * Find bounding rects of connected white regions via flood fill.
  * Returns bounding boxes directly (we only ever need boundingRect).
@@ -108,4 +92,35 @@ export function findBoundingRects(
   }
 
   return rects;
+}
+
+/** Draw rect outlines onto a grayscale image (white=255 border, 1px). */
+export function drawBoundingRects(
+  gray: Uint8Array,
+  width: number,
+  height: number,
+  rects: Rect[]
+): Uint8Array {
+  const out = new Uint8Array(gray);
+  for (const r of rects) {
+    for (let x = r.x; x < r.x + r.w && x < width; x++) {
+      if (r.y < height) {
+        out[r.y * width + x] = 255;
+      }
+      const bot = r.y + r.h - 1;
+      if (bot < height) {
+        out[bot * width + x] = 255;
+      }
+    }
+    for (let y = r.y; y < r.y + r.h && y < height; y++) {
+      if (r.x < width) {
+        out[y * width + r.x] = 255;
+      }
+      const right = r.x + r.w - 1;
+      if (right < width) {
+        out[y * width + right] = 255;
+      }
+    }
+  }
+  return out;
 }

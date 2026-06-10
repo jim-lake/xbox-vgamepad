@@ -1,27 +1,15 @@
 import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
 import { arrayBufferToB64 } from '@/tools/array_b64';
-import { rgbaToGray, findBoundingRects } from './image-ops';
+import { rgbaToGray } from './image-ops';
 import type { Rect } from './image-ops';
-import {
-  mergeRects,
-  sizeFilter,
-  densityFilter,
-  perceptualHash,
-  isDuplicate,
-  overlapsRecent,
-} from './sprite-helpers';
+import { perceptualHash, isDuplicate, overlapsRecent } from './sprite-helpers';
+import { findCandidateRects } from './bounding-rect';
 import { buildGaussianModel, processFrame } from './background-model';
 import { buildExteriorMask, applyCropMask } from './sprite-crop';
 import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
 
 const EXTRACT_CONFIG = {
-  minDim: 10,
-  minArea: 600,
-  maxAreaRatio: 0.04,
-  maxAspect: 5,
-  minDensity: 0.2,
-  mergeGap: 6,
   hashThreshold: 10,
   spatialCooldown: 30,
   padRatio: 0.25,
@@ -102,7 +90,6 @@ async function runExtraction(
   const w = video.videoWidth || 1920;
   const h = video.videoHeight || 1080;
   const pixelCount = w * h;
-  const frameArea = w * h;
   const maxDim = Math.min(w, h) * 0.2;
   const canvas = new OffscreenCanvas(w, h);
   const ctxOrNull = canvas.getContext('2d');
@@ -153,27 +140,7 @@ async function runExtraction(
       return;
     }
 
-    // Size filter
-    const rawRects = findBoundingRects(binary, w, h);
-    const sizeFiltered = sizeFilter(rawRects, EXTRACT_CONFIG.minDim, maxDim);
-
-    // Merge nearby fragments
-    const merged = mergeRects(sizeFiltered, EXTRACT_CONFIG.mergeGap);
-
-    // Density + constraint filter
-    const { accepted: candidates } = densityFilter(
-      merged,
-      binary,
-      w,
-      frameArea,
-      {
-        minArea: EXTRACT_CONFIG.minArea,
-        maxDim,
-        maxAreaRatio: EXTRACT_CONFIG.maxAreaRatio,
-        maxAspect: EXTRACT_CONFIG.maxAspect,
-        minDensity: EXTRACT_CONFIG.minDensity,
-      }
-    );
+    const candidates = findCandidateRects(binary, w, h, maxDim);
 
     // Crop, dedup, and send to AI module
     for (const cand of candidates) {
