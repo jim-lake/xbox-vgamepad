@@ -4,7 +4,10 @@ import { arrayBufferToB64 } from '@/tools/array_b64';
 
 interface AiCandidate {
   gameName: string;
-  imageData: ImageData;
+  data: Uint8ClampedArray;
+  w: number;
+  h: number;
+  score?: number;
 }
 
 interface AiState {
@@ -80,14 +83,31 @@ async function processNext(): Promise<void> {
     }
 
     try {
-      // Render on black background for AI
-      const { imageData } = candidate;
-      const aiCanvas = new OffscreenCanvas(imageData.width, imageData.height);
-      const aiCtx = aiCanvas.getContext('2d')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
-      aiCtx.fillStyle = '#000000';
-      aiCtx.fillRect(0, 0, imageData.width, imageData.height);
-      aiCtx.putImageData(imageData, 0, 0);
-      const bitmap = await createImageBitmap(aiCanvas);
+      const { data, w, h } = candidate;
+      // Composite onto black background for AI — transparent pixels become black
+      const composed = new Uint8ClampedArray(w * h * 4);
+      for (let i = 0; i < w * h; i++) {
+        const si = i * 4;
+        const a = data[si + 3] ?? 0;
+        if (a === 255) {
+          composed[si] = data[si] ?? 0;
+          composed[si + 1] = data[si + 1] ?? 0;
+          composed[si + 2] = data[si + 2] ?? 0;
+          composed[si + 3] = 255;
+        } else if (a > 0) {
+          const af = a / 255;
+          composed[si] = Math.round((data[si] ?? 0) * af);
+          composed[si + 1] = Math.round((data[si + 1] ?? 0) * af);
+          composed[si + 2] = Math.round((data[si + 2] ?? 0) * af);
+          composed[si + 3] = 255;
+        }
+        // else stays 0,0,0,255 — black
+        else {
+          composed[si + 3] = 255;
+        }
+      }
+
+      const bitmap = await createImageBitmap(new ImageData(composed, w, h));
 
       const result = await Promise.race([
         state.session.prompt([
@@ -124,8 +144,10 @@ async function processNext(): Promise<void> {
       if (parsed && parsed.accept && !state.knownLabels.has(parsed.label)) {
         state.knownLabels.add(parsed.label);
 
-        // Convert to PNG for storage
-        const blob = await aiCanvas.convertToBlob({ type: 'image/png' });
+        // Encode PNG via blob
+        const blob = new Blob([new Uint8Array(composed.buffer)], {
+          type: 'image/png',
+        });
         const b64 = arrayBufferToB64(await blob.arrayBuffer());
 
         await chrome.runtime.sendMessage({
@@ -134,8 +156,8 @@ async function processNext(): Promise<void> {
           game: candidate.gameName,
           spriteType: parsed.label,
           buffer: b64,
-          w: imageData.width,
-          h: imageData.height,
+          w,
+          h,
         });
         window.postMessage(
           {
@@ -157,7 +179,6 @@ async function processNext(): Promise<void> {
         },
         '*'
       );
-      // Destroy and recreate session on error (prompt may be stuck)
       state.session.destroy();
       state.session = null;
     }
@@ -167,8 +188,18 @@ async function processNext(): Promise<void> {
   window.postMessage({ source: MSG_SOURCE, type: 'EXTRACT_AI_IDLE' }, '*');
 }
 
-export function addCandidate(gameName: string, imageData: ImageData): void {
-  state.queue.push({ gameName, imageData });
+export function addCandidate(
+  gameName: string,
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  score?: number
+): void {
+  const entry: AiCandidate = { gameName, data, w, h };
+  if (score !== undefined) {
+    entry.score = score;
+  }
+  state.queue.push(entry);
   void processNext();
 }
 

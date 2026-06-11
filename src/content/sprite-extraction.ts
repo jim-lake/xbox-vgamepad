@@ -2,18 +2,13 @@ import { MSG_SOURCE } from '@/types/messages';
 import { errorLog } from '@/tools/log';
 import { arrayBufferToB64 } from '@/tools/array_b64';
 import { rgbaToGray } from './image-ops';
-import type { Rect } from './image-ops';
-import { perceptualHash, isDuplicate, overlapsRecent } from './sprite-helpers';
 import { findCandidateRects } from './bounding-rect';
 import { buildGaussianModel, processFrame } from './background-model';
-import { buildExteriorMask, applyCropMask } from './sprite-crop';
 import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
-
-const EXTRACT_CONFIG = {
-  hashThreshold: 10,
-  spatialCooldown: 30,
-  padRatio: 0.25,
-} as const;
+import {
+  createCandidateQueue,
+  processCandidates,
+} from './sprite/candidate-queue';
 
 const extractionState = { running: false, stopRequested: false };
 
@@ -120,14 +115,10 @@ async function runExtraction(
   const sub = buildGaussianModel(firstFrame, pixelCount);
 
   // Frame loop
-  let frameCount = 0;
   let candidateIndex = 0;
-  const seenHashes: string[] = [];
-  const recentRects: Array<Rect & { frame: number }> = [];
+  const queue = createCandidateQueue();
 
-  async function processVideoFrame(): Promise<void> {
-    frameCount++;
-
+  function processVideoFrame(): void {
     canvas.width = w;
     canvas.height = h;
     ctx.drawImage(video, 0, 0, w, h);
@@ -140,91 +131,38 @@ async function runExtraction(
       return;
     }
 
-    const candidates = findCandidateRects(binary, w, h, maxDim);
+    const rects = findCandidateRects(binary, w, h, maxDim);
+    const accepted = processCandidates(
+      queue,
+      rects,
+      binary,
+      gray,
+      imageData.data,
+      w,
+      h
+    );
 
-    // Crop, dedup, and send to AI module
-    for (const cand of candidates) {
-      const pad = Math.round(
-        Math.max(cand.w, cand.h) * EXTRACT_CONFIG.padRatio
-      );
-      const cx = Math.max(0, cand.x - pad);
-      const cy = Math.max(0, cand.y - pad);
-      const cw = Math.min(w - cx, cand.w + pad * 2);
-      const ch = Math.min(h - cy, cand.h + pad * 2);
+    for (const result of accepted) {
+      const { paddedRect, cropData, cropW, cropH } = result;
 
-      // Spatial overlap dedup
-      const paddedRect: Rect = { x: cx, y: cy, w: cw, h: ch };
-      if (
-        overlapsRecent(
-          paddedRect,
-          recentRects,
-          frameCount,
-          EXTRACT_CONFIG.spatialCooldown
-        )
-      ) {
-        continue;
-      }
-
-      // Perceptual hash dedup
-      const hash = perceptualHash(gray, w, paddedRect);
-      if (isDuplicate(hash, seenHashes, EXTRACT_CONFIG.hashThreshold)) {
-        window.postMessage(
-          {
-            source: MSG_SOURCE,
-            type: 'EXTRACT_DEBUG',
-            phase: 'dedup_rejected',
-            meta: {
-              frameNum: frameCount,
-              candidateIndex,
-              rect: paddedRect,
-              hash,
-            },
-          },
-          '*'
-        );
-        continue;
-      }
-      seenHashes.push(hash);
-      recentRects.push({ ...paddedRect, frame: frameCount });
-
-      // Build background-removed crop
-      const exterior = buildExteriorMask(binary, w, cx, cy, cw, ch);
-      const cropData = applyCropMask(
-        imageData.data,
-        w,
-        exterior,
-        cx,
-        cy,
-        cw,
-        ch
-      );
-
-      const cropCanvas = new OffscreenCanvas(cw, ch);
-      const cropCtx = cropCanvas.getContext('2d');
-      if (!cropCtx) {
-        continue;
-      }
-      cropCtx.putImageData(cropData, 0, 0);
-
-      const blob = await cropCanvas.convertToBlob({ type: 'image/png' });
       window.postMessage(
         {
           source: MSG_SOURCE,
           type: 'EXTRACT_DEBUG',
           phase: 'candidate',
           meta: {
-            frameNum: frameCount,
+            frameNum: queue.frameCount,
             index: candidateIndex,
             rect: paddedRect,
-            hash,
+            hash: result.hash,
+            score: result.score,
           },
-          buffer: arrayBufferToB64(await blob.arrayBuffer()),
+          buffer: arrayBufferToB64(cropData.buffer as ArrayBuffer),
         },
         '*'
       );
 
-      // Send to AI module
-      addCandidate(gameName, cropData);
+      addCandidate(gameName, cropData, cropW, cropH, result.score);
       candidateIndex++;
     }
   }
@@ -259,25 +197,20 @@ async function runExtraction(
         return;
       }
 
-      void processVideoFrame().then(() => {
-        if (extractionState.stopRequested) {
-          resolve();
-          return;
-        }
-        if (hasBounds && video.currentTime >= videoEndTime) {
-          resolve();
-          return;
-        }
-        if ('requestVideoFrameCallback' in video) {
-          (
-            video as HTMLVideoElement & {
-              requestVideoFrameCallback: (cb: () => void) => void;
-            }
-          ).requestVideoFrameCallback(loop);
-        } else {
-          setTimeout(loop, 1000 / 12);
-        }
-      });
+      processVideoFrame();
+      if (hasBounds && video.currentTime >= videoEndTime) {
+        resolve();
+        return;
+      }
+      if ('requestVideoFrameCallback' in video) {
+        (
+          video as HTMLVideoElement & {
+            requestVideoFrameCallback: (cb: () => void) => void;
+          }
+        ).requestVideoFrameCallback(loop);
+      } else {
+        setTimeout(loop, 1000 / 12);
+      }
     }
 
     if ('requestVideoFrameCallback' in video) {

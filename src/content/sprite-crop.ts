@@ -66,10 +66,9 @@ export function buildExteriorMask(
 }
 
 /**
- * Applies exterior mask to image data — exterior pixels become transparent.
- * Returns new ImageData for the cropped region.
+ * Applies exterior mask — returns raw RGBA buffer. No DOM dependency.
  */
-export function applyCropMask(
+export function applyCropMaskRaw(
   srcData: Uint8ClampedArray,
   srcW: number,
   exterior: Uint8Array,
@@ -77,16 +76,16 @@ export function applyCropMask(
   cy: number,
   cw: number,
   ch: number
-): ImageData {
-  const out = new ImageData(cw, ch);
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(cw * ch * 4);
   for (let py = 0; py < ch; py++) {
     for (let px = 0; px < cw; px++) {
       const srcIdx = ((cy + py) * srcW + (cx + px)) * 4;
       const dstIdx = (py * cw + px) * 4;
-      out.data[dstIdx] = srcData[srcIdx] ?? 0;
-      out.data[dstIdx + 1] = srcData[srcIdx + 1] ?? 0;
-      out.data[dstIdx + 2] = srcData[srcIdx + 2] ?? 0;
-      out.data[dstIdx + 3] = exterior[py * cw + px] !== 0 ? 0 : 255;
+      out[dstIdx] = srcData[srcIdx] ?? 0;
+      out[dstIdx + 1] = srcData[srcIdx + 1] ?? 0;
+      out[dstIdx + 2] = srcData[srcIdx + 2] ?? 0;
+      out[dstIdx + 3] = exterior[py * cw + px] !== 0 ? 0 : 255;
     }
   }
   return out;

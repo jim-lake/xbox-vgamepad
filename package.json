@@ -15,6 +15,7 @@
     "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'",
     "test:unit:sprite:background:manual": "tsx --tsconfig tsconfig.test.json test/unit/background-model-manual.ts",
     "test:unit:sprite:bounding-rects:manual": "tsx --tsconfig tsconfig.test.json test/unit/bounding-rects-manual.ts",
+    "test:unit:sprite:candidate-queue:manual": "tsx --tsconfig tsconfig.test.json test/unit/candidate-queue-manual.ts",
     "test:unit:sprite:background:transition1:manual": "tsx --tsconfig tsconfig.test.json test/unit/background-model-transition1-manual.ts",
     "test:patch": "vite build --mode test && node test/patch/run.cjs",
     "test:patch:setup": "vite build --mode test && node test/patch/setup.cjs",
