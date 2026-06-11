@@ -41,7 +41,10 @@ export function buildExteriorMask(
   }
 
   while (floodStack.length > 0) {
-    const idx = floodStack.pop()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+    const idx = floodStack.pop();
+    if (idx === undefined) {
+      break;
+    }
     const px = idx % cw;
     const py = (idx - px) / cw;
     const neighbors = [

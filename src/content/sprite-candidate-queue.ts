@@ -1,5 +1,6 @@
-import { perceptualHash, isDuplicate, overlapsRecent } from './sprite-helpers';
+import { perceptualHashCrop, hammingDist } from './sprite-helpers';
 import { buildExteriorMask, applyCropMaskRaw } from './sprite-crop';
+import { errorLog } from '@/tools/log';
 
 import type { Rect } from './image-ops';
 
@@ -17,22 +18,35 @@ export interface CandidateResult {
   cropH: number;
 }
 
+interface SpriteCluster {
+  hashes: string[];
+  crops: Array<{
+    rect: Rect;
+    score: number;
+    frame: number;
+    data: Uint8ClampedArray;
+    w: number;
+    h: number;
+  }>;
+  totalQuality: number;
+  solved: boolean;
+}
+
 export interface CandidateQueueState {
-  seenHashes: string[];
-  recentRects: Array<Rect & { frame: number }>;
+  clusters: SpriteCluster[];
   results: CandidateResult[];
   frameCount: number;
 }
 
 const HASH_THRESHOLD = 10;
-const SPATIAL_COOLDOWN = 30;
 const PAD_RATIO = 0.25;
 const MIN_DENSITY = 0.15;
 const MIN_COMPLETENESS = 0.5;
 const MIN_CROP_SCORE = 0.3;
+const QUALITY_BUDGET = 2.5;
 
 export function createCandidateQueue(): CandidateQueueState {
-  return { seenHashes: [], recentRects: [], results: [], frameCount: 0 };
+  return { clusters: [], results: [], frameCount: 0 };
 }
 
 function foregroundMetrics(
@@ -44,7 +58,6 @@ function foregroundMetrics(
   let sumX = 0;
   let sumY = 0;
   let borderHits = 0;
-  const area = rect.w * rect.h;
 
   for (let py = rect.y; py < rect.y + rect.h; py++) {
     for (let px = rect.x; px < rect.x + rect.w; px++) {
@@ -68,7 +81,7 @@ function foregroundMetrics(
     return { density: 0, centeredness: 0, completeness: 1 };
   }
 
-  const density = pixelCount / area;
+  const density = pixelCount / (rect.w * rect.h);
   const centroidX = sumX / pixelCount;
   const centroidY = sumY / pixelCount;
   const centeredness =
@@ -83,7 +96,11 @@ function foregroundMetrics(
   return { density, centeredness, completeness };
 }
 
-function sharpness(data: Uint8ClampedArray, w: number, h: number): number {
+function sharpnessFromColor(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number
+): number {
   if (w < 3 || h < 3) {
     return 0;
   }
@@ -110,6 +127,20 @@ function sharpness(data: Uint8ClampedArray, w: number, h: number): number {
   return (sumSq - (sum * sum) / n) / n;
 }
 
+function findCluster(
+  clusters: SpriteCluster[],
+  hash: string
+): SpriteCluster | undefined {
+  for (const cluster of clusters) {
+    for (const h of cluster.hashes) {
+      if (hammingDist(hash, h) < HASH_THRESHOLD) {
+        return cluster;
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * Process candidate rects from one frame through the culling pipeline.
  */
@@ -117,7 +148,6 @@ export function processCandidates(
   state: CandidateQueueState,
   candidates: Rect[],
   binary: Uint8Array,
-  gray: Uint8Array,
   imageData: Uint8ClampedArray,
   width: number,
   height: number
@@ -132,24 +162,6 @@ export function processCandidates(
     const cw = Math.min(width - cx, cand.w + pad * 2);
     const ch = Math.min(height - cy, cand.h + pad * 2);
     const paddedRect: Rect = { x: cx, y: cy, w: cw, h: ch };
-
-    if (
-      overlapsRecent(
-        paddedRect,
-        state.recentRects,
-        state.frameCount,
-        SPATIAL_COOLDOWN
-      )
-    ) {
-      continue;
-    }
-
-    const hash = perceptualHash(gray, width, paddedRect);
-    if (isDuplicate(hash, state.seenHashes, HASH_THRESHOLD)) {
-      continue;
-    }
-    state.seenHashes.push(hash);
-    state.recentRects.push({ ...paddedRect, frame: state.frameCount });
 
     const metrics = foregroundMetrics(binary, width, paddedRect);
     if (
@@ -170,7 +182,7 @@ export function processCandidates(
       ch
     );
 
-    const sharp = sharpness(cropData, cw, ch);
+    const sharp = sharpnessFromColor(cropData, cw, ch);
     const normalizedSharpness = Math.min(sharp / 500, 1.0);
 
     const score =
@@ -183,18 +195,59 @@ export function processCandidates(
       continue;
     }
 
+    const hash = perceptualHashCrop(cropData, cw, ch);
+    const cluster = findCluster(state.clusters, hash);
+
+    let justSolved = false;
+
+    if (cluster) {
+      if (cluster.solved) {
+        continue;
+      }
+      cluster.hashes.push(hash);
+      cluster.crops.push({ rect: paddedRect, score, frame: state.frameCount, data: cropData, w: cw, h: ch });
+      cluster.totalQuality += score;
+      if (cluster.totalQuality >= QUALITY_BUDGET) {
+        cluster.solved = true;
+        justSolved = true;
+      }
+    } else {
+      const c: SpriteCluster = {
+        hashes: [hash],
+        crops: [{ rect: paddedRect, score, frame: state.frameCount, data: cropData, w: cw, h: ch }],
+        totalQuality: score,
+        solved: score >= QUALITY_BUDGET,
+      };
+      state.clusters.push(c);
+      if (c.solved) {
+        justSolved = true;
+      }
+    }
+
+    if (!justSolved) {
+      continue;
+    }
+
+    // Emit best crop from solved cluster as the canonical
+    const solved = cluster ?? state.clusters[state.clusters.length - 1];
+    if (!solved) {
+      errorLog('[candidate-queue] solved cluster missing after solve');
+      continue;
+    }
+    const best = solved.crops.reduce((a, b) => (b.score > a.score ? b : a));
+
     const result: CandidateResult = {
       rect: cand,
-      paddedRect,
+      paddedRect: best.rect,
       hash,
       density: metrics.density,
       centeredness: metrics.centeredness,
       completeness: metrics.completeness,
       sharpness: sharp,
-      score,
-      cropData,
-      cropW: cw,
-      cropH: ch,
+      score: best.score,
+      cropData: best.data,
+      cropW: best.w,
+      cropH: best.h,
     };
     accepted.push(result);
     state.results.push(result);

@@ -79,6 +79,7 @@ The test mode patches the manifest to include `http://127.0.0.1:9444/*` in conte
 - Unused vars prefixed with `_` are allowed
 - No console.log in production code (use `src/tools/log.ts` utilities)
 - No inline styles in React components (`@react-native/no-inline-styles`)
+- NEVER use `eslint-disable-line` or `eslint-disable-next-line` — always handle the condition properly. For nullable/undefined values from indexed access, `.pop()`, `.shift()`, etc., test for `null`/`undefined`, call `errorLog(...)` with context, and `continue`/`break` as appropriate.
 - The `tsconfig.app.json` enables `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, and `noPropertyAccessFromIndexSignature` — be precise with optional types and index access
 
 ## Specifications

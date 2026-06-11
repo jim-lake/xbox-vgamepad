@@ -5,6 +5,40 @@
 
 import type { Rect } from './image-ops';
 
+export function perceptualHashCrop(
+  rgba: Uint8ClampedArray,
+  w: number,
+  h: number
+): string {
+  const cellW = w / 8;
+  const cellH = h / 8;
+  const values: number[] = [];
+
+  for (let cy = 0; cy < 8; cy++) {
+    for (let cx = 0; cx < 8; cx++) {
+      const sx = Math.floor(cx * cellW);
+      const sy = Math.floor(cy * cellH);
+      const ex = Math.floor((cx + 1) * cellW);
+      const ey = Math.floor((cy + 1) * cellH);
+      let sum = 0;
+      let count = 0;
+      for (let py = sy; py < ey; py++) {
+        for (let px = sx; px < ex; px++) {
+          const i = (py * w + px) * 4;
+          if ((rgba[i + 3] ?? 0) > 0) {
+            sum += rgba[i + 1] ?? 0;
+            count++;
+          }
+        }
+      }
+      values.push(count > 0 ? sum / count : 0);
+    }
+  }
+
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  return values.map((v) => (v >= mean ? '1' : '0')).join('');
+}
+
 export function perceptualHash(
   gray: Uint8Array,
   frameW: number,
@@ -61,7 +95,10 @@ export function overlapsRecent(
   cooldown: number
 ): boolean {
   for (let i = recentRects.length - 1; i >= 0; i--) {
-    const r = recentRects[i]!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+    const r = recentRects[i];
+    if (!r) {
+      continue;
+    }
     if (currentFrame - r.frame > cooldown) {
       recentRects.splice(0, i + 1);
       break;

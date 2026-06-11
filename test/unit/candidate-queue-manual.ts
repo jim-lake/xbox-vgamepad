@@ -64,7 +64,7 @@ for (const num of FRAMES.slice(1)) {
   }
 
   const rects = findCandidateRects(binary, w, h, maxDim);
-  const accepted = processCandidates(queue, rects, binary, gray, f.rgba, w, h);
+  const accepted = processCandidates(queue, rects, binary, f.rgba, w, h);
 
   for (const result of accepted) {
     const idx = totalCandidates++;

@@ -136,7 +136,6 @@ async function runExtraction(
       queue,
       rects,
       binary,
-      gray,
       imageData.data,
       w,
       h

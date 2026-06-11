@@ -52,7 +52,11 @@ async function processNext(): Promise<void> {
   state.processing = true;
 
   while (state.queue.length > 0) {
-    const candidate = state.queue.shift()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+    const candidate = state.queue.shift();
+    if (!candidate) {
+      errorLog('[ai-sprite] queue shift returned undefined');
+      break;
+    }
 
     if (!state.session) {
       try {
