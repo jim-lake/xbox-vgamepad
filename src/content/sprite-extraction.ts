@@ -8,7 +8,7 @@ import { addCandidate, initKnownLabels, resetAi, isIdle } from './ai-sprite';
 import {
   createCandidateQueue,
   processCandidates,
-} from './sprite/candidate-queue';
+} from './sprite-candidate-queue';
 
 const extractionState = { running: false, stopRequested: false };
 

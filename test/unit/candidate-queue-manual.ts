@@ -16,7 +16,7 @@ import {
 import {
   createCandidateQueue,
   processCandidates,
-} from '../../src/content/sprite/candidate-queue.ts';
+} from '../../src/content/sprite-candidate-queue.ts';
 import { loadFrame, FRAMES } from './sprite-test-helpers.ts';
 
 const testName = 'candidate-queue-manual';
