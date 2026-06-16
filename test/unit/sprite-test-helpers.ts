@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PNG } from 'pngjs';
 
-const MEDIA_DIR = resolve(import.meta.dirname, '..', 'media');
+const MEDIA_DIR = resolve(import.meta.dirname, '..', '..', 'test_media');
 
 export interface FrameData {
   rgba: Uint8ClampedArray;
@@ -26,5 +26,5 @@ export function loadFrame(frameNum: number): FrameData {
   };
 }
 
-/** 300 consecutive frames (150–449). */
-export const FRAMES = Array.from({ length: 300 }, (_, i) => 150 + i);
+/** Frames from 0:15 to 1:25 at 30fps (450–2550). */
+export const FRAMES = Array.from({ length: 2101 }, (_, i) => 450 + i);

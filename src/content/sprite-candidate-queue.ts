@@ -7,7 +7,7 @@ import type { Rect } from './image-ops';
 export interface CandidateResult {
   rect: Rect;
   paddedRect: Rect;
-  hash: string;
+  hash: bigint;
   density: number;
   centeredness: number;
   completeness: number;
@@ -19,7 +19,7 @@ export interface CandidateResult {
 }
 
 interface SpriteCluster {
-  hashes: string[];
+  hashes: bigint[];
   crops: Array<{
     rect: Rect;
     score: number;
@@ -38,7 +38,7 @@ export interface CandidateQueueState {
   frameCount: number;
 }
 
-const HASH_THRESHOLD = 10;
+const HASH_THRESHOLD = 18;
 const PAD_RATIO = 0.25;
 const MIN_DENSITY = 0.15;
 const MIN_COMPLETENESS = 0.5;
@@ -49,28 +49,88 @@ export function createCandidateQueue(): CandidateQueueState {
   return { clusters: [], results: [], frameCount: 0 };
 }
 
-function foregroundMetrics(
-  binary: Uint8Array,
-  width: number,
-  rect: Rect
+function keepLargestIsland(
+  rgba: Uint8ClampedArray,
+  w: number,
+  h: number
+): void {
+  const visited = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  const islands: number[][] = [];
+
+  for (let i = 0; i < w * h; i++) {
+    if (visited[i] !== 0 || (rgba[i * 4 + 3] ?? 0) === 0) {
+      continue;
+    }
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = i;
+    visited[i] = 1;
+    const members: number[] = [];
+
+    while (head < tail) {
+      const idx = queue[head++] ?? 0;
+      members.push(idx);
+      const px = idx % w;
+      const py = (idx - px) / w;
+      const neighbors = [
+        py > 0 ? idx - w : -1,
+        py < h - 1 ? idx + w : -1,
+        px > 0 ? idx - 1 : -1,
+        px < w - 1 ? idx + 1 : -1,
+      ];
+      for (const n of neighbors) {
+        if (n >= 0 && visited[n] === 0 && (rgba[n * 4 + 3] ?? 0) > 0) {
+          visited[n] = 1;
+          queue[tail++] = n;
+        }
+      }
+    }
+    islands.push(members);
+  }
+
+  if (islands.length <= 1) {
+    return;
+  }
+
+  let largest = islands[0];
+  for (let i = 1; i < islands.length; i++) {
+    const island = islands[i];
+    if (island && largest && island.length > largest.length) {
+      largest = island;
+    }
+  }
+
+  const keep = new Uint8Array(w * h);
+  if (largest) {
+    for (const m of largest) {
+      keep[m] = 1;
+    }
+  }
+  for (let i = 0; i < w * h; i++) {
+    if (keep[i] === 0) {
+      rgba[i * 4 + 3] = 0;
+    }
+  }
+}
+
+function cropMetrics(
+  rgba: Uint8ClampedArray,
+  w: number,
+  h: number
 ): { density: number; centeredness: number; completeness: number } {
   let pixelCount = 0;
   let sumX = 0;
   let sumY = 0;
   let borderHits = 0;
 
-  for (let py = rect.y; py < rect.y + rect.h; py++) {
-    for (let px = rect.x; px < rect.x + rect.w; px++) {
-      if (binary[py * width + px] !== 0) {
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      if ((rgba[(py * w + px) * 4 + 3] ?? 0) > 0) {
         pixelCount++;
         sumX += px;
         sumY += py;
-        if (
-          px === rect.x ||
-          px === rect.x + rect.w - 1 ||
-          py === rect.y ||
-          py === rect.y + rect.h - 1
-        ) {
+        if (px === 0 || px === w - 1 || py === 0 || py === h - 1) {
           borderHits++;
         }
       }
@@ -81,16 +141,16 @@ function foregroundMetrics(
     return { density: 0, centeredness: 0, completeness: 1 };
   }
 
-  const density = pixelCount / (rect.w * rect.h);
+  const density = pixelCount / (w * h);
   const centroidX = sumX / pixelCount;
   const centroidY = sumY / pixelCount;
   const centeredness =
     1 -
     Math.max(
-      Math.abs(centroidX - (rect.x + rect.w / 2)) / (rect.w / 2),
-      Math.abs(centroidY - (rect.y + rect.h / 2)) / (rect.h / 2)
+      Math.abs(centroidX - w / 2) / (w / 2),
+      Math.abs(centroidY - h / 2) / (h / 2)
     );
-  const perimeter = 2 * (rect.w + rect.h);
+  const perimeter = 2 * (w + h);
   const completeness = perimeter > 0 ? 1 - borderHits / perimeter : 1;
 
   return { density, centeredness, completeness };
@@ -129,7 +189,7 @@ function sharpnessFromColor(
 
 function findCluster(
   clusters: SpriteCluster[],
-  hash: string
+  hash: bigint
 ): SpriteCluster | undefined {
   for (const cluster of clusters) {
     for (const h of cluster.hashes) {
@@ -163,14 +223,6 @@ export function processCandidates(
     const ch = Math.min(height - cy, cand.h + pad * 2);
     const paddedRect: Rect = { x: cx, y: cy, w: cw, h: ch };
 
-    const metrics = foregroundMetrics(binary, width, paddedRect);
-    if (
-      metrics.density < MIN_DENSITY ||
-      metrics.completeness < MIN_COMPLETENESS
-    ) {
-      continue;
-    }
-
     const exterior = buildExteriorMask(binary, width, cx, cy, cw, ch);
     const cropData = applyCropMaskRaw(
       imageData,
@@ -181,6 +233,15 @@ export function processCandidates(
       cw,
       ch
     );
+    keepLargestIsland(cropData, cw, ch);
+
+    const metrics = cropMetrics(cropData, cw, ch);
+    if (
+      metrics.density < MIN_DENSITY ||
+      metrics.completeness < MIN_COMPLETENESS
+    ) {
+      continue;
+    }
 
     const sharp = sharpnessFromColor(cropData, cw, ch);
     const normalizedSharpness = Math.min(sharp / 500, 1.0);
@@ -205,7 +266,14 @@ export function processCandidates(
         continue;
       }
       cluster.hashes.push(hash);
-      cluster.crops.push({ rect: paddedRect, score, frame: state.frameCount, data: cropData, w: cw, h: ch });
+      cluster.crops.push({
+        rect: paddedRect,
+        score,
+        frame: state.frameCount,
+        data: cropData,
+        w: cw,
+        h: ch,
+      });
       cluster.totalQuality += score;
       if (cluster.totalQuality >= QUALITY_BUDGET) {
         cluster.solved = true;
@@ -214,7 +282,16 @@ export function processCandidates(
     } else {
       const c: SpriteCluster = {
         hashes: [hash],
-        crops: [{ rect: paddedRect, score, frame: state.frameCount, data: cropData, w: cw, h: ch }],
+        crops: [
+          {
+            rect: paddedRect,
+            score,
+            frame: state.frameCount,
+            data: cropData,
+            w: cw,
+            h: ch,
+          },
+        ],
         totalQuality: score,
         solved: score >= QUALITY_BUDGET,
       };
