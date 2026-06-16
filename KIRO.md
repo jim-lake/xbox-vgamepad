@@ -54,6 +54,7 @@ Key injected modules:
 | Format            | `npm run pretty`           | `prettier --write .`                                                   |
 | All tests         | `npm test`                 | Runs unit tests then integration tests                                 |
 | Integration tests | `npm run test:integration` | Builds to `build-test/` (test mode) then runs Puppeteer suites         |
+| Integration single| `npm run test:integration:single -- <suite1> [suite2] ...` | Runs only named suites (e.g. `axes`, `edge-cases`) |
 | Unit tests        | `npm run test:unit`        | Fast unit tests (no browser, no build) in `test/unit/`                 |
 | Patch tests       | `npm run test:patch`       | Builds test mode + runs co-op patch integration tests                  |
 | Patch setup       | `npm run test:patch:setup` | Builds test mode, launches Chrome with extension + 2-controller config |
@@ -105,6 +106,8 @@ Key behavioral requirements:
 - GameScripts use an additive button model — "up" only removes that script's contribution
 
 ## Testing
+
+**IMPORTANT**: `test:unit`, `test:integration`, and `test:integration:single` all redirect output to a unique log file in `/tmp` and print only the file path. NEVER pipe these commands through `head`, `grep`, or `tail`. Instead, run the test command bare, then inspect the resulting log file separately (e.g. `cat /tmp/test-unit-....log`, `grep FAIL /tmp/test-integration-....log`). This allows repeated inspection without re-running tests.
 
 Tests are Puppeteer-based integration tests in `test/`. They:
 

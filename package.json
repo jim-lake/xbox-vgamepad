@@ -1,7 +1,7 @@
 {
   "name": "xbox-vgamepad",
   "private": true,
-  "version": "0.0.1226",
+  "version": "0.0.1235",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,8 +11,9 @@
     "pretty": "prettier --write .",
     "preview": "vite preview",
     "test": "npm run test:unit && npm run test:integration",
-    "test:integration": "vite build --mode test && node test/gamepad.test.cjs",
-    "test:unit": "tsx --tsconfig tsconfig.test.json --import ./test/unit/setup.mjs --test 'test/unit/*.test.ts'",
+    "test:integration": "sh test/run-integration.sh",
+    "test:integration:single": "sh test/run-integration-single.sh",
+    "test:unit": "sh test/run-unit.sh",
     "test:unit:sprite:background:manual": "tsx --tsconfig tsconfig.test.json test/unit/background-model-manual.ts",
     "test:unit:sprite:bounding-rects:manual": "tsx --tsconfig tsconfig.test.json test/unit/bounding-rects-manual.ts",
     "test:unit:sprite:candidate-queue:manual": "tsx --tsconfig tsconfig.test.json test/unit/candidate-queue-manual.ts",
