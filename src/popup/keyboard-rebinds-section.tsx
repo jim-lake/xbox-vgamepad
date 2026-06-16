@@ -31,9 +31,7 @@ export default function KeyboardRebindsSection({
 }: Props) {
   const [listenMode, setListenMode] = React.useState<ListenMode | null>(null);
 
-  const targets = [...keyboardRemaps.keys()].sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const targets = [...keyboardRemaps.keys()].sort((a, b) => a.localeCompare(b));
 
   React.useEffect(() => {
     if (listenMode === null) {
@@ -57,7 +55,10 @@ export default function KeyboardRebindsSection({
         const existing = keyboardRemaps.get(listenMode.target) ?? [];
         if (!existing.includes(code)) {
           onChange(
-            new Map([...keyboardRemaps, [listenMode.target, [...existing, code]]])
+            new Map([
+              ...keyboardRemaps,
+              [listenMode.target, [...existing, code]],
+            ])
           );
         }
       }

@@ -1,113 +1,251 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keyboard Test</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; }
-.keyboard { background: #2d2d2d; border-radius: 12px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); border: 1px solid #3a3a3a; transform-origin: center; }
-.row { display: flex; gap: 4px; margin-bottom: 4px; }
-.key {
-  background: #3d3d3d;
-  border: 1px solid #4a4a4a;
-  border-radius: 5px;
-  color: #ccc;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 36px;
-  padding: 0 4px;
-  user-select: none;
-  transition: background 0.05s;
-  box-shadow: 0 2px 0 #222, inset 0 1px 0 rgba(255,255,255,0.05);
-  text-align: center;
-  line-height: 1.1;
-  flex-shrink: 0;
-}
-.key.active { background: #2ecc40; border-color: #27ae60; color: #fff; box-shadow: 0 0 8px rgba(46,204,64,0.4), inset 0 1px 0 rgba(255,255,255,0.1); }
-.key.dead { color: #555; pointer-events: none; }
-.key.half { height: 16px; }
-.arrow-stack { display: flex; flex-direction: column; gap: 4px; }
-</style>
-</head>
-<body>
-<div class="keyboard" id="keyboard"></div>
-<script>
-// Unit width = 44px + 4px gap. Key width = units * 48 - 4
-const U = 48;
-const totalUnits = 14.5; // total row width in units
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keyboard Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      }
+      .keyboard {
+        background: #2d2d2d;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        border: 1px solid #3a3a3a;
+        transform-origin: center;
+      }
+      .row {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
+      .key {
+        background: #3d3d3d;
+        border: 1px solid #4a4a4a;
+        border-radius: 5px;
+        color: #ccc;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 36px;
+        padding: 0 4px;
+        user-select: none;
+        transition: background 0.05s;
+        box-shadow:
+          0 2px 0 #222,
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        text-align: center;
+        line-height: 1.1;
+        flex-shrink: 0;
+      }
+      .key.active {
+        background: #2ecc40;
+        border-color: #27ae60;
+        color: #fff;
+        box-shadow:
+          0 0 8px rgba(46, 204, 64, 0.4),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+      .key.dead {
+        color: #555;
+        pointer-events: none;
+      }
+      .key.half {
+        height: 16px;
+      }
+      .arrow-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="keyboard" id="keyboard"></div>
+    <script>
+      // Unit width = 44px + 4px gap. Key width = units * 48 - 4
+      const U = 48;
+      const totalUnits = 14.5; // total row width in units
 
-const rows = [
-  [{k:'Escape',l:'esc',u:1},{k:'F1',l:'F1',u:1},{k:'F2',l:'F2',u:1},{k:'F3',l:'F3',u:1},{k:'F4',l:'F4',u:1},{k:'F5',l:'F5',u:1},{k:'F6',l:'F6',u:1},{k:'F7',l:'F7',u:1},{k:'F8',l:'F8',u:1},{k:'F9',l:'F9',u:1},{k:'F10',l:'F10',u:1},{k:'F11',l:'F11',u:1},{k:'F12',l:'F12',u:1},{k:'_touch',l:'🔲',u:1.5,dead:true}],
-  [{k:'Backquote',l:'`',u:1},{k:'Digit1',l:'1',u:1},{k:'Digit2',l:'2',u:1},{k:'Digit3',l:'3',u:1},{k:'Digit4',l:'4',u:1},{k:'Digit5',l:'5',u:1},{k:'Digit6',l:'6',u:1},{k:'Digit7',l:'7',u:1},{k:'Digit8',l:'8',u:1},{k:'Digit9',l:'9',u:1},{k:'Digit0',l:'0',u:1},{k:'Minus',l:'-',u:1},{k:'Equal',l:'=',u:1},{k:'Backspace',l:'delete',u:1.5}],
-  [{k:'Tab',l:'tab',u:1.5},{k:'KeyQ',l:'Q',u:1},{k:'KeyW',l:'W',u:1},{k:'KeyE',l:'E',u:1},{k:'KeyR',l:'R',u:1},{k:'KeyT',l:'T',u:1},{k:'KeyY',l:'Y',u:1},{k:'KeyU',l:'U',u:1},{k:'KeyI',l:'I',u:1},{k:'KeyO',l:'O',u:1},{k:'KeyP',l:'P',u:1},{k:'BracketLeft',l:'[',u:1},{k:'BracketRight',l:']',u:1},{k:'Backslash',l:'\\',u:1}],
-  [{k:'CapsLock',l:'caps lock',u:1.75},{k:'KeyA',l:'A',u:1},{k:'KeyS',l:'S',u:1},{k:'KeyD',l:'D',u:1},{k:'KeyF',l:'F',u:1},{k:'KeyG',l:'G',u:1},{k:'KeyH',l:'H',u:1},{k:'KeyJ',l:'J',u:1},{k:'KeyK',l:'K',u:1},{k:'KeyL',l:'L',u:1},{k:'Semicolon',l:';',u:1},{k:'Quote',l:"'",u:1},{k:'Enter',l:'return',u:1.75}],
-  [{k:'ShiftLeft',l:'shift',u:2.25},{k:'KeyZ',l:'Z',u:1},{k:'KeyX',l:'X',u:1},{k:'KeyC',l:'C',u:1},{k:'KeyV',l:'V',u:1},{k:'KeyB',l:'B',u:1},{k:'KeyN',l:'N',u:1},{k:'KeyM',l:'M',u:1},{k:'Comma',l:',',u:1},{k:'Period',l:'.',u:1},{k:'Slash',l:'/',u:1},{k:'ShiftRight',l:'shift',u:2.25}],
-  [{k:'_fn',l:'fn',u:1,dead:true},{k:'ControlLeft',l:'control',u:1},{k:'AltLeft',l:'option',u:1},{k:'MetaLeft',l:'⌘',u:1.25},{k:'Space',l:'',u:5},{k:'MetaRight',l:'⌘',u:1.25},{k:'AltRight',l:'option',u:1},{k:'ArrowLeft',l:'◀',u:1},{k:'_arrows',l:'',u:1,arrows:true},{k:'ArrowRight',l:'▶',u:1}]
-];
+      const rows = [
+        [
+          { k: 'Escape', l: 'esc', u: 1 },
+          { k: 'F1', l: 'F1', u: 1 },
+          { k: 'F2', l: 'F2', u: 1 },
+          { k: 'F3', l: 'F3', u: 1 },
+          { k: 'F4', l: 'F4', u: 1 },
+          { k: 'F5', l: 'F5', u: 1 },
+          { k: 'F6', l: 'F6', u: 1 },
+          { k: 'F7', l: 'F7', u: 1 },
+          { k: 'F8', l: 'F8', u: 1 },
+          { k: 'F9', l: 'F9', u: 1 },
+          { k: 'F10', l: 'F10', u: 1 },
+          { k: 'F11', l: 'F11', u: 1 },
+          { k: 'F12', l: 'F12', u: 1 },
+          { k: '_touch', l: '🔲', u: 1.5, dead: true },
+        ],
+        [
+          { k: 'Backquote', l: '`', u: 1 },
+          { k: 'Digit1', l: '1', u: 1 },
+          { k: 'Digit2', l: '2', u: 1 },
+          { k: 'Digit3', l: '3', u: 1 },
+          { k: 'Digit4', l: '4', u: 1 },
+          { k: 'Digit5', l: '5', u: 1 },
+          { k: 'Digit6', l: '6', u: 1 },
+          { k: 'Digit7', l: '7', u: 1 },
+          { k: 'Digit8', l: '8', u: 1 },
+          { k: 'Digit9', l: '9', u: 1 },
+          { k: 'Digit0', l: '0', u: 1 },
+          { k: 'Minus', l: '-', u: 1 },
+          { k: 'Equal', l: '=', u: 1 },
+          { k: 'Backspace', l: 'delete', u: 1.5 },
+        ],
+        [
+          { k: 'Tab', l: 'tab', u: 1.5 },
+          { k: 'KeyQ', l: 'Q', u: 1 },
+          { k: 'KeyW', l: 'W', u: 1 },
+          { k: 'KeyE', l: 'E', u: 1 },
+          { k: 'KeyR', l: 'R', u: 1 },
+          { k: 'KeyT', l: 'T', u: 1 },
+          { k: 'KeyY', l: 'Y', u: 1 },
+          { k: 'KeyU', l: 'U', u: 1 },
+          { k: 'KeyI', l: 'I', u: 1 },
+          { k: 'KeyO', l: 'O', u: 1 },
+          { k: 'KeyP', l: 'P', u: 1 },
+          { k: 'BracketLeft', l: '[', u: 1 },
+          { k: 'BracketRight', l: ']', u: 1 },
+          { k: 'Backslash', l: '\\', u: 1 },
+        ],
+        [
+          { k: 'CapsLock', l: 'caps lock', u: 1.75 },
+          { k: 'KeyA', l: 'A', u: 1 },
+          { k: 'KeyS', l: 'S', u: 1 },
+          { k: 'KeyD', l: 'D', u: 1 },
+          { k: 'KeyF', l: 'F', u: 1 },
+          { k: 'KeyG', l: 'G', u: 1 },
+          { k: 'KeyH', l: 'H', u: 1 },
+          { k: 'KeyJ', l: 'J', u: 1 },
+          { k: 'KeyK', l: 'K', u: 1 },
+          { k: 'KeyL', l: 'L', u: 1 },
+          { k: 'Semicolon', l: ';', u: 1 },
+          { k: 'Quote', l: "'", u: 1 },
+          { k: 'Enter', l: 'return', u: 1.75 },
+        ],
+        [
+          { k: 'ShiftLeft', l: 'shift', u: 2.25 },
+          { k: 'KeyZ', l: 'Z', u: 1 },
+          { k: 'KeyX', l: 'X', u: 1 },
+          { k: 'KeyC', l: 'C', u: 1 },
+          { k: 'KeyV', l: 'V', u: 1 },
+          { k: 'KeyB', l: 'B', u: 1 },
+          { k: 'KeyN', l: 'N', u: 1 },
+          { k: 'KeyM', l: 'M', u: 1 },
+          { k: 'Comma', l: ',', u: 1 },
+          { k: 'Period', l: '.', u: 1 },
+          { k: 'Slash', l: '/', u: 1 },
+          { k: 'ShiftRight', l: 'shift', u: 2.25 },
+        ],
+        [
+          { k: '_fn', l: 'fn', u: 1, dead: true },
+          { k: 'ControlLeft', l: 'control', u: 1 },
+          { k: 'AltLeft', l: 'option', u: 1 },
+          { k: 'MetaLeft', l: '⌘', u: 1.25 },
+          { k: 'Space', l: '', u: 5 },
+          { k: 'MetaRight', l: '⌘', u: 1.25 },
+          { k: 'AltRight', l: 'option', u: 1 },
+          { k: 'ArrowLeft', l: '◀', u: 1 },
+          { k: '_arrows', l: '', u: 1, arrows: true },
+          { k: 'ArrowRight', l: '▶', u: 1 },
+        ],
+      ];
 
-const kb = document.getElementById('keyboard');
-const keyEls = {};
+      const kb = document.getElementById('keyboard');
+      const keyEls = {};
 
-rows.forEach(row => {
-  const rowEl = document.createElement('div');
-  rowEl.className = 'row';
-  row.forEach(({k, l, u, dead, arrows}) => {
-    if (arrows) {
-      // stacked up/down
-      const stack = document.createElement('div');
-      stack.className = 'arrow-stack';
-      const up = document.createElement('div');
-      up.className = 'key half';
-      up.style.width = (u * U - 4) + 'px';
-      up.textContent = '▲';
-      up.dataset.code = 'ArrowUp';
-      keyEls['ArrowUp'] = up;
-      const down = document.createElement('div');
-      down.className = 'key half';
-      down.style.width = (u * U - 4) + 'px';
-      down.textContent = '▼';
-      down.dataset.code = 'ArrowDown';
-      keyEls['ArrowDown'] = down;
-      stack.appendChild(up);
-      stack.appendChild(down);
-      rowEl.appendChild(stack);
-    } else {
-      const el = document.createElement('div');
-      el.className = 'key' + (dead ? ' dead' : '');
-      el.style.width = (u * U - 4) + 'px';
-      el.textContent = l;
-      el.dataset.code = k;
-      rowEl.appendChild(el);
-      if (!k.startsWith('_')) keyEls[k] = el;
-    }
-  });
-  kb.appendChild(rowEl);
-});
+      rows.forEach((row) => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'row';
+        row.forEach(({ k, l, u, dead, arrows }) => {
+          if (arrows) {
+            // stacked up/down
+            const stack = document.createElement('div');
+            stack.className = 'arrow-stack';
+            const up = document.createElement('div');
+            up.className = 'key half';
+            up.style.width = u * U - 4 + 'px';
+            up.textContent = '▲';
+            up.dataset.code = 'ArrowUp';
+            keyEls['ArrowUp'] = up;
+            const down = document.createElement('div');
+            down.className = 'key half';
+            down.style.width = u * U - 4 + 'px';
+            down.textContent = '▼';
+            down.dataset.code = 'ArrowDown';
+            keyEls['ArrowDown'] = down;
+            stack.appendChild(up);
+            stack.appendChild(down);
+            rowEl.appendChild(stack);
+          } else {
+            const el = document.createElement('div');
+            el.className = 'key' + (dead ? ' dead' : '');
+            el.style.width = u * U - 4 + 'px';
+            el.textContent = l;
+            el.dataset.code = k;
+            rowEl.appendChild(el);
+            if (!k.startsWith('_')) keyEls[k] = el;
+          }
+        });
+        kb.appendChild(rowEl);
+      });
 
-document.addEventListener('keydown', e => {
-  e.preventDefault();
-  const el = keyEls[e.code];
-  if (el) el.classList.add('active');
-}, true);
+      document.addEventListener(
+        'keydown',
+        (e) => {
+          e.preventDefault();
+          const el = keyEls[e.code];
+          if (el) el.classList.add('active');
+        },
+        true
+      );
 
-document.addEventListener('keyup', e => {
-  e.preventDefault();
-  const el = keyEls[e.code];
-  if (el) el.classList.remove('active');
-}, true);
+      document.addEventListener(
+        'keyup',
+        (e) => {
+          e.preventDefault();
+          const el = keyEls[e.code];
+          if (el) el.classList.remove('active');
+        },
+        true
+      );
 
-function fitKeyboard() {
-  const k = document.getElementById('keyboard');
-  const scale = Math.min(1, (window.innerWidth - 20) / k.scrollWidth, (window.innerHeight - 20) / k.scrollHeight);
-  k.style.transform = 'scale(' + scale + ')';
-}
-window.addEventListener('resize', fitKeyboard);
-fitKeyboard();
-</script>
-</body>
+      function fitKeyboard() {
+        const k = document.getElementById('keyboard');
+        const scale = Math.min(
+          1,
+          (window.innerWidth - 20) / k.scrollWidth,
+          (window.innerHeight - 20) / k.scrollHeight
+        );
+        k.style.transform = 'scale(' + scale + ')';
+      }
+      window.addEventListener('resize', fitKeyboard);
+      fitKeyboard();
+    </script>
+  </body>
 </html>
