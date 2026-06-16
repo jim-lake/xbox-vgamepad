@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
-import TextButton from '@/components/buttons/text_button';
 import IconButton from '@/components/buttons/icon_button';
+import SectionHeader from '@/components/popup/section-header';
 import BindingBadges from '@/components/popup/binding-badges';
 import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import { formatCode } from './script-helpers';
@@ -11,18 +11,6 @@ import closeIcon from '@/assets/img/close.svg';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
-  sectionTitle: {
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    fontWeight: '600',
-    marginBottom: '0.4rem',
-    textTransform: 'uppercase',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   row: {
     paddingTop: '0.5rem',
     paddingBottom: '0.5rem',
@@ -104,16 +92,14 @@ export default function KeyboardRebindsSection({
 
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
-        <Text style={styles.sectionTitle}>Keyboard Rebinds</Text>
-        <TextButton
-          text='Add Target'
-          type='green'
-          onPress={() => {
-            setListenMode({ type: 'add-target' });
-          }}
-        />
-      </View>
+      <SectionHeader
+        title='Keyboard Rebinds'
+        buttonText='Add Target'
+        buttonType='green'
+        onPress={() => {
+          setListenMode({ type: 'add-target' });
+        }}
+      />
       {targets.map((target) => {
         const sources = keyboardRemaps[target] ?? [];
         return (

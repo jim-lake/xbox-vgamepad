@@ -35,9 +35,8 @@ Object.defineProperty(globalThis, 'KeyboardEvent', {
   configurable: true,
 });
 
-const { installRebinds, removeRebinds } = await import(
-  '../../src/injected/keyboard-rebind.ts'
-);
+const { installRebinds, removeRebinds } =
+  await import('../../src/injected/keyboard-rebind.ts');
 
 function fireKeyEvent(type: 'keydown' | 'keyup', code: string) {
   let stopped = false;

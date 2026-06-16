@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet } from '@/components/base_components';
-import TextButton from '@/components/buttons/text_button';
 import type { PopupGameScript } from '@/types/popup';
 import type { ScriptBinding, PopupScript } from '@/types/popup';
 import ScriptRow from '@/components/popup/script-row';
@@ -9,14 +8,7 @@ import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import type { ScriptEntry } from './script-helpers';
 import { errorLog } from '@/tools/log';
 
-const styles = StyleSheet.create({
-  container: { flexDirection: 'column' },
-  addRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingTop: '0.5rem',
-  },
-});
+const styles = StyleSheet.create({ container: { flexDirection: 'column' } });
 
 interface Props {
   scriptBindings: ScriptBinding[];
@@ -110,21 +102,6 @@ export default function ScriptEditor({
     onListeningEntryChange,
   ]);
 
-  function handleAdd() {
-    const script: PopupGameScript = {
-      type: 'script',
-      name: 'New Script',
-      activationType: 'on_down',
-      actions: [],
-    };
-    const scriptId = `script_${String(Date.now())}`;
-    onChangeBindings(
-      [...scriptBindings, { scriptId, keyCodes: [] }],
-      [...scripts, { scriptId, script }]
-    );
-    onEditingScriptIdChange(scriptId);
-  }
-
   function handleScriptChange(scriptId: string, newScript: PopupGameScript) {
     onChangeBindings(
       scriptBindings,
@@ -209,12 +186,12 @@ export default function ScriptEditor({
         );
       })}
 
-      <View style={styles.addRow}>
-        <TextButton text='Add Script' type='green' onPress={handleAdd} />
-      </View>
-
       {listeningEntry !== null && (
-        <KeyCaptureModal onClose={() => { onListeningEntryChange(null); }} />
+        <KeyCaptureModal
+          onClose={() => {
+            onListeningEntryChange(null);
+          }}
+        />
       )}
     </View>
   );

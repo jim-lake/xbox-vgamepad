@@ -45,19 +45,19 @@ Key injected modules:
 
 ## Key Commands
 
-| Task              | Command                    | Notes                                                                  |
-| ----------------- | -------------------------- | ---------------------------------------------------------------------- |
-| Dev server        | `npm run dev`              | Outputs to `build/`, includes HMR                                      |
-| Build             | `npm run build`            | Type-checks then builds production to `dist/`                          |
-| Type check        | `npm run ts:check`         | `tsc -b --noEmit`                                                      |
-| Lint + fix        | `npm run lint`             | `eslint . --fix`                                                       |
-| Format            | `npm run pretty`           | `prettier --write .`                                                   |
-| All tests         | `npm test`                 | Runs unit tests then integration tests                                 |
-| Integration tests | `npm run test:integration` | Builds to `build-test/` (test mode) then runs Puppeteer suites         |
-| Integration single| `npm run test:integration:single -- <suite1> [suite2] ...` | Runs only named suites (e.g. `axes`, `edge-cases`) |
-| Unit tests        | `npm run test:unit`        | Fast unit tests (no browser, no build) in `test/unit/`                 |
-| Patch tests       | `npm run test:patch`       | Builds test mode + runs co-op patch integration tests                  |
-| Patch setup       | `npm run test:patch:setup` | Builds test mode, launches Chrome with extension + 2-controller config |
+| Task               | Command                                                    | Notes                                                                  |
+| ------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Dev server         | `npm run dev`                                              | Outputs to `build/`, includes HMR                                      |
+| Build              | `npm run build`                                            | Type-checks then builds production to `dist/`                          |
+| Type check         | `npm run ts:check`                                         | `tsc -b --noEmit`                                                      |
+| Lint + fix         | `npm run lint`                                             | `eslint . --fix`                                                       |
+| Format             | `npm run pretty`                                           | `prettier --write .`                                                   |
+| All tests          | `npm test`                                                 | Runs unit tests then integration tests                                 |
+| Integration tests  | `npm run test:integration`                                 | Builds to `build-test/` (test mode) then runs Puppeteer suites         |
+| Integration single | `npm run test:integration:single -- <suite1> [suite2] ...` | Runs only named suites (e.g. `axes`, `edge-cases`)                     |
+| Unit tests         | `npm run test:unit`                                        | Fast unit tests (no browser, no build) in `test/unit/`                 |
+| Patch tests        | `npm run test:patch`                                       | Builds test mode + runs co-op patch integration tests                  |
+| Patch setup        | `npm run test:patch:setup`                                 | Builds test mode, launches Chrome with extension + 2-controller config |
 
 ## Build Modes
 

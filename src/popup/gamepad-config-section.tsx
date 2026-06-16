@@ -4,23 +4,22 @@ import Select from '@/components/select';
 import Switch from '@/components/switch';
 import TextButton from '@/components/buttons/text_button';
 import MouseSettings from '@/components/popup/mouse-settings';
+import SectionHeader from '@/components/popup/section-header';
 import KeyBindingEditor from './key-binding-editor';
 import ScriptEditor from './script-editor';
 import type { ScriptEntry } from './script-helpers';
 import { isSentinelKey } from './script-helpers';
 import { ACTION_LABELS } from './action-labels';
 import type { GamepadActionName } from '@/types/gamepad';
-import type { PopupSlot, PopupScript, ScriptBinding } from '@/types/popup';
+import type {
+  PopupGameScript,
+  PopupSlot,
+  PopupScript,
+  ScriptBinding,
+} from '@/types/popup';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
-  sectionTitle: {
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    fontWeight: '600',
-    marginBottom: '0.4rem',
-    textTransform: 'uppercase',
-  },
   row: {
     paddingTop: '0.5rem',
     paddingBottom: '0.5rem',
@@ -114,10 +113,25 @@ export default function GamepadConfigSection({
     return map;
   }, [slot.bindings, slot.scriptBindings, scripts]);
 
+  function handleAddScript() {
+    const script: PopupGameScript = {
+      type: 'script',
+      name: 'New Script',
+      activationType: 'on_down',
+      actions: [],
+    };
+    const scriptId = `script_${String(Date.now())}`;
+    onChangeScripts(
+      [...slot.scriptBindings, { scriptId, keyCodes: [] }],
+      [...scripts, { scriptId, script }]
+    );
+    onEditingScriptIdChange(scriptId);
+  }
+
   return (
     <>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Config</Text>
+        <SectionHeader title='Config' />
         <View style={styles.row}>
           <Text style={styles.label}>Connected</Text>
           <Switch value={isConnected} onValueChange={onToggleConnected} />
@@ -154,7 +168,7 @@ export default function GamepadConfigSection({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mouse</Text>
+        <SectionHeader title='Mouse' />
         <MouseSettings
           mouse={slot.mouse}
           onChangeStick={onChangeMouseStick}
@@ -163,7 +177,7 @@ export default function GamepadConfigSection({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Bindings</Text>
+        <SectionHeader title='Key Bindings' />
         <KeyBindingEditor
           bindings={slot.bindings}
           codeToLabels={codeToLabels}
@@ -172,7 +186,12 @@ export default function GamepadConfigSection({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Scripts</Text>
+        <SectionHeader
+          title='Scripts'
+          buttonText='Add Script'
+          buttonType='green'
+          onPress={handleAddScript}
+        />
         <ScriptEditor
           scriptBindings={slot.scriptBindings}
           scripts={scripts}

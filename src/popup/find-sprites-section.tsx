@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
+import SectionHeader from '@/components/popup/section-header';
 import { sendStartFindSprites } from './messaging';
 import { errorLog } from '@/tools/log';
 
@@ -15,13 +16,6 @@ type ModelState =
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
-  sectionTitle: {
-    color: 'var(--text-muted)',
-    fontSize: '1.4rem',
-    fontWeight: '600',
-    marginBottom: '0.4rem',
-    textTransform: 'uppercase',
-  },
   row: {
     paddingTop: '0.5rem',
     paddingBottom: '0.5rem',
@@ -166,7 +160,7 @@ export default function FindSpritesSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Sprite Extraction</Text>
+      <SectionHeader title='Sprite Extraction' />
       <View style={styles.row}>{renderContent()}</View>
     </View>
   );

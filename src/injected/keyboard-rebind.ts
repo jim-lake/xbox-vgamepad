@@ -38,7 +38,7 @@ function onKeyDown(e: KeyboardEvent): void {
   e.stopImmediatePropagation();
   e.preventDefault();
   heldKeys.add(e.code);
-  const target = (e.target ?? document);
+  const target = e.target ?? document;
   dispatching = true;
   for (const toCode of toCodes) {
     target.dispatchEvent(
@@ -74,7 +74,7 @@ function onKeyUp(e: KeyboardEvent): void {
   e.stopImmediatePropagation();
   e.preventDefault();
   heldKeys.delete(e.code);
-  const target = (e.target ?? document);
+  const target = e.target ?? document;
   dispatching = true;
   for (const toCode of toCodes) {
     target.dispatchEvent(

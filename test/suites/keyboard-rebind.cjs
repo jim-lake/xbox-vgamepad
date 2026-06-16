@@ -155,25 +155,19 @@ module.exports = async function ({
   });
   await new Promise((r) => setTimeout(r, 100));
 
-  await assert(
-    'multiple rebinds: KeyZ → Space triggers button A',
-    async () => {
-      await page.keyboard.down('z');
-      await waitForButton(page, 0, true);
-      await page.keyboard.up('z');
-      await waitForButton(page, 0, false);
-    }
-  );
+  await assert('multiple rebinds: KeyZ → Space triggers button A', async () => {
+    await page.keyboard.down('z');
+    await waitForButton(page, 0, true);
+    await page.keyboard.up('z');
+    await waitForButton(page, 0, false);
+  });
 
-  await assert(
-    'multiple rebinds: KeyX → KeyB triggers button B',
-    async () => {
-      await page.keyboard.down('x');
-      await waitForButton(page, 1, true);
-      await page.keyboard.up('x');
-      await waitForButton(page, 1, false);
-    }
-  );
+  await assert('multiple rebinds: KeyX → KeyB triggers button B', async () => {
+    await page.keyboard.down('x');
+    await waitForButton(page, 1, true);
+    await page.keyboard.up('x');
+    await waitForButton(page, 1, false);
+  });
 
   await releaseAll(page);
 
@@ -191,26 +185,23 @@ module.exports = async function ({
   await sendConfigToPage(page, { type: 'DISABLE_GAMEPAD' });
   await waitForStatus(page, 'disconnected', 5000);
 
-  await assert(
-    'after DISABLE_GAMEPAD, rebinds are removed',
-    async () => {
-      await page.evaluate(() => {
-        window.__testSeenCodes = [];
-        window.__testListener = (e) => {
-          window.__testSeenCodes.push(e.code);
-        };
-        document.addEventListener('keydown', window.__testListener);
-      });
-      await page.keyboard.down('z');
-      await new Promise((r) => setTimeout(r, 100));
-      const seen = await page.evaluate(() => {
-        document.removeEventListener('keydown', window.__testListener);
-        return window.__testSeenCodes;
-      });
-      // KeyZ passes through unmodified — no rebind active
-      expect(seen.includes('KeyZ')).toBe(true);
-      expect(seen.includes('Space')).toBe(false);
-      await page.keyboard.up('z');
-    }
-  );
+  await assert('after DISABLE_GAMEPAD, rebinds are removed', async () => {
+    await page.evaluate(() => {
+      window.__testSeenCodes = [];
+      window.__testListener = (e) => {
+        window.__testSeenCodes.push(e.code);
+      };
+      document.addEventListener('keydown', window.__testListener);
+    });
+    await page.keyboard.down('z');
+    await new Promise((r) => setTimeout(r, 100));
+    const seen = await page.evaluate(() => {
+      document.removeEventListener('keydown', window.__testListener);
+      return window.__testSeenCodes;
+    });
+    // KeyZ passes through unmodified — no rebind active
+    expect(seen.includes('KeyZ')).toBe(true);
+    expect(seen.includes('Space')).toBe(false);
+    await page.keyboard.up('z');
+  });
 };

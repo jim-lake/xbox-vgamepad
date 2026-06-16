@@ -24,7 +24,9 @@ void test('round-trip: keyboardRebinds single target survives', () => {
 
 void test('round-trip: multiple targets from one source', () => {
   const cfg: GamepadConfig = {
-    keyboardConfig: { Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }] },
+    keyboardConfig: {
+      Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+    },
     mouseConfig: { mouseControls: [] },
     keyboardRebinds: [{ from: 'KeyZ', to: ['Space', 'KeyU'] }],
   };
@@ -45,7 +47,9 @@ void test('round-trip: multiple targets from one source', () => {
 
 void test('round-trip: same source key in multiple targets merges', () => {
   const cfg: GamepadConfig = {
-    keyboardConfig: { Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }] },
+    keyboardConfig: {
+      Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+    },
     mouseConfig: { mouseControls: [] },
     // Space fires itself AND KeyU — user presses Space, gets Space + KeyU
     keyboardRebinds: [{ from: 'Space', to: ['Space', 'KeyU'] }],
@@ -65,7 +69,9 @@ void test('round-trip: same source key in multiple targets merges', () => {
 
 void test('round-trip: missing keyboardRebinds defaults to empty', () => {
   const cfg: GamepadConfig = {
-    keyboardConfig: { Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }] },
+    keyboardConfig: {
+      Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+    },
     mouseConfig: { mouseControls: [] },
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
@@ -74,7 +80,9 @@ void test('round-trip: missing keyboardRebinds defaults to empty', () => {
 
 void test('round-trip: empty remaps produces empty rebinds', () => {
   const cfg: GamepadConfig = {
-    keyboardConfig: { Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }] },
+    keyboardConfig: {
+      Space: [{ type: 'action', gamepadIndex: 0, action: 'a' }],
+    },
     mouseConfig: { mouseControls: [] },
     keyboardRebinds: [],
   };
