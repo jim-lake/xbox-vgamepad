@@ -87,7 +87,7 @@ export default function KeyBindingEditor({
   return (
     <View style={styles.container}>
       {ACTION_LABELS.map(({ action, label }) => {
-        const codes = [...bindings[action]].sort((a, b) => a.localeCompare(b));
+        const codes = [...(bindings.get(action) ?? [])].sort((a, b) => a.localeCompare(b));
         return (
           <FormRow key={action} label={label}>
             <BindingBadges

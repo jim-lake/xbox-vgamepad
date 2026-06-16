@@ -94,7 +94,7 @@ export default function GamepadConfigSection({
   const codeToLabels = React.useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const { action, label } of ACTION_LABELS) {
-      for (const code of slot.bindings[action]) {
+      for (const code of slot.bindings.get(action) ?? []) {
         (map[code] ??= []).push(label);
       }
     }

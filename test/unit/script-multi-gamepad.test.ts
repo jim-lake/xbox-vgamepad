@@ -94,36 +94,36 @@ void test('ui workflow: add script on slot 0 (KeyQ), activate slot 1, bind KeyW 
   // After step 1+3: PopupConfig in memory
   const popup: PopupConfig = {
     scripts: [{ scriptId, script: BASE_SCRIPT }],
-    globalBindings: {} as PopupConfig['globalBindings'],
+    globalBindings: new Map(),
     otherGamepadMode: 'separate',
     fakeFullscreen: false,
-    keyboardRemaps: {},
+    keyboardRemaps: new Map(),
     slots: [
       {
         gamepadIndex: 0,
         active: true,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: ['KeyQ'] }],
       },
       {
         gamepadIndex: 1,
         active: true,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: ['KeyW'] }],
       },
       {
         gamepadIndex: 2,
         active: false,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: [] }],
       },
       {
         gamepadIndex: 3,
         active: false,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: [] }],
       },
@@ -161,36 +161,36 @@ void test('regression: two slots with same gamepadIndex both emit to that gamepa
   // slots[0].gamepadIndex was changed from 0 to 1 via handleChangeSlotIndex
   const popup: PopupConfig = {
     scripts: [{ scriptId, script: BASE_SCRIPT }],
-    globalBindings: {} as PopupConfig['globalBindings'],
+    globalBindings: new Map(),
     otherGamepadMode: 'separate',
     fakeFullscreen: false,
-    keyboardRemaps: {},
+    keyboardRemaps: new Map(),
     slots: [
       {
         gamepadIndex: 1, // ← changed from 0 to 1
         active: true,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: ['KeyQ'] }],
       },
       {
         gamepadIndex: 1, // ← also 1 — duplicate!
         active: true,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [{ scriptId, keyCodes: ['KeyW'] }],
       },
       {
         gamepadIndex: 2,
         active: false,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [],
       },
       {
         gamepadIndex: 3,
         active: false,
-        bindings: {} as PopupConfig['slots'][0]['bindings'],
+        bindings: new Map(),
         mouse: { stick: undefined, sensitivity: 101 },
         scriptBindings: [],
       },

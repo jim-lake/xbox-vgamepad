@@ -73,9 +73,7 @@ const ALL_ACTIONS: GamepadActionName[] = [
 ];
 
 function emptyBindings(): SlotBindings {
-  return Object.fromEntries(
-    ALL_ACTIONS.map((a) => [a, []])
-  ) as unknown as SlotBindings;
+  return new Map(ALL_ACTIONS.map((a) => [a, []]));
 }
 
 function getScriptSlot(script: GameScript): 0 | 1 | 2 | 3 {
@@ -130,9 +128,15 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
     for (const action of actions) {
       if (action.type === 'action') {
         if (GLOBAL_ACTIONS.has(action.action)) {
-          globalBindings[action.action].push(code);
+          const arr = globalBindings.get(action.action);
+          if (arr) {
+            arr.push(code);
+          }
         } else {
-          slotBindings[action.gamepadIndex][action.action].push(code);
+          const arr = slotBindings[action.gamepadIndex].get(action.action);
+          if (arr) {
+            arr.push(code);
+          }
         }
       } else {
         const slotIndex = getScriptSlot(action);
@@ -170,7 +174,7 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
         keyCodes: scriptKeyCodes.get(scriptId)?.get(idx) ?? [],
       }));
       const hasBindings =
-        Object.values(slotBindings[idx]).some((codes) => codes.length > 0) ||
+        [...slotBindings[idx].values()].some((codes) => codes.length > 0) ||
         mouseControl !== undefined ||
         scriptBindings.some((b) => b.keyCodes.length > 0);
       return {
@@ -212,10 +216,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
 
   // Slot bindings
   for (const slot of popup.slots) {
-    for (const [actionName, codes] of Object.entries(slot.bindings) as [
-      GamepadActionName,
-      string[],
-    ][]) {
+    for (const [actionName, codes] of slot.bindings) {
       for (const code of codes) {
         addBinding(code, {
           type: 'action' as const,
@@ -227,10 +228,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
   }
 
   // Global bindings
-  for (const [actionName, codes] of Object.entries(popup.globalBindings) as [
-    GamepadActionName,
-    string[],
-  ][]) {
+  for (const [actionName, codes] of popup.globalBindings) {
     for (const code of codes) {
       addBinding(code, {
         type: 'action' as const,
@@ -525,10 +523,10 @@ export function popupSetBinding(
 ): PopupConfig {
   const slot = popup.slots[slotIdx];
   return patchSlot(popup, slotIdx, {
-    bindings: {
+    bindings: new Map([
       ...slot.bindings,
-      [action]: applyCodeOp(slot.bindings[action], code, op),
-    },
+      [action, applyCodeOp(slot.bindings.get(action) ?? [], code, op)],
+    ]),
   });
 }
 
@@ -559,10 +557,10 @@ export function popupSetGlobalBinding(
 ): PopupConfig {
   return {
     ...popup,
-    globalBindings: {
+    globalBindings: new Map([
       ...popup.globalBindings,
-      [action]: applyCodeOp(popup.globalBindings[action], code, op),
-    },
+      [action, applyCodeOp(popup.globalBindings.get(action) ?? [], code, op)],
+    ]),
   };
 }
 
@@ -582,7 +580,7 @@ export function popupSetRemaps(
 
 /** Config model (from→to[]) → Popup model (target→sources[]) */
 function rebindsToRemaps(rebinds: KeyboardRebind[]): KeyboardRemaps {
-  const remaps: KeyboardRemaps = {};
+  const remaps: KeyboardRemaps = new Map();
   for (const { from, to } of rebinds) {
     if (from === '') {
       continue;
@@ -591,11 +589,11 @@ function rebindsToRemaps(rebinds: KeyboardRebind[]): KeyboardRemaps {
       if (target === '') {
         continue;
       }
-      const sources = remaps[target] ?? [];
+      const sources = remaps.get(target) ?? [];
       if (!sources.includes(from)) {
         sources.push(from);
       }
-      remaps[target] = sources;
+      remaps.set(target, sources);
     }
   }
   return remaps;
@@ -604,7 +602,7 @@ function rebindsToRemaps(rebinds: KeyboardRebind[]): KeyboardRemaps {
 /** Popup model (target→sources[]) → Config model (from→to[]) */
 function remapsToRebinds(remaps: KeyboardRemaps): KeyboardRebind[] {
   const map = new Map<string, string[]>();
-  for (const [target, sources] of Object.entries(remaps)) {
+  for (const [target, sources] of remaps) {
     for (const source of sources) {
       const existing = map.get(source) ?? [];
       if (!existing.includes(target)) {

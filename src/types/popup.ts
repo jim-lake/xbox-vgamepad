@@ -28,7 +28,7 @@ export type PopupScriptAction = ScriptAction<
 >;
 export type PopupGameScript = GameScript<PopupScriptAction>;
 
-export type SlotBindings = Record<GamepadActionName, string[]>;
+export type SlotBindings = Map<GamepadActionName, string[]>;
 
 export interface SlotMouse {
   stick: 'left' | 'right' | undefined;
@@ -53,9 +53,9 @@ export interface PopupScript {
   script: PopupGameScript;
 }
 
-export type GlobalBindings = Record<GamepadActionName, string[]>;
+export type GlobalBindings = Map<GamepadActionName, string[]>;
 
-export type KeyboardRemaps = Record<string, string[]>;
+export type KeyboardRemaps = Map<string, string[]>;
 
 export interface PopupConfig {
   slots: [PopupSlot, PopupSlot, PopupSlot, PopupSlot];

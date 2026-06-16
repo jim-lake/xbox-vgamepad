@@ -31,7 +31,7 @@ export default function KeyboardRebindsSection({
 }: Props) {
   const [listenMode, setListenMode] = React.useState<ListenMode | null>(null);
 
-  const targets = Object.keys(keyboardRemaps).sort((a, b) =>
+  const targets = [...keyboardRemaps.keys()].sort((a, b) =>
     a.localeCompare(b)
   );
 
@@ -48,18 +48,17 @@ export default function KeyboardRebindsSection({
       }
       const code = e.code;
       if (listenMode.type === 'add-target') {
-        if (code in keyboardRemaps) {
+        if (keyboardRemaps.has(code)) {
           setListenMode(null);
           return;
         }
-        onChange({ ...keyboardRemaps, [code]: [] });
+        onChange(new Map([...keyboardRemaps, [code, []]]));
       } else {
-        const existing = keyboardRemaps[listenMode.target] ?? [];
+        const existing = keyboardRemaps.get(listenMode.target) ?? [];
         if (!existing.includes(code)) {
-          onChange({
-            ...keyboardRemaps,
-            [listenMode.target]: [...existing, code],
-          });
+          onChange(
+            new Map([...keyboardRemaps, [listenMode.target, [...existing, code]]])
+          );
         }
       }
       setListenMode(null);
@@ -89,7 +88,7 @@ export default function KeyboardRebindsSection({
         }}
       />
       {targets.map((target) => {
-        const sources = keyboardRemaps[target] ?? [];
+        const sources = keyboardRemaps.get(target) ?? [];
         return (
           <FormRow key={target} label={formatCode(target)}>
             <View style={styles.badges}>
@@ -99,10 +98,12 @@ export default function KeyboardRebindsSection({
                   setListenMode({ type: 'add-source', target });
                 }}
                 onRemove={(code) => {
-                  onChange({
-                    ...keyboardRemaps,
-                    [target]: sources.filter((s) => s !== code),
-                  });
+                  onChange(
+                    new Map([
+                      ...keyboardRemaps,
+                      [target, sources.filter((s) => s !== code)],
+                    ])
+                  );
                 }}
               />
             </View>
@@ -111,9 +112,8 @@ export default function KeyboardRebindsSection({
               source={closeIcon}
               type='danger'
               onPress={() => {
-                const next = Object.fromEntries(
-                  Object.entries(keyboardRemaps).filter(([k]) => k !== target)
-                );
+                const next = new Map(keyboardRemaps);
+                next.delete(target);
                 onChange(next);
               }}
             />

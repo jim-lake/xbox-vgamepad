@@ -6,6 +6,7 @@ import {
 } from '../../src/popup/config.ts';
 import type {
   GamepadConfig,
+  GamepadActionName,
   GameScript,
   ScriptAction,
 } from '../../src/types/gamepad.ts';
@@ -179,7 +180,7 @@ function makePopupScript(id: string): PopupScript {
 }
 
 function emptySlotBindings(): PopupConfig['slots'][0]['bindings'] {
-  return Object.fromEntries(
+  return new Map<GamepadActionName, string[]>(
     [
       'a',
       'b',
@@ -209,8 +210,8 @@ function emptySlotBindings(): PopupConfig['slots'][0]['bindings'] {
       'toggleGamepad',
       'toggleAllGamepads',
       'toggleExtension',
-    ].map((a) => [a, []])
-  ) as unknown as PopupConfig['slots'][0]['bindings'];
+    ].map((a) => [a as GamepadActionName, []])
+  );
 }
 
 function makePopupConfig(
@@ -222,7 +223,7 @@ function makePopupConfig(
     globalBindings: emptySlotBindings(),
     otherGamepadMode: 'separate',
     fakeFullscreen: false,
-    keyboardRemaps: {},
+    keyboardRemaps: new Map(),
     slots: [0, 1, 2, 3].map((i) => {
       const keyCodes = scriptBindingsBySlot[i as 0 | 1 | 2 | 3];
       return {

@@ -33,7 +33,7 @@ export default function GlobalBindingEditor({
   const codeToLabels = React.useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const { action, label } of GLOBAL_ACTIONS) {
-      for (const code of globalBindings[action]) {
+      for (const code of globalBindings.get(action) ?? []) {
         (map[code] ??= []).push(label);
       }
     }
@@ -66,7 +66,7 @@ export default function GlobalBindingEditor({
   return (
     <View style={styles.container}>
       {GLOBAL_ACTIONS.map(({ action, label }) => {
-        const codes = globalBindings[action];
+        const codes = globalBindings.get(action) ?? [];
         return (
           <FormRow key={action} label={label}>
             <BindingBadges

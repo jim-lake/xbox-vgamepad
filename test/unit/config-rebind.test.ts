@@ -17,7 +17,7 @@ void test('round-trip: keyboardRebinds single target survives', () => {
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
   // Popup model: target 'Space' has source 'KeyZ'
-  assert.deepEqual(popup.keyboardRemaps, { Space: ['KeyZ'] });
+  assert.deepEqual(popup.keyboardRemaps, new Map([['Space', ['KeyZ']]]));
   const exported = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
   assert.deepEqual(exported.keyboardRebinds, [{ from: 'KeyZ', to: ['Space'] }]);
 });
@@ -32,8 +32,8 @@ void test('round-trip: multiple targets from one source', () => {
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
   // Popup model: both targets have KeyZ as source
-  assert.deepEqual(popup.keyboardRemaps['Space'], ['KeyZ']);
-  assert.deepEqual(popup.keyboardRemaps['KeyU'], ['KeyZ']);
+  assert.deepEqual(popup.keyboardRemaps.get('Space'), ['KeyZ']);
+  assert.deepEqual(popup.keyboardRemaps.get('KeyU'), ['KeyZ']);
   const exported = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
   // Should produce one rebind entry with both targets
   const rebinds1 = exported.keyboardRebinds;
@@ -55,8 +55,8 @@ void test('round-trip: same source key in multiple targets merges', () => {
     keyboardRebinds: [{ from: 'Space', to: ['Space', 'KeyU'] }],
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
-  assert.deepEqual(popup.keyboardRemaps['Space'], ['Space']);
-  assert.deepEqual(popup.keyboardRemaps['KeyU'], ['Space']);
+  assert.deepEqual(popup.keyboardRemaps.get('Space'), ['Space']);
+  assert.deepEqual(popup.keyboardRemaps.get('KeyU'), ['Space']);
   const exported2 = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
   const rebinds2 = exported2.keyboardRebinds;
   assert.ok(rebinds2);
@@ -75,7 +75,7 @@ void test('round-trip: missing keyboardRebinds defaults to empty', () => {
     mouseConfig: { mouseControls: [] },
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
-  assert.deepEqual(popup.keyboardRemaps, {});
+  assert.deepEqual(popup.keyboardRemaps, new Map());
 });
 
 void test('round-trip: empty remaps produces empty rebinds', () => {
@@ -87,7 +87,7 @@ void test('round-trip: empty remaps produces empty rebinds', () => {
     keyboardRebinds: [],
   };
   const popup = parseImportedConfig(cfg) as PopupConfig;
-  assert.deepEqual(popup.keyboardRemaps, {});
+  assert.deepEqual(popup.keyboardRemaps, new Map());
   const exported = JSON.parse(exportPopupConfig(popup)) as GamepadConfig;
   assert.deepEqual(exported.keyboardRebinds, []);
 });
