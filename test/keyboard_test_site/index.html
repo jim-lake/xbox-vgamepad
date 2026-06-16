@@ -7,7 +7,7 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; }
-.keyboard { background: #2d2d2d; border-radius: 12px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); border: 1px solid #3a3a3a; }
+.keyboard { background: #2d2d2d; border-radius: 12px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); border: 1px solid #3a3a3a; transform-origin: center; }
 .row { display: flex; gap: 4px; margin-bottom: 4px; }
 .key {
   background: #3d3d3d;
@@ -100,6 +100,14 @@ document.addEventListener('keyup', e => {
   const el = keyEls[e.code];
   if (el) el.classList.remove('active');
 }, true);
+
+function fitKeyboard() {
+  const k = document.getElementById('keyboard');
+  const scale = Math.min(1, (window.innerWidth - 20) / k.scrollWidth, (window.innerHeight - 20) / k.scrollHeight);
+  k.style.transform = 'scale(' + scale + ')';
+}
+window.addEventListener('resize', fitKeyboard);
+fitKeyboard();
 </script>
 </body>
 </html>
