@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View } from '@/components/base_components';
+import { StyleSheet, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import SectionHeader from '@/components/popup/section-header';
 import BindingBadges from '@/components/popup/binding-badges';
+import FormRow from '@/components/popup/form-row';
 import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import { formatCode } from './script-helpers';
 import type { KeyboardRemaps } from '@/types/popup';
@@ -11,19 +12,6 @@ import closeIcon from '@/assets/img/close.svg';
 
 const styles = StyleSheet.create({
   section: { padding: '0.8rem', flexDirection: 'column' },
-  row: {
-    paddingTop: '0.5rem',
-    paddingBottom: '0.5rem',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--row-border)',
-  },
-  targetLabel: {
-    color: 'var(--text-primary)',
-    fontSize: '1.3rem',
-    minWidth: '6rem',
-  },
   badges: { flex: 1 },
   removeBtn: { marginLeft: '0.4rem' },
 });
@@ -103,8 +91,7 @@ export default function KeyboardRebindsSection({
       {targets.map((target) => {
         const sources = keyboardRemaps[target] ?? [];
         return (
-          <View key={target} style={styles.row}>
-            <Text style={styles.targetLabel}>{formatCode(target)}</Text>
+          <FormRow key={target} label={formatCode(target)}>
             <View style={styles.badges}>
               <BindingBadges
                 codes={sources}
@@ -130,7 +117,7 @@ export default function KeyboardRebindsSection({
                 onChange(next);
               }}
             />
-          </View>
+          </FormRow>
         );
       })}
       {listenMode !== null && (
