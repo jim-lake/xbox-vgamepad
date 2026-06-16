@@ -55,10 +55,13 @@ export interface PopupScript {
 
 export type GlobalBindings = Record<GamepadActionName, string[]>;
 
+export type KeyboardRemaps = Record<string, string[]>;
+
 export interface PopupConfig {
   slots: [PopupSlot, PopupSlot, PopupSlot, PopupSlot];
   scripts: PopupScript[];
   globalBindings: GlobalBindings;
   otherGamepadMode: OtherGamepadMode;
   fakeFullscreen: boolean;
+  keyboardRemaps: KeyboardRemaps;
 }

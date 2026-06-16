@@ -83,7 +83,9 @@ export default function GlobalBindingEditor({
         );
       })}
 
-      {listening !== null && <KeyCaptureModal />}
+      {listening !== null && (
+        <KeyCaptureModal onClose={() => { setListening(null); }} />
+      )}
     </View>
   );
 }

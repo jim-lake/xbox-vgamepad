@@ -4,6 +4,7 @@ import type {
   GamepadActionName,
   GameScript,
   GlobalSettings,
+  KeyboardRebind,
   ScriptAction,
 } from '@/types/gamepad';
 import {
@@ -18,6 +19,7 @@ import type {
   GlobalBindings,
   PopupScript,
   ScriptBinding,
+  KeyboardRemaps,
 } from '@/types/popup';
 import {
   loadStorage,
@@ -193,6 +195,7 @@ function gamepadConfigToPopupConfig(cfg: GamepadConfig): PopupConfig {
     globalBindings,
     otherGamepadMode: cfg.otherGamepadMode ?? 'separate',
     fakeFullscreen: cfg.fakeFullscreen ?? false,
+    keyboardRemaps: rebindsToRemaps(cfg.keyboardRebinds ?? []),
   };
 }
 
@@ -276,6 +279,7 @@ function popupConfigToGamepadConfig(popup: PopupConfig): GamepadConfig {
     otherGamepadMode: popup.otherGamepadMode,
     ...(unboundScripts.length > 0 ? { unboundScripts } : {}),
     ...(popup.fakeFullscreen ? { fakeFullscreen: true } : {}),
+    keyboardRebinds: remapsToRebinds(popup.keyboardRemaps),
   };
 }
 
@@ -560,6 +564,56 @@ export function popupSetGlobalBinding(
       [action]: applyCodeOp(popup.globalBindings[action], code, op),
     },
   };
+}
+
+export function popupSetRebinds(
+  popup: PopupConfig,
+  rebinds: KeyboardRebind[]
+): PopupConfig {
+  return { ...popup, keyboardRemaps: rebindsToRemaps(rebinds) };
+}
+
+export function popupSetRemaps(
+  popup: PopupConfig,
+  keyboardRemaps: KeyboardRemaps
+): PopupConfig {
+  return { ...popup, keyboardRemaps };
+}
+
+/** Config model (from→to[]) → Popup model (target→sources[]) */
+function rebindsToRemaps(rebinds: KeyboardRebind[]): KeyboardRemaps {
+  const remaps: KeyboardRemaps = {};
+  for (const { from, to } of rebinds) {
+    if (from === '') {
+      continue;
+    }
+    for (const target of to) {
+      if (target === '') {
+        continue;
+      }
+      const sources = remaps[target] ?? [];
+      if (!sources.includes(from)) {
+        sources.push(from);
+      }
+      remaps[target] = sources;
+    }
+  }
+  return remaps;
+}
+
+/** Popup model (target→sources[]) → Config model (from→to[]) */
+function remapsToRebinds(remaps: KeyboardRemaps): KeyboardRebind[] {
+  const map = new Map<string, string[]>();
+  for (const [target, sources] of Object.entries(remaps)) {
+    for (const source of sources) {
+      const existing = map.get(source) ?? [];
+      if (!existing.includes(target)) {
+        existing.push(target);
+      }
+      map.set(source, existing);
+    }
+  }
+  return [...map.entries()].map(([from, to]) => ({ from, to }));
 }
 
 export {

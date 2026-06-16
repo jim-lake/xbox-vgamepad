@@ -1,4 +1,6 @@
+import React from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
+import TextButton from '@/components/buttons/text_button';
 
 const styles = StyleSheet.create({
   overlay: {
@@ -23,15 +25,29 @@ const styles = StyleSheet.create({
     fontSize: '1.4rem',
     marginBottom: '1rem',
   },
-  sub: { color: 'var(--text-muted)', fontSize: '1.3rem' },
+  sub: { color: 'var(--text-muted)', fontSize: '1.3rem', marginBottom: '1rem' },
+  cancelBtn: { marginTop: '0.5rem' },
 });
 
-export default function KeyCaptureModal() {
+interface Props {
+  onClose: () => void;
+  allowEscape?: boolean;
+}
+
+export default function KeyCaptureModal({ onClose, allowEscape }: Props) {
   return (
     <View style={styles.overlay}>
       <View style={styles.content}>
         <Text style={styles.title}>Press a key or mouse button</Text>
-        <Text style={styles.sub}>Escape to cancel</Text>
+        {!allowEscape && <Text style={styles.sub}>Escape to cancel</Text>}
+        <View
+          style={styles.cancelBtn}
+          onMouseDown={(e: React.MouseEvent) => {
+            e.stopPropagation();
+          }}
+        >
+          <TextButton text='Cancel' onPress={onClose} />
+        </View>
       </View>
     </View>
   );

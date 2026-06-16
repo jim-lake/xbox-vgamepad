@@ -7,7 +7,12 @@ import type {
   OtherGamepadMode,
 } from '@/types/gamepad';
 import { DEFAULT_GLOBAL_SETTINGS } from '@/types/gamepad';
-import type { PopupConfig, PopupScript, ScriptBinding } from '@/types/popup';
+import type {
+  KeyboardRemaps,
+  PopupConfig,
+  PopupScript,
+  ScriptBinding,
+} from '@/types/popup';
 import {
   sendDisableGamepad,
   sendPopupOpened,
@@ -37,11 +42,13 @@ import {
   popupSetScripts,
   popupSetMouse,
   popupSetGlobalBinding,
+  popupSetRemaps,
 } from './config';
 import AppHeader from '@/components/popup/app-header';
 import PresetNav from '@/components/popup/preset-nav';
 import GamepadTabs from '@/components/popup/gamepad-tabs';
 import GamepadConfigSection from './gamepad-config-section';
+import KeyboardRebindsSection from './keyboard-rebinds-section';
 import FindSpritesSection from './find-sprites-section';
 import AdvancedSection from '@/components/popup/advanced-section';
 import GlobalSettingsPanel from '@/components/popup/global-settings-panel';
@@ -460,6 +467,12 @@ export default function App() {
     }));
   });
 
+  const handleChangeRebinds = useLatestCallback(
+    (keyboardRemaps: KeyboardRemaps) => {
+      updateActivePopup((popup) => popupSetRemaps(popup, keyboardRemaps));
+    }
+  );
+
   const handleChangeGlobalSettings = useLatestCallback(
     (settings: GlobalSettings) => {
       setGlobalSettings(settings);
@@ -583,6 +596,11 @@ export default function App() {
               onRemove={() => {
                 handleRemoveSlot(activeSlotIndex);
               }}
+            />
+
+            <KeyboardRebindsSection
+              keyboardRemaps={activePopup.keyboardRemaps}
+              onChange={handleChangeRebinds}
             />
 
             <FindSpritesSection />

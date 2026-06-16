@@ -1,6 +1,7 @@
 // Side-effect import: installs webpack chunk interceptor synchronously.
 import './coop-patch';
 
+import { installRebinds, removeRebinds } from './keyboard-rebind';
 import { MSG_SOURCE, isExtensionMessage } from '@/types/messages';
 import type {
   ExtensionMessage,
@@ -139,6 +140,7 @@ function handleMessage(msg: ExtensionMessage): void {
     const activateMsg = msg;
     g_activePresetName = activateMsg.name;
     g_fakeFullscreen = activateMsg.gamepadConfig.fakeFullscreen === true;
+    installRebinds(activateMsg.gamepadConfig.keyboardRebinds ?? []);
     updateToggleCodes(activateMsg.gamepadConfig);
     showToast(`'${activateMsg.name}' preset activated`);
     inputProcessor.activate(
@@ -150,11 +152,13 @@ function handleMessage(msg: ExtensionMessage): void {
   } else if (msg.type === 'CONFIG_CHANGED') {
     pendingConfig = { name: msg.name, gamepadConfig: msg.gamepadConfig };
     g_fakeFullscreen = msg.gamepadConfig.fakeFullscreen === true;
+    installRebinds(msg.gamepadConfig.keyboardRebinds ?? []);
     if (document.hasFocus()) {
       applyPendingConfig();
     }
   } else if (msg.type === 'DISABLE_GAMEPAD') {
     g_fakeFullscreen = false;
+    removeRebinds();
     if (inputProcessor.isActive()) {
       showToast('Mouse/keyboard disabled');
     }

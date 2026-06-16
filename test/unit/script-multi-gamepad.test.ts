@@ -97,6 +97,7 @@ void test('ui workflow: add script on slot 0 (KeyQ), activate slot 1, bind KeyW 
     globalBindings: {} as PopupConfig['globalBindings'],
     otherGamepadMode: 'separate',
     fakeFullscreen: false,
+    keyboardRemaps: {},
     slots: [
       {
         gamepadIndex: 0,
@@ -163,6 +164,7 @@ void test('regression: two slots with same gamepadIndex both emit to that gamepa
     globalBindings: {} as PopupConfig['globalBindings'],
     otherGamepadMode: 'separate',
     fakeFullscreen: false,
+    keyboardRemaps: {},
     slots: [
       {
         gamepadIndex: 1, // ← changed from 0 to 1

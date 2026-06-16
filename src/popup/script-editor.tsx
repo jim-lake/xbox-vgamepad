@@ -213,7 +213,9 @@ export default function ScriptEditor({
         <TextButton text='Add Script' type='green' onPress={handleAdd} />
       </View>
 
-      {listeningEntry !== null && <KeyCaptureModal />}
+      {listeningEntry !== null && (
+        <KeyCaptureModal onClose={() => { onListeningEntryChange(null); }} />
+      )}
     </View>
   );
 }

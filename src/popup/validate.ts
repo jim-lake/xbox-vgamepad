@@ -1,4 +1,34 @@
-import type { GamepadConfig } from '@/types/gamepad';
+import type { GamepadConfig, KeyboardRebind } from '@/types/gamepad';
+
+export function validateRebinds(rebinds: unknown): rebinds is KeyboardRebind[] {
+  if (!Array.isArray(rebinds)) {
+    return false;
+  }
+  const fromSet = new Set<string>();
+  for (const entry of rebinds) {
+    if (!entry || typeof entry !== 'object') {
+      return false;
+    }
+    const r = entry as Record<string, unknown>;
+    if (typeof r['from'] !== 'string' || !Array.isArray(r['to'])) {
+      return false;
+    }
+    const from = r['from'];
+    const to = r['to'] as unknown[];
+    for (const t of to) {
+      if (typeof t !== 'string') {
+        return false;
+      }
+    }
+    if (from !== '' && fromSet.has(from)) {
+      return false;
+    }
+    if (from !== '') {
+      fromSet.add(from);
+    }
+  }
+  return true;
+}
 
 export function validateConfig(config: unknown): config is GamepadConfig {
   if (

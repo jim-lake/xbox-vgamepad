@@ -104,7 +104,9 @@ export default function KeyBindingEditor({
         );
       })}
 
-      {listening !== null && <KeyCaptureModal />}
+      {listening !== null && (
+        <KeyCaptureModal onClose={() => { setListening(null); }} />
+      )}
     </View>
   );
 }

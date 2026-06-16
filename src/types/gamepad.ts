@@ -81,6 +81,11 @@ export interface GamepadMouseConfig {
   mouseControls: MouseControlTarget[];
 }
 
+export interface KeyboardRebind {
+  from: string; // KeyboardEvent.code of the physical key
+  to: string[]; // KeyboardEvent.codes to synthesize
+}
+
 export type OtherGamepadMode = 'combine' | 'separate';
 
 export interface GamepadConfig {
@@ -90,6 +95,7 @@ export interface GamepadConfig {
   otherGamepadMode?: OtherGamepadMode;
   unboundScripts?: GameScript[];
   fakeFullscreen?: boolean;
+  keyboardRebinds?: KeyboardRebind[];
 }
 
 export interface GlobalSettings {
