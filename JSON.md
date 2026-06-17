@@ -225,6 +225,7 @@ These toggle keybindings work regardless of whether the gamepad is currently con
 | Field            | Type                                         | Required | Description                                              |
 | ---------------- | -------------------------------------------- | -------- | -------------------------------------------------------- |
 | `type`           | `"script"`                                   | Yes      | Discriminator.                                           |
+| `name`           | `string`                                     | Yes      | Display name for the script (shown in popup UI).         |
 | `activationType` | `"on_down" \| "on_up" \| "toggle" \| "held"` | Yes      | When the script runs. See activation type details below. |
 | `actions`        | `ScriptAction[]`                             | Yes      | Ordered list of steps to execute.                        |
 
@@ -243,8 +244,12 @@ These toggle keybindings work regardless of whether the gamepad is currently con
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `{ "type": "down", "buttons": [GamepadAction, ...] }`              | Press the listed buttons (does not release them).                                                                                                                   |
 | `{ "type": "up",   "buttons": [GamepadAction, ...] }`              | Release the listed buttons.                                                                                                                                         |
+| `{ "type": "key_down", "keys": [string, ...] }`                    | Dispatch synthetic `keydown` events for the listed key codes. Keys are tracked and released on script cancel.                                                       |
+| `{ "type": "key_up", "keys": [string, ...] }`                      | Dispatch synthetic `keyup` events for the listed key codes and stop tracking them.                                                                                  |
 | `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step. `durationMs` may also be `"infinite"` — the delay never resolves, suspending the script until it is cancelled. |
 | `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled.                                                 |
+| `{ "type": "point", "gamepadIndex": N, "stick": S, "x": X, "y": Y }` | Set the specified stick to the given (x, y) position. Values clamped to `[-1, 1]`. Stick resets to (0,0) on script cancel.                                       |
+| `{ "type": "rotate", ... }`                                        | Sweep a stick from a start position to an end position over time. See [Rotate Action](#rotate-action) below.                                                        |
 
 #### Hold Pattern
 
@@ -282,6 +287,60 @@ Multiple buttons can be held, with intermediate delays between them:
   ]
 }
 ```
+
+### Keyboard Actions in Scripts
+
+Scripts can dispatch synthetic keyboard events using `key_down` and `key_up`. These synthesized events flow through the normal event pipeline (including keyboard rebinds and the input processor), allowing scripts to trigger gamepad actions via keyboard codes or interact with the page directly.
+
+```json
+{
+  "type": "script",
+  "name": "Tap Space",
+  "activationType": "on_down",
+  "actions": [
+    { "type": "key_down", "keys": ["Space"] },
+    { "type": "delay", "durationMs": 100 },
+    { "type": "key_up", "keys": ["Space"] }
+  ]
+}
+```
+
+Key codes use the same `KeyboardEvent.code` format as `keyboardConfig` keys (e.g. `"KeyW"`, `"Space"`, `"ArrowUp"`).
+
+On script cancellation, any keys still tracked as held are automatically released (synthetic `keyup` dispatched).
+
+### Rotate Action
+
+Sweeps a stick from a start position to an end position along an arc over a specified duration.
+
+```json
+{
+  "type": "rotate",
+  "gamepadIndex": 0,
+  "stick": "left",
+  "startX": 1,
+  "startY": 0,
+  "endX": -1,
+  "endY": 0,
+  "directions": "infinite",
+  "rotateMs": 2000,
+  "clockwise": true
+}
+```
+
+| Field         | Type                            | Description                                                                                       |
+| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `gamepadIndex`| `0 \| 1 \| 2 \| 3`             | Virtual pad to control.                                                                           |
+| `stick`       | `"left" \| "right"`            | Which stick to move.                                                                              |
+| `startX`      | `number` (`-1` to `1`)         | Starting X position.                                                                              |
+| `startY`      | `number` (`-1` to `1`)         | Starting Y position.                                                                              |
+| `endX`        | `number` (`-1` to `1`)         | Ending X position.                                                                                |
+| `endY`        | `number` (`-1` to `1`)         | Ending Y position.                                                                                |
+| `directions`  | `4 \| 8 \| "infinite"`         | Number of discrete positions along the arc. `"infinite"` = smooth interpolation.                  |
+| `rotateMs`    | `number`                        | Duration of the sweep in milliseconds.                                                            |
+| `clockwise`   | `boolean`                       | Direction of rotation (note: gamepad Y axis is inverted, so clockwise matches visual expectation).|
+
+When `startX === endX && startY === endY`, the sweep traces a full circle. The stick resets to (0, 0) on script cancellation.
 
 ### Additive Button Press Model
 
