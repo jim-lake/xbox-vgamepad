@@ -2,6 +2,7 @@ import type { GamepadAction, GameScript, ScriptAction } from '@/types/gamepad';
 import { executePress, executeUnpress } from './script-actions';
 import { getSimulator } from './gamepad-simulator';
 import { calcSweepMag, calcSweepPos } from '@/tools/sweep';
+import { dispatchKeyDown, dispatchKeyUp } from './script-keys';
 
 export interface ScriptHandle {
   cancel(): void;
@@ -17,6 +18,7 @@ const FPS_MS = 1000 / 60;
 export function runScript(script: GameScript): ScriptHandle {
   const state: RunState = { cancelled: false };
   const held: GamepadAction[] = [];
+  const heldKeys: string[] = [];
   const pointedSticks: { gamepadIndex: 0 | 1 | 2 | 3; stick: number }[] = [];
   const rotationTimeouts: ReturnType<typeof setTimeout>[] = [];
   const rotationPromises: Promise<void>[] = [];
@@ -44,6 +46,10 @@ export function runScript(script: GameScript): ScriptHandle {
       executeUnpress(action);
     }
     held.length = 0;
+    for (const key of [...heldKeys].reverse()) {
+      dispatchKeyUp(key);
+    }
+    heldKeys.length = 0;
     for (const p of pointedSticks) {
       getSimulator(p.gamepadIndex).moveStick(p.stick, 0, 0);
     }
@@ -216,6 +222,21 @@ export function runScript(script: GameScript): ScriptHandle {
         case 'up':
           for (const btn of step.buttons) {
             releaseAction(btn);
+          }
+          break;
+        case 'key_down':
+          for (const key of step.keys) {
+            dispatchKeyDown(key);
+            heldKeys.push(key);
+          }
+          break;
+        case 'key_up':
+          for (const key of step.keys) {
+            dispatchKeyUp(key);
+            const idx = heldKeys.indexOf(key);
+            if (idx !== -1) {
+              heldKeys.splice(idx, 1);
+            }
           }
           break;
         case 'delay': {

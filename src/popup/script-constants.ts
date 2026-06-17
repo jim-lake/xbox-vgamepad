@@ -69,8 +69,13 @@ export const TYPE_OPTIONS = [
   { value: 'delay', text: 'Delay' },
   { value: 'point', text: 'Point' },
   { value: 'rotate', text: 'Rotate' },
-  { value: 'down', text: 'Press Key' },
-  { value: 'up', text: 'Release Key' },
+  { value: 'down', text: 'Press Buttons' },
+  { value: 'up', text: 'Release Buttons' },
+  { value: 'key_tap', text: 'Tap Key' },
+  { value: 'key_turbo', text: 'Turbo Key' },
+  { value: 'key_hold', text: 'Hold Key' },
+  { value: 'key_down', text: 'Press Keys' },
+  { value: 'key_up', text: 'Release Keys' },
 ];
 
 export const ACTION_OPTIONS = ACTION_NAMES.map((a) => ({

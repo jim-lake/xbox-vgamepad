@@ -5,6 +5,9 @@ import type {
 } from '@/types/gamepad';
 import type {
   HoldAction,
+  KeyHoldAction,
+  KeyTapAction,
+  KeyTurboAction,
   PopupGameScript,
   PopupScriptAction,
   SuspendAction,
@@ -236,10 +239,10 @@ export function freeSentinel(
  */
 export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
   for (const a of actions) {
-    if (a.type === 'turbo') {
+    if (a.type === 'turbo' || a.type === 'key_turbo') {
       return true;
     }
-    if (a.type === 'hold' || a.type === 'suspend') {
+    if (a.type === 'hold' || a.type === 'suspend' || a.type === 'key_hold') {
       return true;
     }
     if (a.type === 'loop') {
@@ -259,10 +262,10 @@ export function isInfiniteActions(actions: PopupScriptAction[]): boolean {
 export function firstInfiniteIndex(actions: PopupScriptAction[]): number {
   for (let i = 0; i < actions.length; i++) {
     const a = actions[i];
-    if (a?.type === 'turbo') {
+    if (a?.type === 'turbo' || a?.type === 'key_turbo') {
       return i;
     }
-    if (a?.type === 'suspend') {
+    if (a?.type === 'suspend' || a?.type === 'key_hold') {
       return i;
     }
     if (a?.type === 'delay' && a.durationMs === 'infinite') {
@@ -353,6 +356,27 @@ export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
     } else if (a.type === 'hold') {
       result.push({ type: 'down', buttons: a.buttons });
       // Trailing delay "infinite" is added after all actions are processed
+    } else if (a.type === 'key_tap') {
+      result.push(
+        { type: 'key_down', keys: a.keys },
+        { type: 'delay', durationMs: a.durationMs },
+        { type: 'key_up', keys: a.keys }
+      );
+    } else if (a.type === 'key_turbo') {
+      const half = Math.round(a.speed / 2);
+      result.push({
+        type: 'loop',
+        count: 'infinite',
+        actions: [
+          { type: 'key_down', keys: a.keys },
+          { type: 'delay', durationMs: half },
+          { type: 'key_up', keys: a.keys },
+          { type: 'delay', durationMs: half },
+        ],
+      });
+    } else if (a.type === 'key_hold') {
+      result.push({ type: 'key_down', keys: a.keys });
+      // Trailing delay "infinite" is added after all actions are processed
     } else if (a.type === 'suspend') {
       result.push({ type: 'delay', durationMs: 'infinite' });
     } else if (a.type === 'loop') {
@@ -362,7 +386,9 @@ export function flattenActions(actions: PopupScriptAction[]): ScriptAction[] {
     }
   }
   // If any hold actions were present, ensure trailing delay "infinite"
-  const hasHold = actions.some((a) => a.type === 'hold');
+  const hasHold = actions.some(
+    (a) => a.type === 'hold' || a.type === 'key_hold'
+  );
   if (hasHold) {
     // Only add if there isn't already a trailing delay "infinite"
     const last = result[result.length - 1];
@@ -381,8 +407,11 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
     // Find unmatched downs (no corresponding up at this level)
     const actionsWithoutTrailing = actions.slice(0, -1);
     const unmatchedDownIndices = findUnmatchedDowns(actionsWithoutTrailing);
+    const unmatchedKeyDownIndices = findUnmatchedKeyDowns(
+      actionsWithoutTrailing
+    );
 
-    if (unmatchedDownIndices.size > 0) {
+    if (unmatchedDownIndices.size > 0 || unmatchedKeyDownIndices.size > 0) {
       // Lift with hold: unmatched downs become hold, trailing delay consumed
       const result: PopupScriptAction[] = [];
       let i = 0;
@@ -419,6 +448,27 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
           const hold: HoldAction = { type: 'hold', buttons: a.buttons };
           result.push(hold);
           i++;
+        } else if (
+          a?.type === 'key_down' &&
+          !unmatchedKeyDownIndices.has(i) &&
+          a.keys.length > 0 &&
+          b?.type === 'delay' &&
+          b.durationMs !== 'infinite' &&
+          c?.type === 'key_up' &&
+          a.keys.length === c.keys.length &&
+          a.keys.every((k, j) => k === c.keys[j])
+        ) {
+          const keyTap: KeyTapAction = {
+            type: 'key_tap',
+            keys: a.keys,
+            durationMs: b.durationMs,
+          };
+          result.push(keyTap);
+          i += 3;
+        } else if (a?.type === 'key_down' && unmatchedKeyDownIndices.has(i)) {
+          const keyHold: KeyHoldAction = { type: 'key_hold', keys: a.keys };
+          result.push(keyHold);
+          i++;
         } else if (a?.type === 'loop') {
           // Detect turbo pattern
           if (a.count === 'infinite' && a.actions.length === 4) {
@@ -448,6 +498,27 @@ export function liftActions(actions: ScriptAction[]): PopupScriptAction[] {
                 speed: lb.durationMs * 2,
               };
               result.push(turbo);
+              i++;
+              continue;
+            }
+            if (
+              la?.type === 'key_down' &&
+              lb?.type === 'delay' &&
+              lb.durationMs !== 'infinite' &&
+              lc?.type === 'key_up' &&
+              ld?.type === 'delay' &&
+              ld.durationMs !== 'infinite' &&
+              lb.durationMs === ld.durationMs &&
+              la.keys.length > 0 &&
+              la.keys.length === lc.keys.length &&
+              la.keys.every((k, j) => k === lc.keys[j])
+            ) {
+              const keyTurbo: KeyTurboAction = {
+                type: 'key_turbo',
+                keys: la.keys,
+                speed: lb.durationMs * 2,
+              };
+              result.push(keyTurbo);
               i++;
               continue;
             }
@@ -520,6 +591,44 @@ function findUnmatchedDowns(actions: ScriptAction[]): Set<number> {
   return unmatched;
 }
 
+/** Find indices of key_down actions that have no matching key_up at the same level. */
+function findUnmatchedKeyDowns(actions: ScriptAction[]): Set<number> {
+  const downIndices: number[] = [];
+  const matchedDownIndices = new Set<number>();
+
+  for (let i = 0; i < actions.length; i++) {
+    const a = actions[i];
+    if (a?.type === 'key_down') {
+      downIndices.push(i);
+    } else if (a?.type === 'key_up') {
+      for (const di of downIndices) {
+        if (matchedDownIndices.has(di)) {
+          continue;
+        }
+        const downAction = actions[di];
+        if (downAction?.type !== 'key_down') {
+          continue;
+        }
+        if (
+          downAction.keys.length === a.keys.length &&
+          downAction.keys.every((k, j) => k === a.keys[j])
+        ) {
+          matchedDownIndices.add(di);
+          break;
+        }
+      }
+    }
+  }
+
+  const unmatched = new Set<number>();
+  for (const di of downIndices) {
+    if (!matchedDownIndices.has(di)) {
+      unmatched.add(di);
+    }
+  }
+  return unmatched;
+}
+
 /** Basic lift without hold/suspend detection (used as inner helper). */
 function liftActionsBasic(actions: ScriptAction[]): PopupScriptAction[] {
   const result: PopupScriptAction[] = [];
@@ -551,6 +660,22 @@ function liftActionsBasic(actions: ScriptAction[]): PopupScriptAction[] {
       };
       result.push(tap);
       i += 3;
+    } else if (
+      a?.type === 'key_down' &&
+      a.keys.length > 0 &&
+      b?.type === 'delay' &&
+      b.durationMs !== 'infinite' &&
+      c?.type === 'key_up' &&
+      a.keys.length === c.keys.length &&
+      a.keys.every((k, j) => k === c.keys[j])
+    ) {
+      const keyTap: KeyTapAction = {
+        type: 'key_tap',
+        keys: a.keys,
+        durationMs: b.durationMs,
+      };
+      result.push(keyTap);
+      i += 3;
     } else if (a?.type === 'loop') {
       // Detect turbo pattern: infinite loop with [down, delay, up, delay]
       if (a.count === 'infinite' && a.actions.length === 4) {
@@ -580,6 +705,27 @@ function liftActionsBasic(actions: ScriptAction[]): PopupScriptAction[] {
             speed: lb.durationMs * 2,
           };
           result.push(turbo);
+          i++;
+          continue;
+        }
+        if (
+          la?.type === 'key_down' &&
+          lb?.type === 'delay' &&
+          lb.durationMs !== 'infinite' &&
+          lc?.type === 'key_up' &&
+          ld?.type === 'delay' &&
+          ld.durationMs !== 'infinite' &&
+          lb.durationMs === ld.durationMs &&
+          la.keys.length > 0 &&
+          la.keys.length === lc.keys.length &&
+          la.keys.every((k, j) => k === lc.keys[j])
+        ) {
+          const keyTurbo: KeyTurboAction = {
+            type: 'key_turbo',
+            keys: la.keys,
+            speed: lb.durationMs * 2,
+          };
+          result.push(keyTurbo);
           i++;
           continue;
         }

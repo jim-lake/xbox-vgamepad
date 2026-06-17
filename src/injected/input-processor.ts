@@ -10,6 +10,7 @@ import { getSimulator, updateVirtualSlots } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
 import { executePress, executeUnpress } from './script-actions';
 import { ScriptManager } from './script-runner';
+import { isScriptDispatching } from './script-keys';
 import {
   showOverlay,
   removeOverlay,
@@ -306,7 +307,7 @@ function attachMouseButtons(): void {
 
 function attachKeyboard(): void {
   g_onKeyDown = (e: KeyboardEvent) => {
-    if (e.repeat) {
+    if (e.repeat || isScriptDispatching()) {
       return;
     }
     const actions = g_keyMap.get(e.code);
@@ -329,6 +330,9 @@ function attachKeyboard(): void {
     }
   };
   g_onKeyUp = (e: KeyboardEvent) => {
+    if (isScriptDispatching()) {
+      return;
+    }
     const actions = g_keyMap.get(e.code);
     if (actions) {
       for (const action of actions) {

@@ -23,8 +23,29 @@ export type HoldAction = { type: 'hold'; buttons: GamepadAction[] };
 
 export type SuspendAction = { type: 'suspend' };
 
+export type KeyTapAction = {
+  type: 'key_tap';
+  keys: string[];
+  durationMs: number;
+};
+
+export type KeyTurboAction = {
+  type: 'key_turbo';
+  keys: string[];
+  /** Full cycle interval in ms (press + release). Press and release each take speed/2. */
+  speed: number;
+};
+
+export type KeyHoldAction = { type: 'key_hold'; keys: string[] };
+
 export type PopupScriptAction = ScriptAction<
-  TapAction | TurboAction | HoldAction | SuspendAction
+  | TapAction
+  | TurboAction
+  | HoldAction
+  | SuspendAction
+  | KeyTapAction
+  | KeyTurboAction
+  | KeyHoldAction
 >;
 export type PopupGameScript = GameScript<PopupScriptAction>;
 

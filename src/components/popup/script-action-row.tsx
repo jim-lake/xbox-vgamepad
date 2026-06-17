@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from '@/components/base_components';
 import IconButton from '@/components/buttons/icon_button';
 import Select from '@/components/select';
 import Switch from '@/components/switch';
 import NumberInput from '@/components/number-input';
 import { Badge } from '@/components/popup/binding-badges';
+import KeyCaptureModal from '@/components/popup/key-capture-modal';
 import type { GamepadActionName } from '@/types/gamepad';
 import type { PopupScriptAction } from '@/types/popup';
 import { TYPE_OPTIONS, ACTION_OPTIONS } from '@/popup/script-constants';
+import { formatCode } from '@/popup/script-helpers';
 import StickInput from '@/components/popup/stick-input';
 
 import closeIcon from '@/assets/img/close.svg';
@@ -72,6 +74,7 @@ const styles = StyleSheet.create({
   },
   spacer: { flex: 1 },
   disabled: { opacity: 0.4, pointerEvents: 'none' as const },
+  addKeyBtn: { cursor: 'pointer' as const },
 });
 
 interface ActionHeaderProps {
@@ -130,6 +133,65 @@ function ButtonPicker({
           }
         }}
       />
+    </View>
+  );
+}
+
+interface KeysPickerProps {
+  keys: string[];
+  onRemove: (index: number) => void;
+  onAdd: (code: string) => void;
+}
+
+function KeysPicker({ keys, onRemove, onAdd }: KeysPickerProps) {
+  const [capturing, setCapturing] = useState(false);
+
+  React.useEffect(() => {
+    if (!capturing) {
+      return;
+    }
+    function handler(e: KeyboardEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') {
+        setCapturing(false);
+        return;
+      }
+      onAdd(e.code);
+      setCapturing(false);
+    }
+    document.addEventListener('keydown', handler, true);
+    return () => {
+      document.removeEventListener('keydown', handler, true);
+    };
+  }, [capturing, onAdd]);
+
+  return (
+    <View style={styles.buttonList}>
+      {keys.map((code, i) => (
+        <Badge
+          key={i}
+          text={formatCode(code)}
+          onRemove={() => {
+            onRemove(i);
+          }}
+        />
+      ))}
+      {capturing ? (
+        <KeyCaptureModal
+          onClose={() => {
+            setCapturing(false);
+          }}
+        />
+      ) : null}
+      <View
+        style={styles.addKeyBtn}
+        onClick={() => {
+          setCapturing(true);
+        }}
+      >
+        <Text style={styles.paramLabel}>+ Add</Text>
+      </View>
     </View>
   );
 }
@@ -232,6 +294,46 @@ export default function ScriptActionRow({
         rotateMs: 500,
         clockwise: true,
       });
+    } else if (val === 'key_tap') {
+      const existingKeys =
+        action.type === 'key_down' ||
+        action.type === 'key_up' ||
+        action.type === 'key_tap' ||
+        action.type === 'key_turbo' ||
+        action.type === 'key_hold'
+          ? action.keys
+          : [];
+      onChange(index, { type: 'key_tap', keys: existingKeys, durationMs: 50 });
+    } else if (val === 'key_turbo') {
+      const existingKeys =
+        action.type === 'key_down' ||
+        action.type === 'key_up' ||
+        action.type === 'key_tap' ||
+        action.type === 'key_turbo' ||
+        action.type === 'key_hold'
+          ? action.keys
+          : [];
+      onChange(index, { type: 'key_turbo', keys: existingKeys, speed: 100 });
+    } else if (val === 'key_hold') {
+      const existingKeys =
+        action.type === 'key_down' ||
+        action.type === 'key_up' ||
+        action.type === 'key_tap' ||
+        action.type === 'key_turbo' ||
+        action.type === 'key_hold'
+          ? action.keys
+          : [];
+      onChange(index, { type: 'key_hold', keys: existingKeys });
+    } else if (val === 'key_down' || val === 'key_up') {
+      const existingKeys =
+        action.type === 'key_down' ||
+        action.type === 'key_up' ||
+        action.type === 'key_tap' ||
+        action.type === 'key_turbo' ||
+        action.type === 'key_hold'
+          ? action.keys
+          : [];
+      onChange(index, { type: val, keys: existingKeys });
     }
   }
 
@@ -559,6 +661,76 @@ export default function ScriptActionRow({
             min={1}
             onChange={(n) => {
               onChange(index, { ...action, rotateMs: n });
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (
+    action.type === 'key_tap' ||
+    action.type === 'key_turbo' ||
+    action.type === 'key_hold' ||
+    action.type === 'key_down' ||
+    action.type === 'key_up'
+  ) {
+    const headerValue =
+      action.type === 'key_tap'
+        ? 'key_tap'
+        : action.type === 'key_turbo'
+          ? 'key_turbo'
+          : action.type === 'key_hold'
+            ? 'key_hold'
+            : action.type;
+    return (
+      <View style={[styles.container, wrap]}>
+        <ActionHeader
+          value={headerValue}
+          onTypeChange={handleTypeChange}
+          onRemove={() => {
+            onRemove(index);
+          }}
+        />
+        {action.type === 'key_tap' && (
+          <View style={styles.params}>
+            <Text style={styles.paramLabel}>Milliseconds</Text>
+            <NumberInput
+              style={styles.numInput}
+              value={action.durationMs}
+              min={0}
+              onChange={(n) => {
+                onChange(index, { ...action, durationMs: n });
+              }}
+            />
+          </View>
+        )}
+        {action.type === 'key_turbo' && (
+          <View style={styles.params}>
+            <Text style={styles.paramLabel}>Speed (ms)</Text>
+            <NumberInput
+              style={styles.numInput}
+              value={action.speed}
+              min={64}
+              integer
+              onChange={(n) => {
+                onChange(index, { ...action, speed: n });
+              }}
+            />
+          </View>
+        )}
+        <View style={styles.params}>
+          <Text style={styles.paramLabel}>Keys</Text>
+          <KeysPicker
+            keys={action.keys}
+            onRemove={(ki) => {
+              onChange(index, {
+                ...action,
+                keys: action.keys.filter((_: string, j: number) => j !== ki),
+              });
+            }}
+            onAdd={(code) => {
+              onChange(index, { ...action, keys: [...action.keys, code] });
             }}
           />
         </View>
