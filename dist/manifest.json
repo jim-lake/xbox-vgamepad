@@ -1,9 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Xbox vGamepad",
-  "version": "0.0.1179",
+  "version": "0.0.1239",
   "description": "Play Xbox Cloud Gaming with keyboard and mouse",
-  "message_serialization": "structured_clone",
   "action": {
     "default_popup": "src/popup/index.html"
   },
@@ -14,13 +13,14 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-DgCLn2qA.js"
+        "assets/index.ts-loader-BKSBbEq4.js"
       ],
       "matches": [
         "https://xbox.com/*",
         "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "https://harbour.lol/*"
       ],
       "run_at": "document_start"
     },
@@ -32,7 +32,8 @@
         "https://xbox.com/*",
         "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "https://harbour.lol/*"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -46,18 +47,21 @@
     {
       "matches": [
         "https://gamepad-tester.com/*",
+        "https://harbour.lol/*",
         "https://hardwaretester.com/*",
         "https://www.xbox.com/*",
         "https://xbox.com/*"
       ],
       "resources": [
         "src/assets/img/*",
-        "assets/log-d903OSD0.js",
-        "assets/log-d903OSD0.js.map",
+        "assets/log-Bfgay_I2.js",
+        "assets/log-Bfgay_I2.js.map",
+        "assets/array_b64-SW65bjv2.js",
+        "assets/array_b64-SW65bjv2.js.map",
         "assets/gamepad-BEzrPwoZ.js",
         "assets/gamepad-BEzrPwoZ.js.map",
-        "assets/index.ts-kbgBkNmj.js",
-        "assets/index.ts-kbgBkNmj.js.map",
+        "assets/index.ts-CyV3Son4.js",
+        "assets/index.ts-CyV3Son4.js.map",
         "assets/main-world.js"
       ],
       "use_dynamic_url": false

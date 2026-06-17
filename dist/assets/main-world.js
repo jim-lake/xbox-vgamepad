@@ -129,7 +129,10 @@
 		}
 		function installPushTrap(arr) {
 			const nativePush = arr.push.bind(arr);
-			let currentPush = (...args) => nativePush(...args);
+			function defaultPush(...args) {
+				return nativePush(...args);
+			}
+			let currentPush = defaultPush;
 			Object.defineProperty(arr, "push", {
 				configurable: true,
 				enumerable: false,
@@ -164,6 +167,93 @@
 		});
 		processChunks(realArray);
 		log(TAG, "interceptor installed, patchApplied:", String(patchApplied));
+	}
+	//#endregion
+	//#region src/injected/keyboard-rebind.ts
+	var rebindMap = /* @__PURE__ */ new Map();
+	var heldKeys = /* @__PURE__ */ new Set();
+	var dispatching = false;
+	function codeToKey(code) {
+		if (code.startsWith("Key")) return code.slice(3).toLowerCase();
+		if (code.startsWith("Digit")) return code.slice(5);
+		switch (code) {
+			case "Space": return " ";
+			case "Enter": return "Enter";
+			case "Tab": return "Tab";
+			case "Escape": return "Escape";
+			case "Backspace": return "Backspace";
+			default: return code;
+		}
+	}
+	function onKeyDown(e) {
+		if (dispatching) return;
+		const toCodes = rebindMap.get(e.code);
+		if (toCodes === void 0) return;
+		e.stopImmediatePropagation();
+		e.preventDefault();
+		heldKeys.add(e.code);
+		const target = e.target ?? document;
+		dispatching = true;
+		for (const toCode of toCodes) target.dispatchEvent(new KeyboardEvent("keydown", {
+			code: toCode,
+			key: codeToKey(toCode),
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			ctrlKey: e.ctrlKey,
+			shiftKey: e.shiftKey,
+			altKey: e.altKey,
+			metaKey: e.metaKey,
+			repeat: e.repeat
+		}));
+		dispatching = false;
+	}
+	function onKeyUp(e) {
+		if (dispatching) return;
+		if (!heldKeys.has(e.code)) return;
+		const toCodes = rebindMap.get(e.code);
+		if (toCodes === void 0) {
+			heldKeys.delete(e.code);
+			return;
+		}
+		e.stopImmediatePropagation();
+		e.preventDefault();
+		heldKeys.delete(e.code);
+		const target = e.target ?? document;
+		dispatching = true;
+		for (const toCode of toCodes) target.dispatchEvent(new KeyboardEvent("keyup", {
+			code: toCode,
+			key: codeToKey(toCode),
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			ctrlKey: e.ctrlKey,
+			shiftKey: e.shiftKey,
+			altKey: e.altKey,
+			metaKey: e.metaKey,
+			repeat: false
+		}));
+		dispatching = false;
+	}
+	var installed = false;
+	function installRebinds(rebinds) {
+		rebindMap.clear();
+		heldKeys.clear();
+		for (const { from, to } of rebinds) if (from !== "" && to.length > 0) rebindMap.set(from, to);
+		if (!installed) {
+			window.addEventListener("keydown", onKeyDown, true);
+			window.addEventListener("keyup", onKeyUp, true);
+			installed = true;
+		}
+	}
+	function removeRebinds() {
+		if (installed) {
+			window.removeEventListener("keydown", onKeyDown, true);
+			window.removeEventListener("keyup", onKeyUp, true);
+			installed = false;
+		}
+		rebindMap.clear();
+		heldKeys.clear();
 	}
 	//#endregion
 	//#region src/types/messages.ts
@@ -1460,7 +1550,9 @@
 	}, true);
 	var g_fakeFullscreen = false;
 	var realRequestFullscreen = Element.prototype.requestFullscreen;
-	var realExitFullscreen = () => Document.prototype.exitFullscreen.call(document);
+	function realExitFullscreen() {
+		return Document.prototype.exitFullscreen.call(document);
+	}
 	Element.prototype.requestFullscreen = function(options) {
 		if (g_fakeFullscreen) {
 			log("[gamepad]: requestFullscreen intercepted (blocked/faked)");
@@ -1537,6 +1629,7 @@
 			const activateMsg = msg;
 			g_activePresetName = activateMsg.name;
 			g_fakeFullscreen = activateMsg.gamepadConfig.fakeFullscreen === true;
+			installRebinds(activateMsg.gamepadConfig.keyboardRebinds ?? []);
 			updateToggleCodes(activateMsg.gamepadConfig);
 			showToast(`'${activateMsg.name}' preset activated`);
 			activate(activateMsg.gamepadConfig, activateMsg.overlayMinimized !== void 0 ? { overlayMinimized: activateMsg.overlayMinimized } : void 0);
@@ -1546,9 +1639,11 @@
 				gamepadConfig: msg.gamepadConfig
 			};
 			g_fakeFullscreen = msg.gamepadConfig.fakeFullscreen === true;
+			installRebinds(msg.gamepadConfig.keyboardRebinds ?? []);
 			if (document.hasFocus()) applyPendingConfig();
 		} else if (msg.type === "DISABLE_GAMEPAD") {
 			g_fakeFullscreen = false;
+			removeRebinds();
 			if (isActive()) showToast("Mouse/keyboard disabled");
 			deactivate();
 		}

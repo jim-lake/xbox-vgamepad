@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from '@/components/base_components';
 import TextButton from '@/components/buttons/text_button';
 import SectionHeader from '@/components/popup/section-header';
 import { sendStartFindSprites } from './messaging';
-import { errorLog } from '@/tools/log';
+import { debugLog, errorLog } from '@/tools/log';
 
 type ModelState =
   | 'checking'
@@ -53,30 +53,32 @@ export default function FindSpritesSection() {
     if (modelState !== 'checking') {
       return;
     }
-    let cancelled = false;
-    void LanguageModel.availability({
-      expectedInputs: [{ type: 'image' }, { type: 'text', languages: ['en'] }],
-      expectedOutputs: [{ type: 'text', languages: ['en'] }],
-    }).then((avail) => {
-      if (cancelled) {
-        return;
+    void (async () => {
+      try {
+        const avail = await LanguageModel.availability({
+          expectedInputs: [
+            { type: 'image' },
+            { type: 'text', languages: ['en'] },
+          ],
+          expectedOutputs: [{ type: 'text', languages: ['en'] }],
+        });
+        debugLog('findSprites: availability returned', avail);
+        if (avail === 'unavailable') {
+          setModelState('unavailable');
+        } else if (avail === 'downloadable' || avail === 'downloading') {
+          setModelState('downloadable');
+        } else {
+          setModelState('ready');
+        }
+      } catch (e) {
+        errorLog('findSprites: availability check failed', e);
+        setModelState('error');
       }
-      if (avail === 'unavailable') {
-        setModelState('unavailable');
-      } else if (avail === 'downloadable') {
-        setModelState('downloadable');
-      } else if (avail === 'downloading') {
-        setModelState('downloading');
-      } else {
-        setModelState('ready');
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
+    })();
   }, [modelState]);
 
   async function ensureReady(): Promise<void> {
+    debugLog('findSprites: ensureReady starting download');
     setModelState('downloading');
     try {
       const session = await LanguageModel.create({
@@ -88,6 +90,7 @@ export default function FindSpritesSection() {
         monitor(m: EventTarget) {
           m.addEventListener('downloadprogress', (e: Event) => {
             const pe = e as ProgressEvent;
+            debugLog('findSprites: downloadprogress', pe.loaded, pe.total);
             if (pe.total > 0) {
               setProgress(pe.loaded / pe.total);
             }
@@ -95,6 +98,7 @@ export default function FindSpritesSection() {
         },
       });
       session.destroy();
+      debugLog('findSprites: model ready');
       setModelState('ready');
     } catch (e) {
       errorLog('ensureReady: model create failed', e);
@@ -103,8 +107,12 @@ export default function FindSpritesSection() {
   }
 
   async function onFindSprites(): Promise<void> {
-    await sendStartFindSprites();
-    window.close();
+    try {
+      await sendStartFindSprites();
+      window.close();
+    } catch (e) {
+      errorLog('findSprites: sendStartFindSprites failed', e);
+    }
   }
 
   function renderContent() {

@@ -608,7 +608,7 @@ export default function App() {
               onChange={handleChangeRebinds}
             />
 
-            <FindSpritesSection />
+            {import.meta.env.DEV && <FindSpritesSection />}
 
             <AdvancedSection
               globalBindings={activePopup.globalBindings}
