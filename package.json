@@ -14,6 +14,7 @@
     "test:integration": "sh test/run-integration.sh",
     "test:integration:single": "sh test/run-integration-single.sh",
     "test:unit": "sh test/run-unit.sh",
+    "test:unit:single": "sh test/run-unit-single.sh",
     "test:unit:sprite:background:manual": "tsx --tsconfig tsconfig.test.json test/unit/background-model-manual.ts",
     "test:unit:sprite:bounding-rects:manual": "tsx --tsconfig tsconfig.test.json test/unit/bounding-rects-manual.ts",
     "test:unit:sprite:candidate-queue:manual": "tsx --tsconfig tsconfig.test.json test/unit/candidate-queue-manual.ts",

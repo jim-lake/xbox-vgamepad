@@ -289,13 +289,18 @@ export default function App() {
     }
   }, [createPreset]);
 
-  const handleCopy = React.useCallback(
-    () => createPreset(activeConfigName, activePopup),
-    [createPreset, activeConfigName, activePopup]
-  );
+  const handleCopy = React.useCallback(() => {
+    const name = window.prompt('New profile name:', activeConfigName);
+    if (name?.trim()) {
+      void createPreset(name.trim(), activePopup);
+    }
+  }, [createPreset, activeConfigName, activePopup]);
 
   const handleDelete = React.useCallback(async () => {
     if (presetNames.length <= 1) {
+      return;
+    }
+    if (!window.confirm(`Delete "${activeConfigName}"?`)) {
       return;
     }
     const idx = activeIndex;
@@ -617,7 +622,7 @@ export default function App() {
               renameValue={renameValue}
               onRenameValueChange={setRenameValue}
               onRenameSubmit={() => void handleRenameSubmit()}
-              onCopy={() => void handleCopy()}
+              onCopy={handleCopy}
               onImport={handleImport}
               onExport={handleExport}
               onDelete={() => void handleDelete()}

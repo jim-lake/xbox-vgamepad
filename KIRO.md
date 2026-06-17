@@ -11,11 +11,10 @@ Always run these commands to verify changes:
 ```bash
 npm run ts:check   # TypeScript type checking
 npm run lint       # ESLint with auto-fix
-npm run test:unit  # Unit tests (fast, no browser)
-npm test           # Unit tests + builds extension (test mode) + runs Puppeteer integration tests
+npm test           # Browser and Unit tests
 ```
 
-All four must pass before considering a change complete.
+All three must pass before considering a change complete.
 
 ## Architecture
 
