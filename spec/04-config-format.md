@@ -80,4 +80,4 @@ Axes array: `[leftStickX, leftStickY, rightStickX, rightStickY]` (indices 0–3)
 
 - Default config name: `"default"`
 - Maximum presets: 25
-- Default sensitivity: `101`
+- Default sensitivity: `1000`

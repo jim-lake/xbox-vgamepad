@@ -58,6 +58,16 @@ When reading from storage:
 - When toggled, sends `ACTIVATE_GAMEPAD_CONFIG` or `DISABLE_GAMEPAD` to the active tab
 - Stores the enabled state in sync storage
 
+### Keyboard Rebinds
+
+- Section titled "Keyboard Rebinds" with an "Add Target" button
+- Users add a **target** key (the code to synthesize), then add **source** keys (physical keys that produce it)
+- Each target row shows its source key badges and a delete button
+- Adding a target that already exists is a no-op
+- Sources are added by pressing the physical key while in listen mode
+- Escape is captured normally (no cancel behavior — `allowEscape` is set on the capture modal)
+- Changes are persisted as `keyboardRebinds` on the `GamepadConfig` and hot-reloaded via `CONFIG_CHANGED`
+
 ### Header
 
 - Shows the currently detected game name (if any)

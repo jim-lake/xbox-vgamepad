@@ -39,7 +39,8 @@ Settings that apply globally to the extension, independent of the active preset.
 {
   "patchRemoteMultigamepad": true,
   "enableLogging": false,
-  "disableBlur": false
+  "disableBlur": false,
+  "autoSuspendOnInput": true
 }
 ```
 
@@ -48,6 +49,7 @@ Settings that apply globally to the extension, independent of the active preset.
 | `patchRemoteMultigamepad` | `boolean` | `true`  | Whether to apply the co-op webpack patch that fixes hardcoded gamepad indices for multiplayer. |
 | `enableLogging`           | `boolean` | `false` | Whether to enable debug logging in the extension's injected scripts.                           |
 | `disableBlur`             | `boolean` | `false` | Whether to disable the blur effect on the xCloud page when the extension overlay is active.    |
+| `autoSuspendOnInput`      | `boolean` | `true`  | Whether to auto-suspend running GameScripts when a physical input is detected.                 |
 
 ## GamepadConfig
 
@@ -57,7 +59,8 @@ A single preset:
 {
   "keyboardConfig": { "..." },
   "mouseConfig": { "..." },
-  "otherGamepadMode": "separate"
+  "otherGamepadMode": "separate",
+  "keyboardRebinds": [{ "from": "KeyZ", "to": ["Space"] }]
 }
 ```
 
@@ -66,6 +69,9 @@ A single preset:
 | `keyboardConfig`   | `GamepadKeyboardConfig`   | Yes      | Key code to action bindings.                                                                                                            |
 | `mouseConfig`      | `GamepadMouseConfig`      | Yes      | Mouse movement-to-analog stick settings.                                                                                                |
 | `otherGamepadMode` | `"combine" \| "separate"` | No       | How physical gamepads coexist with virtual pads. Defaults to `"separate"`. See [Physical Gamepad Handling](#physical-gamepad-handling). |
+| `keyboardRebinds`  | `KeyboardRebind[]`        | No       | Physical key remappings applied before input processing. See [Keyboard Rebinds](#keyboard-rebinds).                                     |
+| `unboundScripts`   | `GameScript[]`            | No       | Scripts not bound to any key (triggered programmatically). Defaults to `[]`.                                                            |
+| `fakeFullscreen`   | `boolean`                 | No       | Whether to apply a CSS hack to make the xCloud stream fill the viewport. Defaults to `false`.                                           |
 
 ## GamepadMouseConfig
 
@@ -73,7 +79,7 @@ Controls how mouse movement maps to analog sticks. Multiple targets are supporte
 
 ```json
 {
-  "mouseControls": [{ "stick": "right", "gamepadIndex": 0, "sensitivity": 101 }]
+  "mouseControls": [{ "stick": "right", "gamepadIndex": 0, "sensitivity": 1000 }]
 }
 ```
 
@@ -87,7 +93,7 @@ Controls how mouse movement maps to analog sticks. Multiple targets are supporte
 | -------------- | ------------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------- |
 | `stick`        | `"left" \| "right"` | Yes      |                       | Which analog stick on the target virtual pad mouse movement controls.                    |
 | `gamepadIndex` | `0 \| 1 \| 2 \| 3`  | Yes      |                       | Which virtual gamepad slot this mouse target drives.                                     |
-| `sensitivity`  | `number`            | Yes      | Integer, `1` – `1000` | Divisor for mouse movement-to-stick deflection. Higher = less sensitive. Default: `101`. |
+| `sensitivity`  | `number`            | Yes      | Integer, `1` – `1000` | Divisor for mouse movement-to-stick deflection. Higher = less sensitive. Default: `1000`. |
 
 ## GamepadKeyboardConfig
 
@@ -369,6 +375,37 @@ Virtual slots are owned by virtual pads and have physical input merged in. Non-v
 
 - When a virtual pad is enabled in combine mode, its keyboard/mouse state starts at zero (no keys pressed, no mouse movement). The merged output will immediately reflect any physical pad input at that slot since the merge happens at read time in `getGamepads()`.
 
+## Keyboard Rebinds
+
+An optional array on `GamepadConfig` that remaps physical key presses before they reach the input processor. Each entry specifies one physical key to intercept and the synthetic key codes to emit in its place.
+
+```json
+{
+  "keyboardRebinds": [
+    { "from": "KeyZ", "to": ["Space"] },
+    { "from": "Space", "to": ["Space", "KeyU"] }
+  ]
+}
+```
+
+| Field  | Type       | Required | Description                                                            |
+| ------ | ---------- | -------- | ---------------------------------------------------------------------- |
+| `from` | `string`   | Yes      | `KeyboardEvent.code` of the physical key to intercept.                 |
+| `to`   | `string[]` | Yes      | `KeyboardEvent.code` values to synthesize. May include `from` itself.  |
+
+### Rules
+
+- Each `from` value must be unique across the array (one physical key → one rebind entry).
+- `to` may contain multiple codes (one-to-many mapping).
+- `from` and `to` may be the same code (key fires itself plus additional targets).
+- `"Escape"` is allowed in both `from` and `to` (no restriction unlike `keyboardConfig`).
+- Empty `to` array is valid but has no runtime effect (the key passes through normally).
+- Empty string `from` entries are skipped at runtime.
+
+### Processing Order
+
+Rebinds are installed in the window capture phase and fire **before** the input processor's keydown/keyup handlers. The input processor only sees the synthetic events.
+
 ## Validation Rules
 
 1. **Escape key forbidden**: `"Escape"` must not be used as a key in `keyboardConfig`.
@@ -385,7 +422,7 @@ The built-in default preset (all actions target virtual pad 0):
 {
   "mouseConfig": {
     "mouseControls": [
-      { "stick": "right", "gamepadIndex": 0, "sensitivity": 101 }
+      { "stick": "right", "gamepadIndex": 0, "sensitivity": 1000 }
     ]
   },
   "keyboardConfig": {

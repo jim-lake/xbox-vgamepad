@@ -15,6 +15,8 @@
 | `08-popup-ui.md`            | Popup UI features, state management, chrome.storage                |
 | `09-injected-ui.md`         | In-page UI elements (toast, pointer lock overlay)                  |
 | `10-behavioral-contract.md` | Observable behavioral requirements the implementation must satisfy |
+| `11-ai-extract-sprites.md`  | AI-powered sprite extraction pipeline                              |
+| `12-keyboard-rebinds.md`    | Keyboard rebinding (physical key remapping before input processing)|
 
 Also reference `../JSON.md` for the authoritative JSON config format specification.
 
