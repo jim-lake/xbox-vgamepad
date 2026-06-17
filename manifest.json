@@ -14,7 +14,8 @@
         "https://xbox.com/*",
         "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "https://harbour.lol/*"
       ],
       "js": ["src/content/index.ts"],
       "run_at": "document_start"
@@ -24,7 +25,8 @@
         "https://xbox.com/*",
         "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "https://harbour.lol/*"
       ],
       "js": ["src/injected/main-world.ts"],
       "run_at": "document_start",
@@ -39,7 +41,8 @@
         "https://xbox.com/*",
         "https://www.xbox.com/*",
         "https://gamepad-tester.com/*",
-        "https://hardwaretester.com/*"
+        "https://hardwaretester.com/*",
+        "https://harbour.lol/*"
       ]
     }
   ],
