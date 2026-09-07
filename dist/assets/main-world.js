@@ -172,8 +172,8 @@
 	//#region src/injected/keyboard-rebind.ts
 	var rebindMap = /* @__PURE__ */ new Map();
 	var heldKeys = /* @__PURE__ */ new Set();
-	var dispatching = false;
-	function codeToKey(code) {
+	var dispatching$1 = false;
+	function codeToKey$1(code) {
 		if (code.startsWith("Key")) return code.slice(3).toLowerCase();
 		if (code.startsWith("Digit")) return code.slice(5);
 		switch (code) {
@@ -186,17 +186,17 @@
 		}
 	}
 	function onKeyDown(e) {
-		if (dispatching) return;
+		if (dispatching$1) return;
 		const toCodes = rebindMap.get(e.code);
 		if (toCodes === void 0) return;
 		e.stopImmediatePropagation();
 		e.preventDefault();
 		heldKeys.add(e.code);
 		const target = e.target ?? document;
-		dispatching = true;
+		dispatching$1 = true;
 		for (const toCode of toCodes) target.dispatchEvent(new KeyboardEvent("keydown", {
 			code: toCode,
-			key: codeToKey(toCode),
+			key: codeToKey$1(toCode),
 			bubbles: true,
 			cancelable: true,
 			composed: true,
@@ -206,10 +206,10 @@
 			metaKey: e.metaKey,
 			repeat: e.repeat
 		}));
-		dispatching = false;
+		dispatching$1 = false;
 	}
 	function onKeyUp(e) {
-		if (dispatching) return;
+		if (dispatching$1) return;
 		if (!heldKeys.has(e.code)) return;
 		const toCodes = rebindMap.get(e.code);
 		if (toCodes === void 0) {
@@ -220,10 +220,10 @@
 		e.preventDefault();
 		heldKeys.delete(e.code);
 		const target = e.target ?? document;
-		dispatching = true;
+		dispatching$1 = true;
 		for (const toCode of toCodes) target.dispatchEvent(new KeyboardEvent("keyup", {
 			code: toCode,
-			key: codeToKey(toCode),
+			key: codeToKey$1(toCode),
 			bubbles: true,
 			cancelable: true,
 			composed: true,
@@ -233,7 +233,7 @@
 			metaKey: e.metaKey,
 			repeat: false
 		}));
-		dispatching = false;
+		dispatching$1 = false;
 	}
 	var installed = false;
 	function installRebinds(rebinds) {
@@ -732,11 +732,120 @@
 		};
 	}
 	//#endregion
+	//#region src/injected/script-keys.ts
+	var dispatching = false;
+	var heldMouseButtons = /* @__PURE__ */ new Map();
+	function codeToKey(code) {
+		if (code.startsWith("Key")) return code.slice(3).toLowerCase();
+		if (code.startsWith("Digit")) return code.slice(5);
+		switch (code) {
+			case "Space": return " ";
+			case "Enter": return "Enter";
+			case "Tab": return "Tab";
+			case "Backspace": return "Backspace";
+			default: return code;
+		}
+	}
+	function codeToMouseButton(code) {
+		if (code === "Click") return 0;
+		if (code === "RightClick") return 2;
+		return null;
+	}
+	function getTarget() {
+		return document.getElementById("game-stream") ?? document.body;
+	}
+	function getMouseInit(button) {
+		const rect = getTarget().getBoundingClientRect();
+		const clientX = rect.left + rect.width / 2;
+		const clientY = rect.top + rect.height / 2;
+		return {
+			button,
+			buttons: button === 0 ? 1 : button === 2 ? 2 : 1 << button,
+			clientX,
+			clientY,
+			screenX: clientX,
+			screenY: clientY,
+			movementX: 0,
+			movementY: 0,
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			view: window,
+			detail: 1
+		};
+	}
+	function getPointerInit(button) {
+		return {
+			...getMouseInit(button),
+			pointerId: 1,
+			pointerType: "mouse",
+			width: 1,
+			height: 1,
+			pressure: .5,
+			isPrimary: true
+		};
+	}
+	function dispatchKeyDown(code) {
+		dispatching = true;
+		const btn = codeToMouseButton(code);
+		if (btn !== null) {
+			heldMouseButtons.set(btn, (heldMouseButtons.get(btn) ?? 0) + 1);
+			const target = getTarget();
+			target.dispatchEvent(new PointerEvent("pointerdown", getPointerInit(btn)));
+			target.dispatchEvent(new MouseEvent("mousedown", getMouseInit(btn)));
+		} else document.dispatchEvent(new KeyboardEvent("keydown", {
+			code,
+			key: codeToKey(code),
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			repeat: false
+		}));
+		dispatching = false;
+	}
+	function dispatchKeyUp(code) {
+		dispatching = true;
+		const btn = codeToMouseButton(code);
+		if (btn !== null) {
+			const count = (heldMouseButtons.get(btn) ?? 1) - 1;
+			if (count <= 0) heldMouseButtons.delete(btn);
+			else heldMouseButtons.set(btn, count);
+			const target = getTarget();
+			const upInit = {
+				...getPointerInit(btn),
+				buttons: 0,
+				pressure: 0
+			};
+			const mouseUpInit = {
+				...getMouseInit(btn),
+				buttons: 0
+			};
+			target.dispatchEvent(new PointerEvent("pointerup", upInit));
+			target.dispatchEvent(new MouseEvent("mouseup", mouseUpInit));
+			target.dispatchEvent(new MouseEvent("click", mouseUpInit));
+		} else document.dispatchEvent(new KeyboardEvent("keyup", {
+			code,
+			key: codeToKey(code),
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+			repeat: false
+		}));
+		dispatching = false;
+	}
+	function isScriptDispatching() {
+		return dispatching;
+	}
+	function isScriptHoldingButton(button) {
+		return (heldMouseButtons.get(button) ?? 0) > 0;
+	}
+	//#endregion
 	//#region src/injected/script-runner.ts
 	var FPS_MS = 1e3 / 60;
 	function runScript(script) {
 		const state = { cancelled: false };
 		const held = [];
+		const heldKeys = [];
 		const pointedSticks = [];
 		const rotationTimeouts = [];
 		const rotationPromises = [];
@@ -754,6 +863,8 @@
 		function releaseAll() {
 			for (const action of [...held].reverse()) executeUnpress(action);
 			held.length = 0;
+			for (const key of [...heldKeys].reverse()) dispatchKeyUp(key);
+			heldKeys.length = 0;
 			for (const p of pointedSticks) getSimulator(p.gamepadIndex).moveStick(p.stick, 0, 0);
 			pointedSticks.length = 0;
 			for (const tid of rotationTimeouts) clearTimeout(tid);
@@ -879,6 +990,19 @@
 						break;
 					case "up":
 						for (const btn of step.buttons) releaseAction(btn);
+						break;
+					case "key_down":
+						for (const key of step.keys) {
+							dispatchKeyDown(key);
+							heldKeys.push(key);
+						}
+						break;
+					case "key_up":
+						for (const key of step.keys) {
+							dispatchKeyUp(key);
+							const idx = heldKeys.indexOf(key);
+							if (idx !== -1) heldKeys.splice(idx, 1);
+						}
 						break;
 					case "delay": {
 						if (step.durationMs === "infinite") {
@@ -1228,8 +1352,11 @@
 	var g_activeIndices = /* @__PURE__ */ new Set();
 	var g_onKeyDown = null;
 	var g_onKeyUp = null;
+	var g_onPointerDown = null;
+	var g_onPointerUp = null;
 	var g_onMouseDown = null;
 	var g_onMouseUp = null;
+	var g_onClick = null;
 	var g_onWheel = null;
 	var g_onMouseMove = null;
 	var g_onPointerLockChange = null;
@@ -1311,26 +1438,77 @@
 		document.addEventListener("pointerlockchange", g_onPointerLockChange);
 	}
 	function attachMouseButtons() {
-		const hasClick = g_keyMap.has("Click");
-		const hasRightClick = g_keyMap.has("RightClick");
+		const hasClick = g_keyMap.has("Click") || g_scriptMap.has("Click");
+		const hasRightClick = g_keyMap.has("RightClick") || g_scriptMap.has("RightClick");
 		const hasScroll = g_keyMap.has("Scroll");
 		const container = getGameContainer();
 		if (!container) return;
 		if (hasClick || hasRightClick) {
-			g_onMouseDown = (e) => {
+			g_onPointerDown = (e) => {
+				if (isScriptDispatching()) return;
+				if (isScriptHoldingButton(e.button)) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+					return;
+				}
 				const code = e.button === 0 ? "Click" : e.button === 2 ? "RightClick" : null;
 				if (!code) return;
 				const actions = g_keyMap.get(code);
 				if (actions) for (const action of actions) executePress(action);
+				const scripts = g_scriptMap.get(code);
+				if (scripts) for (let i = 0; i < scripts.length; i++) {
+					const script = scripts[i];
+					if (script) g_scriptManager.onKeyDown(`${code}:${String(i)}`, script);
+				}
+				if (actions ?? scripts) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				}
 			};
-			g_onMouseUp = (e) => {
+			g_onPointerUp = (e) => {
+				if (isScriptDispatching()) return;
 				const code = e.button === 0 ? "Click" : e.button === 2 ? "RightClick" : null;
 				if (!code) return;
+				if (isScriptHoldingButton(e.button)) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+					return;
+				}
 				const actions = g_keyMap.get(code);
 				if (actions) for (const action of actions) executeUnpress(action);
+				const scripts = g_scriptMap.get(code);
+				if (scripts) for (let i = 0; i < scripts.length; i++) {
+					const script = scripts[i];
+					if (script) g_scriptManager.onKeyUp(`${code}:${String(i)}`, script);
+				}
+				if (actions ?? scripts) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				}
+			};
+			container.addEventListener("pointerdown", g_onPointerDown, true);
+			container.addEventListener("pointerup", g_onPointerUp, true);
+			g_onMouseDown = (e) => {
+				if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				}
+			};
+			g_onMouseUp = (e) => {
+				if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				}
+			};
+			g_onClick = (e) => {
+				if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				}
 			};
 			container.addEventListener("mousedown", g_onMouseDown, true);
 			container.addEventListener("mouseup", g_onMouseUp, true);
+			container.addEventListener("click", g_onClick, true);
 		}
 		if (hasScroll) {
 			g_scrollActions = g_keyMap.get("Scroll") ?? null;
@@ -1352,7 +1530,7 @@
 	}
 	function attachKeyboard() {
 		g_onKeyDown = (e) => {
-			if (e.repeat) return;
+			if (e.repeat || isScriptDispatching()) return;
 			const actions = g_keyMap.get(e.code);
 			if (actions) for (const action of actions) executePress(action);
 			const scripts = g_scriptMap.get(e.code);
@@ -1360,15 +1538,23 @@
 				const script = scripts[i];
 				if (script) g_scriptManager.onKeyDown(`${e.code}:${String(i)}`, script);
 			}
-			if ((actions ?? scripts) && e.cancelable) e.preventDefault();
+			if (actions ?? scripts) {
+				e.stopImmediatePropagation();
+				e.preventDefault();
+			}
 		};
 		g_onKeyUp = (e) => {
+			if (isScriptDispatching()) return;
 			const actions = g_keyMap.get(e.code);
 			if (actions) for (const action of actions) executeUnpress(action);
 			const scripts = g_scriptMap.get(e.code);
 			if (scripts) for (let i = 0; i < scripts.length; i++) {
 				const script = scripts[i];
 				if (script) g_scriptManager.onKeyUp(`${e.code}:${String(i)}`, script);
+			}
+			if (actions ?? scripts) {
+				e.stopImmediatePropagation();
+				e.preventDefault();
 			}
 		};
 		document.addEventListener("keydown", g_onKeyDown, true);
@@ -1385,12 +1571,18 @@
 		}
 		const container = getGameContainer();
 		if (container) {
+			if (g_onPointerDown) container.removeEventListener("pointerdown", g_onPointerDown, true);
+			if (g_onPointerUp) container.removeEventListener("pointerup", g_onPointerUp, true);
 			if (g_onMouseDown) container.removeEventListener("mousedown", g_onMouseDown, true);
 			if (g_onMouseUp) container.removeEventListener("mouseup", g_onMouseUp, true);
+			if (g_onClick) container.removeEventListener("click", g_onClick, true);
 			if (g_onWheel) container.removeEventListener("wheel", g_onWheel, true);
 		}
+		g_onPointerDown = null;
+		g_onPointerUp = null;
 		g_onMouseDown = null;
 		g_onMouseUp = null;
+		g_onClick = null;
 		g_onWheel = null;
 		if (g_onPointerLockChange) {
 			document.removeEventListener("pointerlockchange", g_onPointerLockChange);

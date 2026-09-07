@@ -79,7 +79,9 @@ Controls how mouse movement maps to analog sticks. Multiple targets are supporte
 
 ```json
 {
-  "mouseControls": [{ "stick": "right", "gamepadIndex": 0, "sensitivity": 1000 }]
+  "mouseControls": [
+    { "stick": "right", "gamepadIndex": 0, "sensitivity": 1000 }
+  ]
 }
 ```
 
@@ -89,10 +91,10 @@ Controls how mouse movement maps to analog sticks. Multiple targets are supporte
 
 ### MouseControlTarget
 
-| Field          | Type                | Required | Valid Values          | Description                                                                              |
-| -------------- | ------------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------- |
-| `stick`        | `"left" \| "right"` | Yes      |                       | Which analog stick on the target virtual pad mouse movement controls.                    |
-| `gamepadIndex` | `0 \| 1 \| 2 \| 3`  | Yes      |                       | Which virtual gamepad slot this mouse target drives.                                     |
+| Field          | Type                | Required | Valid Values          | Description                                                                               |
+| -------------- | ------------------- | -------- | --------------------- | ----------------------------------------------------------------------------------------- |
+| `stick`        | `"left" \| "right"` | Yes      |                       | Which analog stick on the target virtual pad mouse movement controls.                     |
+| `gamepadIndex` | `0 \| 1 \| 2 \| 3`  | Yes      |                       | Which virtual gamepad slot this mouse target drives.                                      |
 | `sensitivity`  | `number`            | Yes      | Integer, `1` – `1000` | Divisor for mouse movement-to-stick deflection. Higher = less sensitive. Default: `1000`. |
 
 ## GamepadKeyboardConfig
@@ -240,16 +242,16 @@ These toggle keybindings work regardless of whether the gamepad is currently con
 
 #### ScriptAction
 
-| Shape                                                              | Description                                                                                                                                                         |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{ "type": "down", "buttons": [GamepadAction, ...] }`              | Press the listed buttons (does not release them).                                                                                                                   |
-| `{ "type": "up",   "buttons": [GamepadAction, ...] }`              | Release the listed buttons.                                                                                                                                         |
-| `{ "type": "key_down", "keys": [string, ...] }`                    | Dispatch synthetic `keydown` events for the listed key codes. Keys are tracked and released on script cancel.                                                       |
-| `{ "type": "key_up", "keys": [string, ...] }`                      | Dispatch synthetic `keyup` events for the listed key codes and stop tracking them.                                                                                  |
-| `{ "type": "delay", "durationMs": 50 }`                            | Wait `durationMs` milliseconds before the next step. `durationMs` may also be `"infinite"` — the delay never resolves, suspending the script until it is cancelled. |
-| `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }` | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled.                                                 |
-| `{ "type": "point", "gamepadIndex": N, "stick": S, "x": X, "y": Y }` | Set the specified stick to the given (x, y) position. Values clamped to `[-1, 1]`. Stick resets to (0,0) on script cancel.                                       |
-| `{ "type": "rotate", ... }`                                        | Sweep a stick from a start position to an end position over time. See [Rotate Action](#rotate-action) below.                                                        |
+| Shape                                                                | Description                                                                                                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ "type": "down", "buttons": [GamepadAction, ...] }`                | Press the listed buttons (does not release them).                                                                                                                   |
+| `{ "type": "up",   "buttons": [GamepadAction, ...] }`                | Release the listed buttons.                                                                                                                                         |
+| `{ "type": "key_down", "keys": [string, ...] }`                      | Dispatch synthetic `keydown` events for the listed key codes. Keys are tracked and released on script cancel.                                                       |
+| `{ "type": "key_up", "keys": [string, ...] }`                        | Dispatch synthetic `keyup` events for the listed key codes and stop tracking them.                                                                                  |
+| `{ "type": "delay", "durationMs": 50 }`                              | Wait `durationMs` milliseconds before the next step. `durationMs` may also be `"infinite"` — the delay never resolves, suspending the script until it is cancelled. |
+| `{ "type": "loop", "count": 3, "actions": [ ...ScriptAction[] ] }`   | Execute the nested `actions` `count` times. `count` may also be `"infinite"` to loop until the script is cancelled.                                                 |
+| `{ "type": "point", "gamepadIndex": N, "stick": S, "x": X, "y": Y }` | Set the specified stick to the given (x, y) position. Values clamped to `[-1, 1]`. Stick resets to (0,0) on script cancel.                                          |
+| `{ "type": "rotate", ... }`                                          | Sweep a stick from a start position to an end position over time. See [Rotate Action](#rotate-action) below.                                                        |
 
 #### Hold Pattern
 
@@ -328,17 +330,17 @@ Sweeps a stick from a start position to an end position along an arc over a spec
 }
 ```
 
-| Field         | Type                            | Description                                                                                       |
-| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `gamepadIndex`| `0 \| 1 \| 2 \| 3`             | Virtual pad to control.                                                                           |
-| `stick`       | `"left" \| "right"`            | Which stick to move.                                                                              |
-| `startX`      | `number` (`-1` to `1`)         | Starting X position.                                                                              |
-| `startY`      | `number` (`-1` to `1`)         | Starting Y position.                                                                              |
-| `endX`        | `number` (`-1` to `1`)         | Ending X position.                                                                                |
-| `endY`        | `number` (`-1` to `1`)         | Ending Y position.                                                                                |
-| `directions`  | `4 \| 8 \| "infinite"`         | Number of discrete positions along the arc. `"infinite"` = smooth interpolation.                  |
-| `rotateMs`    | `number`                        | Duration of the sweep in milliseconds.                                                            |
-| `clockwise`   | `boolean`                       | Direction of rotation (note: gamepad Y axis is inverted, so clockwise matches visual expectation).|
+| Field          | Type                   | Description                                                                                        |
+| -------------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `gamepadIndex` | `0 \| 1 \| 2 \| 3`     | Virtual pad to control.                                                                            |
+| `stick`        | `"left" \| "right"`    | Which stick to move.                                                                               |
+| `startX`       | `number` (`-1` to `1`) | Starting X position.                                                                               |
+| `startY`       | `number` (`-1` to `1`) | Starting Y position.                                                                               |
+| `endX`         | `number` (`-1` to `1`) | Ending X position.                                                                                 |
+| `endY`         | `number` (`-1` to `1`) | Ending Y position.                                                                                 |
+| `directions`   | `4 \| 8 \| "infinite"` | Number of discrete positions along the arc. `"infinite"` = smooth interpolation.                   |
+| `rotateMs`     | `number`               | Duration of the sweep in milliseconds.                                                             |
+| `clockwise`    | `boolean`              | Direction of rotation (note: gamepad Y axis is inverted, so clockwise matches visual expectation). |
 
 When `startX === endX && startY === endY`, the sweep traces a full circle. The stick resets to (0, 0) on script cancellation.
 
@@ -447,10 +449,10 @@ An optional array on `GamepadConfig` that remaps physical key presses before the
 }
 ```
 
-| Field  | Type       | Required | Description                                                            |
-| ------ | ---------- | -------- | ---------------------------------------------------------------------- |
-| `from` | `string`   | Yes      | `KeyboardEvent.code` of the physical key to intercept.                 |
-| `to`   | `string[]` | Yes      | `KeyboardEvent.code` values to synthesize. May include `from` itself.  |
+| Field  | Type       | Required | Description                                                           |
+| ------ | ---------- | -------- | --------------------------------------------------------------------- |
+| `from` | `string`   | Yes      | `KeyboardEvent.code` of the physical key to intercept.                |
+| `to`   | `string[]` | Yes      | `KeyboardEvent.code` values to synthesize. May include `from` itself. |
 
 ### Rules
 

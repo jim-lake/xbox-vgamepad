@@ -146,25 +146,13 @@ interface KeysPickerProps {
 function KeysPicker({ keys, onRemove, onAdd }: KeysPickerProps) {
   const [capturing, setCapturing] = useState(false);
 
-  React.useEffect(() => {
-    if (!capturing) {
-      return;
-    }
-    function handler(e: KeyboardEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.code === 'Escape') {
-        setCapturing(false);
-        return;
-      }
-      onAdd(e.code);
+  const handleCapture = React.useCallback(
+    (code: string) => {
+      onAdd(code);
       setCapturing(false);
-    }
-    document.addEventListener('keydown', handler, true);
-    return () => {
-      document.removeEventListener('keydown', handler, true);
-    };
-  }, [capturing, onAdd]);
+    },
+    [onAdd]
+  );
 
   return (
     <View style={styles.buttonList}>
@@ -179,6 +167,7 @@ function KeysPicker({ keys, onRemove, onAdd }: KeysPickerProps) {
       ))}
       {capturing ? (
         <KeyCaptureModal
+          onCapture={handleCapture}
           onClose={() => {
             setCapturing(false);
           }}

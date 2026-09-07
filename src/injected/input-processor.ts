@@ -10,7 +10,7 @@ import { getSimulator, updateVirtualSlots } from './gamepad-simulator';
 import * as gamepadSimulator from './gamepad-simulator';
 import { executePress, executeUnpress } from './script-actions';
 import { ScriptManager } from './script-runner';
-import { isScriptDispatching } from './script-keys';
+import { isScriptDispatching, isScriptHoldingButton } from './script-keys';
 import {
   showOverlay,
   removeOverlay,
@@ -109,8 +109,11 @@ let g_activeIndices = new Set<0 | 1 | 2 | 3>();
 
 let g_onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 let g_onKeyUp: ((e: KeyboardEvent) => void) | null = null;
+let g_onPointerDown: ((e: PointerEvent) => void) | null = null;
+let g_onPointerUp: ((e: PointerEvent) => void) | null = null;
 let g_onMouseDown: ((e: MouseEvent) => void) | null = null;
 let g_onMouseUp: ((e: MouseEvent) => void) | null = null;
+let g_onClick: ((e: MouseEvent) => void) | null = null;
 let g_onWheel: ((e: WheelEvent) => void) | null = null;
 let g_onMouseMove: ((e: MouseEvent) => void) | null = null;
 let g_onPointerLockChange: (() => void) | null = null;
@@ -230,8 +233,9 @@ function attachMouseMovement(): void {
 }
 
 function attachMouseButtons(): void {
-  const hasClick = g_keyMap.has('Click');
-  const hasRightClick = g_keyMap.has('RightClick');
+  const hasClick = g_keyMap.has('Click') || g_scriptMap.has('Click');
+  const hasRightClick =
+    g_keyMap.has('RightClick') || g_scriptMap.has('RightClick');
   const hasScroll = g_keyMap.has('Scroll');
 
   const container = getGameContainer();
@@ -240,7 +244,15 @@ function attachMouseButtons(): void {
   }
 
   if (hasClick || hasRightClick) {
-    g_onMouseDown = (e: MouseEvent) => {
+    g_onPointerDown = (e: PointerEvent) => {
+      if (isScriptDispatching()) {
+        return;
+      }
+      if (isScriptHoldingButton(e.button)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return;
+      }
       const code =
         e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
       if (!code) {
@@ -252,11 +264,32 @@ function attachMouseButtons(): void {
           executePress(action);
         }
       }
+      const scripts = g_scriptMap.get(code);
+      if (scripts) {
+        for (let i = 0; i < scripts.length; i++) {
+          const script = scripts[i];
+          if (script) {
+            g_scriptManager.onKeyDown(`${code}:${String(i)}`, script);
+          }
+        }
+      }
+      if (actions ?? scripts) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
     };
-    g_onMouseUp = (e: MouseEvent) => {
+    g_onPointerUp = (e: PointerEvent) => {
+      if (isScriptDispatching()) {
+        return;
+      }
       const code =
         e.button === 0 ? 'Click' : e.button === 2 ? 'RightClick' : null;
       if (!code) {
+        return;
+      }
+      if (isScriptHoldingButton(e.button)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
         return;
       }
       const actions = g_keyMap.get(code);
@@ -265,6 +298,47 @@ function attachMouseButtons(): void {
           executeUnpress(action);
         }
       }
+      const scripts = g_scriptMap.get(code);
+      if (scripts) {
+        for (let i = 0; i < scripts.length; i++) {
+          const script = scripts[i];
+          if (script) {
+            g_scriptManager.onKeyUp(`${code}:${String(i)}`, script);
+          }
+        }
+      }
+      if (actions ?? scripts) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    };
+    container.addEventListener(
+      'pointerdown',
+      g_onPointerDown as EventListener,
+      true
+    );
+    container.addEventListener(
+      'pointerup',
+      g_onPointerUp as EventListener,
+      true
+    );
+    g_onMouseDown = (e: MouseEvent) => {
+      if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    };
+    g_onMouseUp = (e: MouseEvent) => {
+      if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    };
+    g_onClick = (e: MouseEvent) => {
+      if (!isScriptDispatching() && isScriptHoldingButton(e.button)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
     };
     container.addEventListener(
       'mousedown',
@@ -272,6 +346,7 @@ function attachMouseButtons(): void {
       true
     );
     container.addEventListener('mouseup', g_onMouseUp as EventListener, true);
+    container.addEventListener('click', g_onClick as EventListener, true);
   }
 
   if (hasScroll) {
@@ -325,7 +400,8 @@ function attachKeyboard(): void {
         }
       }
     }
-    if ((actions ?? scripts) && e.cancelable) {
+    if (actions ?? scripts) {
+      e.stopImmediatePropagation();
       e.preventDefault();
     }
   };
@@ -348,6 +424,10 @@ function attachKeyboard(): void {
         }
       }
     }
+    if (actions ?? scripts) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
   };
   document.addEventListener('keydown', g_onKeyDown, true);
   document.addEventListener('keyup', g_onKeyUp, true);
@@ -364,6 +444,20 @@ function removeListeners(): void {
   }
   const container = getGameContainer();
   if (container) {
+    if (g_onPointerDown) {
+      container.removeEventListener(
+        'pointerdown',
+        g_onPointerDown as EventListener,
+        true
+      );
+    }
+    if (g_onPointerUp) {
+      container.removeEventListener(
+        'pointerup',
+        g_onPointerUp as EventListener,
+        true
+      );
+    }
     if (g_onMouseDown) {
       container.removeEventListener(
         'mousedown',
@@ -378,12 +472,22 @@ function removeListeners(): void {
         true
       );
     }
+    if (g_onClick) {
+      container.removeEventListener(
+        'click',
+        g_onClick as EventListener,
+        true
+      );
+    }
     if (g_onWheel) {
       container.removeEventListener('wheel', g_onWheel as EventListener, true);
     }
   }
+  g_onPointerDown = null;
+  g_onPointerUp = null;
   g_onMouseDown = null;
   g_onMouseUp = null;
+  g_onClick = null;
   g_onWheel = null;
   if (g_onPointerLockChange) {
     document.removeEventListener('pointerlockchange', g_onPointerLockChange);

@@ -36,35 +36,16 @@ export default function ScriptEditor({
   onListeningEntryChange,
   onChangeBindings,
 }: Props) {
-  React.useEffect(() => {
-    if (listeningEntry === null) {
-      return;
-    }
-    const entry = listeningEntry;
-    const scriptId = scripts.find((s) => s.script === entry.script)?.scriptId;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.code === 'Escape') {
-        onListeningEntryChange(null);
+  const handleCapture = React.useCallback(
+    (code: string) => {
+      if (listeningEntry === null) {
         return;
       }
-      addKey(e.code);
-    }
-    function handleMouseDown(e: MouseEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      addKey(e.button === 2 ? 'RightClick' : 'Click');
-    }
-    function handleContextMenu(e: Event) {
-      e.preventDefault();
-    }
-
-    function addKey(code: string) {
+      const entry = listeningEntry;
+      const scriptId = scripts.find((s) => s.script === entry.script)?.scriptId;
       if (!scriptId) {
         errorLog(
-          'addKey: could not resolve scriptId for listeningEntry',
+          'handleCapture: could not resolve scriptId for listeningEntry',
           entry
         );
         onListeningEntryChange(null);
@@ -72,7 +53,7 @@ export default function ScriptEditor({
       }
       const binding = scriptBindings.find((b) => b.scriptId === scriptId);
       if (!binding) {
-        errorLog('addKey: no binding found for scriptId', scriptId);
+        errorLog('handleCapture: no binding found for scriptId', scriptId);
         onListeningEntryChange(null);
         return;
       }
@@ -84,23 +65,15 @@ export default function ScriptEditor({
         scripts
       );
       onListeningEntryChange(null);
-    }
-
-    document.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    document.addEventListener('contextmenu', handleContextMenu, true);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('contextmenu', handleContextMenu, true);
-    };
-  }, [
-    listeningEntry,
-    scriptBindings,
-    scripts,
-    onChangeBindings,
-    onListeningEntryChange,
-  ]);
+    },
+    [
+      listeningEntry,
+      scriptBindings,
+      scripts,
+      onChangeBindings,
+      onListeningEntryChange,
+    ]
+  );
 
   function handleScriptChange(scriptId: string, newScript: PopupGameScript) {
     onChangeBindings(
@@ -115,7 +88,6 @@ export default function ScriptEditor({
     if (!window.confirm('Delete this script?')) {
       return;
     }
-    // Only remove from scripts — stale bindings are culled on save
     onChangeBindings(
       scriptBindings,
       scripts.filter((s) => s.scriptId !== scriptId)
@@ -188,6 +160,7 @@ export default function ScriptEditor({
 
       {listeningEntry !== null && (
         <KeyCaptureModal
+          onCapture={handleCapture}
           onClose={() => {
             onListeningEntryChange(null);
           }}

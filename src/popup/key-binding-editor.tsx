@@ -28,61 +28,16 @@ export default function KeyBindingEditor({
     null
   );
 
-  React.useEffect(() => {
-    if (listening === null) {
-      return;
-    }
-
-    function addBinding(code: string) {
+  const handleCapture = React.useCallback(
+    (code: string) => {
       if (listening === null) {
         return;
       }
       onChange(listening, code, 'add');
       setListening(null);
-    }
-
-    function handleKeyDown(e: KeyboardEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.code === 'Escape') {
-        setListening(null);
-        return;
-      }
-      addBinding(e.code);
-    }
-
-    function handleMouseDown(e: MouseEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.button === 0) {
-        addBinding('Click');
-      } else if (e.button === 2) {
-        addBinding('RightClick');
-      }
-    }
-
-    function handleWheel(e: WheelEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      addBinding('Scroll');
-    }
-
-    function handleContextMenu(e: Event) {
-      e.preventDefault();
-    }
-
-    document.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    document.addEventListener('wheel', handleWheel, true);
-    document.addEventListener('contextmenu', handleContextMenu, true);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('wheel', handleWheel, true);
-      document.removeEventListener('contextmenu', handleContextMenu, true);
-    };
-  }, [listening, onChange]);
+    },
+    [listening, onChange]
+  );
 
   return (
     <View style={styles.container}>
@@ -108,6 +63,8 @@ export default function KeyBindingEditor({
 
       {listening !== null && (
         <KeyCaptureModal
+          captureScroll
+          onCapture={handleCapture}
           onClose={() => {
             setListening(null);
           }}

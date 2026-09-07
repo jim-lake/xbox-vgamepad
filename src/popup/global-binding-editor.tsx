@@ -40,28 +40,16 @@ export default function GlobalBindingEditor({
     return map;
   }, [globalBindings]);
 
-  React.useEffect(() => {
-    if (listening === null) {
-      return;
-    }
-    const action = listening;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.code === 'Escape') {
-        setListening(null);
+  const handleCapture = React.useCallback(
+    (code: string) => {
+      if (listening === null) {
         return;
       }
-      onChange(action, e.code, 'add');
+      onChange(listening, code, 'add');
       setListening(null);
-    }
-
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [listening, onChange]);
+    },
+    [listening, onChange]
+  );
 
   return (
     <View style={styles.container}>
@@ -85,6 +73,7 @@ export default function GlobalBindingEditor({
 
       {listening !== null && (
         <KeyCaptureModal
+          onCapture={handleCapture}
           onClose={() => {
             setListening(null);
           }}

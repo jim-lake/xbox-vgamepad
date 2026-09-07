@@ -10,8 +10,8 @@ An optional array of `KeyboardRebind` objects:
 
 ```ts
 interface KeyboardRebind {
-  from: string;   // KeyboardEvent.code of the physical key to intercept
-  to: string[];   // KeyboardEvent.codes to synthesize in its place
+  from: string; // KeyboardEvent.code of the physical key to intercept
+  to: string[]; // KeyboardEvent.codes to synthesize in its place
 }
 ```
 
@@ -98,16 +98,16 @@ On `DISABLE_GAMEPAD`:
 
 Converts a `KeyboardEvent.code` to the corresponding `key` value for synthetic events:
 
-| Code pattern    | Resulting `key`           |
-| --------------- | ------------------------- |
-| `Key<X>`        | Lowercase letter (`x`)    |
-| `Digit<N>`      | The digit (`N`)           |
-| `Space`         | `" "` (space character)   |
-| `Enter`         | `"Enter"`                 |
-| `Tab`           | `"Tab"`                   |
-| `Escape`        | `"Escape"`                |
-| `Backspace`     | `"Backspace"`             |
-| Other           | The code string unchanged |
+| Code pattern | Resulting `key`           |
+| ------------ | ------------------------- |
+| `Key<X>`     | Lowercase letter (`x`)    |
+| `Digit<N>`   | The digit (`N`)           |
+| `Space`      | `" "` (space character)   |
+| `Enter`      | `"Enter"`                 |
+| `Tab`        | `"Tab"`                   |
+| `Escape`     | `"Escape"`                |
+| `Backspace`  | `"Backspace"`             |
+| Other        | The code string unchanged |
 
 ## Lifecycle
 

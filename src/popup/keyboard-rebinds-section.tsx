@@ -33,50 +33,26 @@ export default function KeyboardRebindsSection({
 
   const targets = [...keyboardRemaps.keys()].sort((a, b) => a.localeCompare(b));
 
-  React.useEffect(() => {
+  function handleCapture(code: string) {
     if (listenMode === null) {
       return;
     }
-
-    function handleKeyDown(e: KeyboardEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (listenMode === null) {
+    if (listenMode.type === 'add-target') {
+      if (keyboardRemaps.has(code)) {
+        setListenMode(null);
         return;
       }
-      const code = e.code;
-      if (listenMode.type === 'add-target') {
-        if (keyboardRemaps.has(code)) {
-          setListenMode(null);
-          return;
-        }
-        onChange(new Map([...keyboardRemaps, [code, []]]));
-      } else {
-        const existing = keyboardRemaps.get(listenMode.target) ?? [];
-        if (!existing.includes(code)) {
-          onChange(
-            new Map([
-              ...keyboardRemaps,
-              [listenMode.target, [...existing, code]],
-            ])
-          );
-        }
+      onChange(new Map([...keyboardRemaps, [code, []]]));
+    } else {
+      const existing = keyboardRemaps.get(listenMode.target) ?? [];
+      if (!existing.includes(code)) {
+        onChange(
+          new Map([...keyboardRemaps, [listenMode.target, [...existing, code]]])
+        );
       }
-      setListenMode(null);
     }
-
-    function handleMouseDown(e: MouseEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    document.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-    };
-  }, [listenMode, keyboardRemaps, onChange]);
+    setListenMode(null);
+  }
 
   return (
     <View style={styles.section}>
@@ -124,6 +100,7 @@ export default function KeyboardRebindsSection({
       {listenMode !== null && (
         <KeyCaptureModal
           allowEscape
+          onCapture={handleCapture}
           onClose={() => {
             setListenMode(null);
           }}
